@@ -84,6 +84,16 @@ function macheApp(optionen) {
   check("Status meldet: nur dieses Gerät", /Nur dieses Gerät/.test(q("sync-status").textContent),
     q("sync-status").textContent);
 
+  // Versionsanzeige — sie soll verraten, welche Fassung ein Gerät geladen hat
+  {
+    const gezeigt = q("app-version").textContent;
+    check("Fassung wird angezeigt", /^Fassung v\d+$/.test(gezeigt), gezeigt);
+    const sw = fs.readFileSync(path.join(APP, "sw.js"), "utf8");
+    const swVersion = (sw.match(/CACHE_VERSION = "(v\d+)"/) || [])[1];
+    check("Fassung stimmt mit dem Service Worker überein",
+      gezeigt === "Fassung " + swVersion, gezeigt + " vs " + swVersion);
+  }
+
   console.log("\n--- Fotoauswahl: Kamera und Album getrennt ---");
   {
     const cam = q("input-photo-camera");
@@ -202,13 +212,22 @@ function macheApp(optionen) {
 
     check("Standardfarbe ist kräftiges Rot", q("input-color").value === "#ff3b30",
       q("input-color").value);
-    check("Standardstärke erhöht", q("input-width").value === "12", q("input-width").value);
-    check("Regler reicht bis 40", q("input-width").max === "40", q("input-width").max);
-    check("Stärke wird angezeigt", q("width-value").textContent === "12",
+    check("Standardstärke 25", q("input-width").value === "25", q("input-width").value);
+    check("Regler reicht bis 60", q("input-width").max === "60", q("input-width").max);
+    check("Stärke wird angezeigt", q("width-value").textContent === "25",
       q("width-value").textContent);
-    q("input-width").value = "28";
+    q("input-width").value = "48";
     q("input-width").dispatchEvent(new w.Event("input", { bubbles: true }));
-    check("Anzeige folgt dem Regler", q("width-value").textContent === "28",
+    check("Anzeige folgt beim Ziehen", q("width-value").textContent === "48",
+      q("width-value").textContent);
+    q("input-width").value = "7";
+    q("input-width").dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("Anzeige folgt auch beim Loslassen", q("width-value").textContent === "7",
+      q("width-value").textContent);
+    // Nach erneutem Öffnen darf die Anzeige nicht auf altem Stand hängenbleiben
+    App.Annotate.close();
+    App.Annotate.open({ title: "t2", onSave: () => {} });
+    check("Anzeige stimmt nach Neuöffnen", q("width-value").textContent === "7",
       q("width-value").textContent);
     check("dunkle Farbe → heller Kasten", App.Annotate._istHell("#ff3b30") === false);
     check("helle Farbe → dunkler Kasten", App.Annotate._istHell("#f5ec22") === true);

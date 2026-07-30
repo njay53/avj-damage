@@ -46,6 +46,13 @@
 
   function q(id) { return App.el(id, "annotate.js"); }
 
+  function uebernehmeStaerke() {
+    var wert = parseInt(widthInput.value, 10);
+    if (isNaN(wert)) return;
+    width = wert;
+    widthValue.textContent = String(wert);
+  }
+
   function todayStr() {
     var d = new Date();
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
@@ -99,9 +106,10 @@
     });
 
     colorInput.addEventListener("input", function () { color = colorInput.value; });
-    widthInput.addEventListener("input", function () {
-      width = parseInt(widthInput.value, 10);
-      widthValue.textContent = String(width);
+    /* Beide Ereignisse: "input" während des Ziehens, "change" beim Loslassen.
+       Manche Browser sind beim einen oder anderen sparsam. */
+    ["input", "change"].forEach(function (ereignis) {
+      widthInput.addEventListener(ereignis, uebernehmeStaerke);
     });
 
     dateModeSel.addEventListener("change", function () {
@@ -135,6 +143,7 @@
     onSaveCb = opts.onSave;
     titleEl.textContent = opts.title || "Schaden erfassen";
     reset();
+    uebernehmeStaerke();   // Anzeige mit dem Regler gleichziehen
     dateModeSel.value = "exact";
     dateRow.classList.remove("hidden");
     dateInput.value = todayStr();

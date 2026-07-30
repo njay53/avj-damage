@@ -14,7 +14,9 @@
  *
  * WICHTIG bei Änderungen am Code: CACHE_VERSION hochzählen.
  */
-const CACHE_VERSION = "v10";
+/* Muss mit APP_VERSION in js/app.js übereinstimmen — die Nummer steht in der
+   Fusszeile der App, damit man sieht, welche Fassung ein Gerät geladen hat. */
+const CACHE_VERSION = "v11";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 const NETZ_TIMEOUT = 3000;
 
