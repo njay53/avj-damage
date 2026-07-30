@@ -178,7 +178,9 @@
       });
       (v.damages || []).forEach(function (d) {
         damageRows.push({
-          id: d.id, vehicle_id: v.id, image: d.image, note: d.note || "",
+          id: d.id, vehicle_id: v.id,
+          images: d.images || [], count: parseInt(d.count, 10) || 1,
+          description: d.description || "",
           date: d.date || "", date_mode: d.dateMode || "exact",
           created_at: d.createdAt || 0, area: d.area || "",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
@@ -210,11 +212,22 @@
        nichts Neues war), kommen als eigenes Fahrzeug-Fragment — der Merge in
        store.js hängt sie ans vorhandene Fahrzeug an. */
     (damageRows || []).forEach(function (r) {
-      var d = {
-        id: r.id, image: r.image, note: r.note || "", date: r.date || "",
-        dateMode: r.date_mode || "exact", createdAt: Number(r.created_at) || 0,
-        area: r.area || "", deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0
-      };
+      /* Ältere Zeilen haben noch image/note statt images/description —
+         normalisiereSchaden bügelt das glatt. */
+      var d = App.Store.normalisiereSchaden({
+        id: r.id,
+        images: Array.isArray(r.images) ? r.images : null,
+        image: r.image || "",
+        count: r.count,
+        description: r.description,
+        note: r.note || "",
+        date: r.date || "",
+        dateMode: r.date_mode || "exact",
+        createdAt: Number(r.created_at) || 0,
+        area: r.area || "",
+        deleted: !!r.deleted,
+        updatedAt: Number(r.updated_at) || 0
+      });
       if (!byId[r.vehicle_id]) {
         byId[r.vehicle_id] = { id: r.vehicle_id, name: "", plate: "", updatedAt: 0, damages: [] };
         vehicles.push(byId[r.vehicle_id]);

@@ -26,6 +26,20 @@
       d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   }
 
+  /* Ein Eintrag kann mehrere Schäden umfassen — gezählt wird die Summe,
+     nicht die Zahl der Einträge. */
+  function standAnzahl(s) {
+    return (s.damages || []).reduce(function (summe, d) {
+      return summe + (parseInt(d.count, 10) || 1);
+    }, 0);
+  }
+
+  function standFotos(s) {
+    return (s.damages || []).reduce(function (summe, d) {
+      return summe + ((d.images || []).length || 0);
+    }, 0);
+  }
+
   function bind() {
     Store = App.Store;
 
@@ -45,7 +59,7 @@
   function openCreate() {
     var v = Store.getVehicle(currentVehicleId);
     if (!v) return;
-    var anzahl = Store.damagesOf(v.id).length;
+    var anzahl = Store.damageCount(v.id);
 
     q("snapshot-modal-title").textContent = "Schadensstand festhalten";
     q("snapshot-modal-info").innerHTML =
@@ -68,8 +82,8 @@
       q("snapshot-code").textContent = snap.code;
       q("snapshot-result-info").innerHTML =
         esc(snap.vehicleName) + (snap.vehiclePlate ? " · " + esc(snap.vehiclePlate) : "") + '<br>' +
-        fmtDateTime(snap.createdAt) + ' · ' + snap.damages.length +
-        (snap.damages.length === 1 ? " Schaden" : " Schäden");
+        fmtDateTime(snap.createdAt) + ' · ' + standAnzahl(snap) +
+        (standAnzahl(snap) === 1 ? " Schaden" : " Schäden");
       q("snapshot-transfer").textContent = transferLine(snap);
       renderList();
     });
@@ -79,7 +93,7 @@
   function transferLine(snap) {
     return "Schadensdokumentation " + (snap.vehiclePlate || snap.vehicleName) +
       " · Stand " + fmtDateTime(snap.createdAt) +
-      " · " + snap.damages.length + " Schäden · Kennung " + snap.code;
+      " · " + standAnzahl(snap) + " Schäden · Kennung " + snap.code;
   }
 
   function copyCode() {
@@ -118,8 +132,8 @@
         '<div class="sr-code">' + esc(s.code) + '</div>' +
         '<div class="sr-main">' +
           '<div class="sr-title">' + fmtDateTime(s.createdAt) + '</div>' +
-          '<div class="sr-sub">' + s.damages.length +
-            (s.damages.length === 1 ? " Schaden" : " Schäden") +
+          '<div class="sr-sub">' + standAnzahl(s) +
+            (standAnzahl(s) === 1 ? " Schaden" : " Schäden") +
             (s.reference ? ' · ' + esc(s.reference) : '') + '</div>' +
         '</div>' +
         '<div class="sr-arrow">›</div>';
@@ -171,7 +185,7 @@
     }
     box.innerHTML = '<strong>' + esc(s.code) + '</strong> — ' + esc(s.vehicleName) +
       (s.vehiclePlate ? " · " + esc(s.vehiclePlate) : "") + '<br>' +
-      fmtDateTime(s.createdAt) + ' · ' + s.damages.length + ' Schäden ' +
+      fmtDateTime(s.createdAt) + ' · ' + standAnzahl(s) + ' Schäden ' +
       '<button type="button" class="mini" id="btn-open-found">Öffnen</button>';
     var btn = document.getElementById("btn-open-found");
     if (btn) {
@@ -199,7 +213,10 @@
       '<tr><th>Stand vom</th><td>' + fmtDateTime(s.createdAt) + '</td></tr>' +
       '<tr><th>Kennung</th><td><strong>' + esc(s.code) + '</strong></td></tr>' +
       (s.reference ? '<tr><th>Interne Referenz</th><td>' + esc(s.reference) + '</td></tr>' : '') +
-      '<tr><th>Dokumentierte Schäden</th><td>' + s.damages.length + '</td></tr>' +
+      '<tr><th>Dokumentierte Schäden</th><td>' + standAnzahl(s) +
+        (s.damages.length !== standAnzahl(s) ? ' (in ' + s.damages.length + ' Einträgen)' : '') +
+        '</td></tr>' +
+      '<tr><th>Fotos</th><td>' + standFotos(s) + '</td></tr>' +
       '</table>';
 
     if (!s.damages.length) {
@@ -207,13 +224,18 @@
     } else {
       h += '<h3 class="doc-section">Schäden</h3><div class="doc-damages">';
       s.damages.forEach(function (d, i) {
-        h += '<figure class="doc-damage">' +
-          '<img src="' + d.image + '" alt="Schaden ' + (i + 1) + '">' +
-          '<figcaption><span class="dmg-no">' + (i + 1) + '</span> ' +
-          (d.area ? '<strong>' + esc(d.area) + '</strong> · ' : '') +
-          esc(d.note || "ohne Notiz") +
-          '<span class="dmg-date">' + esc(App.Fleet.fmtDamageDateLong(d)) + '</span>' +
-          '</figcaption></figure>';
+        var bilder = d.images || [];
+        bilder.forEach(function (src, j) {
+          h += '<figure class="doc-damage">' +
+            '<img src="' + src + '" alt="Schaden ' + (i + 1) + '">' +
+            '<figcaption><span class="dmg-no">' + (i + 1) +
+            (bilder.length > 1 ? "." + (j + 1) : "") + '</span> ' +
+            (d.area ? '<strong>' + esc(d.area) + '</strong> · ' : '') +
+            esc(d.description || "ohne Beschreibung") +
+            (d.count > 1 ? ' <strong>(' + d.count + ' Schäden)</strong>' : '') +
+            '<span class="dmg-date">' + esc(App.Fleet.fmtDamageDateLong(d)) + '</span>' +
+            '</figcaption></figure>';
+        });
       });
       h += '</div>';
     }

@@ -23,7 +23,11 @@
 
   var overlay, canvas, ctx, placeholder, camInput, fileInput, noteInput, dateInput,
       areaInput, saveBtn, titleEl, colorInput, widthInput, statusEl, dateModeSel,
-      dateRow, zoomLabel, widthValue;
+      dateRow, zoomLabel, widthValue, countInput, streifen;
+
+  var bilder = [];          // [{ img, ops }] — mehrere Fotos je Schaden
+  var aktiv = -1;           // welches Foto gerade bearbeitet wird
+  var bearbeitet = null;    // vorhandener Schaden, falls Bearbeiten-Modus
 
   var work, workCtx;        // volle Auflösung
   var img = null;           // Originalbild
@@ -80,6 +84,8 @@
     widthInput = q("input-width");
     widthValue = q("width-value");
     zoomLabel = q("zoom-label");
+    countInput = q("input-count");
+    streifen = q("photo-strip");
 
     work = document.createElement("canvas");
     workCtx = work.getContext("2d");
@@ -139,16 +145,54 @@
     window.addEventListener("resize", function () { if (imageLoaded) renderView(); });
   }
 
+  /* opts: { title, onSave, damage }
+     Ist damage gesetzt, wird bearbeitet statt neu angelegt. Vorhandene Fotos
+     kommen dabei als fertige Bilder zurück — deren alte Markierungen sind
+     eingebrannt und lassen sich nicht mehr einzeln entfernen. Neue lassen
+     sich darüberlegen. */
   function open(opts) {
     onSaveCb = opts.onSave;
     titleEl.textContent = opts.title || "Schaden erfassen";
     reset();
-    uebernehmeStaerke();   // Anzeige mit dem Regler gleichziehen
-    dateModeSel.value = "exact";
-    dateRow.classList.remove("hidden");
-    dateInput.value = todayStr();
-    noteInput.value = "";
-    areaInput.value = "";
+    uebernehmeStaerke();
+
+    var d = opts.damage || null;
+    bearbeitet = d;
+
+    dateModeSel.value = (d && d.dateMode) || "exact";
+    dateRow.classList.toggle("hidden", dateModeSel.value !== "exact");
+    dateInput.value = (d && d.date) || todayStr();
+    noteInput.value = (d && d.description) || "";
+    areaInput.value = (d && d.area) || "";
+    countInput.value = String((d && d.count) || 1);
+    saveBtn.textContent = d ? "Änderungen speichern" : "Schaden speichern";
+
+    if (d && d.images && d.images.length) {
+      var offen = d.images.length;
+      d.images.forEach(function (quelle, i) {
+        var bild = new Image();
+        bild.onload = function () {
+          bilder[i] = { img: bild, ops: [], w: bild.width, h: bild.height };
+          if (--offen === 0) fertigGeladen();
+        };
+        bild.onerror = function () { if (--offen === 0) fertigGeladen(); };
+        bild.src = quelle;
+      });
+    }
+
+    function fertigGeladen() {
+      bilder = bilder.filter(Boolean);
+      if (bilder.length) {
+        waehleBild(0);
+        saveBtn.disabled = false;
+        statusEl.textContent = bilder.length + (bilder.length === 1 ? " Foto" : " Fotos") +
+          " geladen — weitere hinzufügen oder markieren.";
+        statusEl.className = "pick-status ok";
+      }
+      zeichneStreifen();
+    }
+
+    zeichneStreifen();
     overlay.classList.remove("hidden");
   }
 
@@ -161,6 +205,9 @@
     imageLoaded = false;
     img = null;
     ops = [];
+    bilder = [];
+    aktiv = -1;
+    bearbeitet = null;
     view = { scale: 1, x: 0, y: 0 };
     pointers.clear();
     drawing = false;
@@ -173,6 +220,98 @@
     statusEl.textContent = "";
     statusEl.className = "pick-status";
     saveBtn.disabled = true;
+    zeichneStreifen();
+  }
+
+  // ------------------------------------------------------------ Fotostreifen
+
+  /* Jedes Foto hat seine eigene Markierungsliste. Beim Umschalten wird die
+     aktuelle gesichert und die des gewählten Fotos geladen. */
+  function sichereAktuelles() {
+    if (aktiv >= 0 && bilder[aktiv]) bilder[aktiv].ops = ops;
+  }
+
+  function waehleBild(i) {
+    if (!bilder[i]) return;
+    sichereAktuelles();
+    aktiv = i;
+    var b = bilder[i];
+    img = b.img;
+    ops = b.ops || [];
+    var w = b.img.width, h = b.img.height;
+    if (w > MAX_DIM || h > MAX_DIM) {
+      var f = MAX_DIM / Math.max(w, h);
+      w = Math.round(w * f);
+      h = Math.round(h * f);
+    }
+    work.width = w;
+    work.height = h;
+    view = { scale: 1, x: 0, y: 0 };
+    imageLoaded = true;
+    placeholder.classList.add("hidden");
+    canvas.classList.remove("hidden");
+    q("zoom-row").classList.remove("hidden");
+    renderWork();
+    renderView();
+    zeichneStreifen();
+  }
+
+  function entferneBild(i) {
+    if (!bilder[i]) return;
+    if (!confirm("Dieses Foto aus dem Schaden entfernen?")) return;
+    sichereAktuelles();
+    bilder.splice(i, 1);
+    if (!bilder.length) {
+      aktiv = -1;
+      imageLoaded = false;
+      img = null;
+      ops = [];
+      canvas.classList.add("hidden");
+      q("zoom-row").classList.add("hidden");
+      placeholder.classList.remove("hidden");
+      saveBtn.disabled = true;
+      zeichneStreifen();
+      return;
+    }
+    aktiv = -1;
+    waehleBild(Math.min(i, bilder.length - 1));
+  }
+
+  function zeichneStreifen() {
+    if (!streifen) return;
+    streifen.innerHTML = "";
+    streifen.classList.toggle("hidden", bilder.length === 0);
+    bilder.forEach(function (b, i) {
+      var kachel = document.createElement("div");
+      kachel.className = "strip-item" + (i === aktiv ? " active" : "");
+      var mini = document.createElement("canvas");
+      var seite = 64;
+      mini.width = seite; mini.height = seite;
+      var mctx = mini.getContext("2d");
+      var q1 = Math.min(b.img.width, b.img.height);
+      mctx.drawImage(b.img, (b.img.width - q1) / 2, (b.img.height - q1) / 2, q1, q1,
+        0, 0, seite, seite);
+      kachel.appendChild(mini);
+
+      var nr = document.createElement("span");
+      nr.className = "strip-nr";
+      nr.textContent = String(i + 1);
+      kachel.appendChild(nr);
+
+      var weg = document.createElement("button");
+      weg.type = "button";
+      weg.className = "strip-del";
+      weg.textContent = "✕";
+      weg.setAttribute("aria-label", "Foto entfernen");
+      weg.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        entferneBild(i);
+      });
+      kachel.appendChild(weg);
+
+      kachel.addEventListener("click", function () { waehleBild(i); });
+      streifen.appendChild(kachel);
+    });
   }
 
   // ---------------------------------------------------------------- Foto laden
@@ -195,28 +334,18 @@
     reader.onload = function (e) {
       var bild = new Image();
       bild.onload = function () {
-        var w = bild.width, h = bild.height;
-        if (w > MAX_DIM || h > MAX_DIM) {
-          var f = MAX_DIM / Math.max(w, h);
-          w = Math.round(w * f);
-          h = Math.round(h * f);
-        }
-        work.width = w;
-        work.height = h;
-        img = bild;
-        ops = [];
-        view = { scale: 1, x: 0, y: 0 };
-        imageLoaded = true;
+        // Foto anhängen statt ersetzen — ein Schaden kann mehrere haben
+        sichereAktuelles();
+        bilder.push({ img: bild, ops: [] });
+        aktiv = -1;
+        waehleBild(bilder.length - 1);
 
-        placeholder.classList.add("hidden");
-        canvas.classList.remove("hidden");
-        q("zoom-row").classList.remove("hidden");
         saveBtn.disabled = false;
-        statusEl.textContent = "Foto geladen — jetzt markieren.";
+        statusEl.textContent = bilder.length === 1
+          ? "Foto geladen — jetzt markieren."
+          : bilder.length + " Fotos in diesem Schaden.";
         statusEl.className = "pick-status ok";
-
-        renderWork();
-        renderView();
+        input.value = "";
       };
       bild.onerror = function () {
         statusEl.textContent = "Bild konnte nicht gelesen werden. Anderes Foto versuchen.";
@@ -562,20 +691,41 @@
 
   // ---------------------------------------------------------------- Speichern
 
+  /* Jedes Foto wird mit seinen Markierungen einzeln ausgegeben. Dafür wird
+     die Arbeitsfläche nacheinander auf jedes Bild gesetzt und gezeichnet. */
   function save() {
-    if (!imageLoaded || !onSaveCb) return;
-    renderWork();
+    if (!bilder.length || !onSaveCb) return;
+    sichereAktuelles();
+
+    var ausgabe = bilder.map(function (b) {
+      var w = b.img.width, h = b.img.height;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        var f = MAX_DIM / Math.max(w, h);
+        w = Math.round(w * f);
+        h = Math.round(h * f);
+      }
+      work.width = w;
+      work.height = h;
+      workCtx.clearRect(0, 0, w, h);
+      workCtx.drawImage(b.img, 0, 0, w, h);
+      (b.ops || []).forEach(function (o) { drawOp(workCtx, o); });
+      return work.toDataURL("image/jpeg", JPEG_QUALITY);
+    });
+
     var modus = dateModeSel.value;
+    var anzahl = parseInt(countInput.value, 10);
     var payload = {
-      image: work.toDataURL("image/jpeg", JPEG_QUALITY),
-      note: noteInput.value.trim(),
+      images: ausgabe,
+      count: (isNaN(anzahl) || anzahl < 1) ? 1 : anzahl,
+      description: noteInput.value.trim(),
       dateMode: modus,
       date: modus === "exact" ? (dateInput.value || todayStr()) : "",
       area: areaInput.value.trim()
     };
     var cb = onSaveCb;
+    var alt = bearbeitet;
     close();
-    cb(payload);
+    cb(payload, alt);
   }
 
   App.Annotate = {
@@ -587,6 +737,7 @@
     _ops: function () { return ops; },
     _view: function () { return view; },
     _tool: function () { return tool; },
+    _bilder: function () { return bilder; },
     _zoomBy: zoomBy,
     _istHell: istHell
   };

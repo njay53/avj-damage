@@ -114,15 +114,18 @@ create table public.vehicles (
   updated_at  bigint  not null default 0
 );
 
--- Schäden (ein Datensatz je Foto)
--- date      = wann der Schaden entstanden ist (kann leer sein)
--- date_mode = exact | unknown | stock
--- created_at= wann das Foto erfasst wurde (immer gesetzt, zählt als Nachweis)
+-- Schäden (ein Datensatz je Schadenseintrag, mit einer Bilderliste)
+-- images     = Liste der Fotos, ein Eintrag kann mehrere haben
+-- count      = wie viele Schäden dieser Eintrag umfasst (ein Foto, drei Kratzer)
+-- date       = wann der Schaden entstanden ist (kann leer sein)
+-- date_mode  = exact | unknown | stock
+-- created_at = wann erfasst wurde (immer gesetzt, zählt als Nachweis)
 create table public.damages (
   id          text primary key,
   vehicle_id  text not null,
-  image       text not null default '',
-  note        text not null default '',
+  images      jsonb   not null default '[]'::jsonb,
+  count       integer not null default 1,
+  description text not null default '',
   date        text not null default '',
   date_mode   text not null default 'exact',
   created_at  bigint  not null default 0,
@@ -168,9 +171,15 @@ Falls du die Tabellen schon vor dieser Version angelegt hattest, fehlen zwei
 Spalten. Dann zusätzlich einmal ausführen:
 
 ```sql
-alter table public.damages add column if not exists date_mode  text   not null default 'exact';
-alter table public.damages add column if not exists created_at bigint not null default 0;
+alter table public.damages add column if not exists date_mode   text    not null default 'exact';
+alter table public.damages add column if not exists created_at  bigint  not null default 0;
+alter table public.damages add column if not exists images      jsonb   not null default '[]'::jsonb;
+alter table public.damages add column if not exists count       integer not null default 1;
+alter table public.damages add column if not exists description text    not null default '';
 ```
+
+Die alten Spalten `image` und `note` dürfen bleiben — die App liest sie noch,
+wenn ein Datensatz sie hat, und schreibt künftig in `images` und `description`.
 
 Der letzte Block ist der wichtige: **Row Level Security**. Ohne sie könnte
 jeder, der die Adresse der App kennt, die Daten lesen — der öffentliche

@@ -57,9 +57,12 @@
       <h2 id="vehicle-title"></h2>
       <button class="icon-btn secondary" id="btn-edit-vehicle" title="Fahrzeug bearbeiten">✎</button>
     </div>
-    <button class="ghost-danger" id="btn-delete-vehicle">Löschen</button>
+    <div class="btn-row">
+      <button class="secondary" id="btn-vehicle-doc">Fahrzeugakte drucken</button>
+      <button class="ghost-danger" id="btn-delete-vehicle">Löschen</button>
+    </div>
   </div>
-  <div class="sub-line" id="vehicle-plate"></div>
+  <div class="plate-big" id="vehicle-plate"></div>
 
   <div class="section-label">Dokumentierte Schäden</div>
   <div id="damage-grid" class="damage-grid"></div>
@@ -198,6 +201,7 @@
       </button>
     </div>
     <div class="pick-status" id="photo-status"></div>
+    <div class="photo-strip hidden" id="photo-strip"></div>
 
     <input type="file" id="input-photo-camera" accept="image/*" capture="environment" hidden />
     <input type="file" id="input-photo-file" accept="image/*" hidden />
@@ -247,12 +251,18 @@
         </select>
       </div>
     </div>
-    <div class="field" id="date-row">
-      <label for="input-date">Datum</label>
-      <input type="date" id="input-date" />
+    <div class="two-col">
+      <div class="field" id="date-row">
+        <label for="input-date">Datum</label>
+        <input type="date" id="input-date" />
+      </div>
+      <div class="field">
+        <label for="input-count">Anzahl Schäden auf diesen Fotos</label>
+        <input type="number" id="input-count" min="1" max="99" step="1" value="1" inputmode="numeric" />
+      </div>
     </div>
     <div class="field">
-      <label for="input-note">Notiz</label>
+      <label for="input-note">Beschreibung</label>
       <textarea id="input-note" rows="2" placeholder="z. B. Kratzer ca. 5 cm, nicht durchgerostet"></textarea>
     </div>
 
@@ -271,16 +281,18 @@
     <div class="detail-img-wrap">
       <img id="detail-img" src="" alt="Schaden" />
     </div>
+    <div class="detail-thumbs hidden" id="detail-thumbs"></div>
     <div class="sub-line" id="detail-date"></div>
     <div class="field">
-      <label for="detail-note-input">Notiz</label>
+      <label for="detail-note-input">Beschreibung</label>
       <textarea id="detail-note-input" rows="2"></textarea>
     </div>
     <div class="btn-row spread">
       <button type="button" class="ghost-danger" id="btn-delete-damage">Schaden löschen</button>
       <div class="btn-row">
         <button type="button" class="secondary" data-close="modal-detail">Schliessen</button>
-        <button type="button" id="btn-save-note">Notiz speichern</button>
+        <button type="button" class="secondary" id="btn-edit-damage">Bearbeiten</button>
+        <button type="button" id="btn-save-note">Beschreibung speichern</button>
       </div>
     </div>
   </div>

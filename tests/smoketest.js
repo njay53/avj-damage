@@ -87,11 +87,11 @@ function macheApp(optionen) {
   // Versionsanzeige — sie soll verraten, welche Fassung ein Gerät geladen hat
   {
     const gezeigt = q("app-version").textContent;
-    check("Fassung wird angezeigt", /^Fassung v\d+$/.test(gezeigt), gezeigt);
+    check("Build-Nummer wird angezeigt", /^Build \d+$/.test(gezeigt), gezeigt);
     const sw = fs.readFileSync(path.join(APP, "sw.js"), "utf8");
-    const swVersion = (sw.match(/CACHE_VERSION = "(v\d+)"/) || [])[1];
-    check("Fassung stimmt mit dem Service Worker überein",
-      gezeigt === "Fassung " + swVersion, gezeigt + " vs " + swVersion);
+    const swVersion = (sw.match(/CACHE_VERSION = "v(\d+)"/) || [])[1];
+    check("Build stimmt mit dem Service Worker überein",
+      gezeigt === "Build " + swVersion, gezeigt + " vs v" + swVersion);
   }
 
   console.log("\n--- Fotoauswahl: Kamera und Album getrennt ---");
@@ -157,6 +157,55 @@ function macheApp(optionen) {
   check("Fahrzeug in der Übersicht", q("fleet-grid").textContent.includes("Toyota Yaris #3"));
   check("Badge zeigt 2 Schäden", q("fleet-grid").textContent.includes("2 Schäden"));
   check("Register hat 2 Schäden", App.Store.damagesOf(v.id).length === 2);
+
+  console.log("\n--- Mehrere Bilder und Anzahl je Schaden ---");
+  {
+    const mehr = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,A", "data:image/jpeg;base64,B", "data:image/jpeg;base64,C"],
+      count: 3, description: "Drei Kratzer am Heck", area: "Heck",
+      dateMode: "exact", date: "2026-07-10"
+    });
+    check("drei Bilder gespeichert", mehr.images.length === 3);
+    check("Anzahl 3 gespeichert", mehr.count === 3);
+    check("Beschreibung statt Notiz", mehr.description === "Drei Kratzer am Heck");
+    check("kein Feld 'image' mehr", mehr.image === undefined);
+    check("kein Feld 'note' mehr", mehr.note === undefined);
+
+    const eintraege = App.Store.damagesOf(v.id).length;
+    const summe = App.Store.damageCount(v.id);
+    check("Gesamtzahl ist die Summe der Anzahlen", summe === eintraege + 2,
+      "Einträge " + eintraege + ", Summe " + summe);
+
+    App.Fleet.renderFleet();
+    check("Fuhrpark zeigt die Summe",
+      q("fleet-grid").textContent.includes(summe + " Schäden"),
+      q("fleet-grid").textContent.slice(0, 140));
+
+    // Alte Datensätze überführen
+    const alt = App.Store.normalisiereSchaden({
+      id: "x", image: "data:alt", note: "alte Notiz", date: "2026-01-01"
+    });
+    check("altes Bild wandert in die Liste", alt.images.length === 1 && alt.images[0] === "data:alt");
+    check("alte Notiz wird Beschreibung", alt.description === "alte Notiz");
+    check("Anzahl bekommt Vorgabe 1", alt.count === 1);
+    check("alte Felder werden entfernt", alt.image === undefined && alt.note === undefined);
+
+    const kaputt = App.Store.normalisiereSchaden({ id: "y", count: "keine Zahl" });
+    check("unsinnige Anzahl wird zu 1", kaputt.count === 1, String(kaputt.count));
+    check("ohne Bild leere Liste", Array.isArray(kaputt.images) && kaputt.images.length === 0);
+
+    // Bearbeiten: Bilder und Anzahl ändern
+    await App.Store.updateDamage(v.id, mehr.id, {
+      images: mehr.images.concat(["data:image/jpeg;base64,D"]),
+      count: 4, description: "Vier Kratzer am Heck"
+    });
+    const bearbeitet = App.Store.damagesOf(v.id).find(x => x.id === mehr.id);
+    check("Bild ergänzt", bearbeitet.images.length === 4);
+    check("Anzahl geändert", bearbeitet.count === 4);
+    check("Beschreibung geändert", /Vier Kratzer/.test(bearbeitet.description));
+
+    await App.Store.deleteDamage(v.id, mehr.id);
+  }
 
   console.log("\n--- Schäden ohne Datum ---");
   {
@@ -280,12 +329,13 @@ function macheApp(optionen) {
     !JSON.stringify(stand).match(/name.*(Beckmann|Mieter|Kunde)/i));
 
   console.log("\n--- Unveränderlichkeit ---");
-  const alt1 = App.Store.damagesOf(v.id).find((d) => d.note.includes("Kratzer"));
-  await App.Store.updateDamage(v.id, alt1.id, { note: "NACHTRÄGLICH GEÄNDERT" });
-  const steinschlag = App.Store.damagesOf(v.id).find((d) => d.note.includes("Steinschlag"));
+  const alt1 = App.Store.damagesOf(v.id).find((d) => (d.description || "").includes("Kratzer"));
+  await App.Store.updateDamage(v.id, alt1.id, { description: "NACHTRÄGLICH GEÄNDERT" });
+  const steinschlag = App.Store.damagesOf(v.id).find((d) => (d.description || "").includes("Steinschlag"));
   await App.Store.deleteDamage(v.id, steinschlag.id);
   const nachher = App.Store.getSnapshot(stand.id);
-  check("Notiz im Stand unverändert", nachher.damages.some((d) => d.note.includes("Kratzer Stossstange")));
+  check("Beschreibung im Stand unverändert",
+    nachher.damages.some((d) => (d.description || "").includes("Kratzer Stossstange")));
   check("gelöschter Schaden bleibt im Stand", nachher.damages.length === 2);
   check("Register ist jetzt bei 1", App.Store.damagesOf(v.id).length === 1);
   check("Tombstone gesetzt", App.Store.getVehicle(v.id).damages.some((d) => d.deleted === true));
@@ -312,6 +362,30 @@ function macheApp(optionen) {
     codes.add(s.code);
   }
   check("61 Stände, 61 verschiedene Kennungen", codes.size === 61, "verschieden: " + codes.size);
+
+  console.log("\n--- Fahrzeugakte ---");
+  {
+    const fz = App.Store.getVehicle(v.id);
+    const akte = App.Fleet.akteHtml(fz);
+    check("Akte nennt das Fahrzeug", akte.includes("Toyota Yaris #3"));
+    check("Akte nennt das Kennzeichen", akte.includes("NOM-JA 123"));
+    check("Akte trägt den richtigen Titel", akte.includes("Fahrzeugakte"));
+    check("Akte enthält Bilder", /<img src="data:/.test(akte));
+    // Nicht auf einen festen Text prüfen — vorherige Schritte ändern
+    // Beschreibungen absichtlich. Stattdessen gegen den Ist-Stand vergleichen.
+    const ersteBeschreibung = (App.Store.damagesOf(v.id)[0] || {}).description || "";
+    check("Akte zeigt die aktuelle Beschreibung",
+      ersteBeschreibung.length > 0 && akte.includes(ersteBeschreibung),
+      "gesucht: " + ersteBeschreibung);
+    check("Akte enthält KEINE Kennung", !/Kennung/.test(akte));
+    check("Akte zählt die Summe", /Dokumentierte Schäden<\/th><td>\d+/.test(akte));
+
+    q("btn-vehicle-doc").click();
+    await wait(600);
+    check("Akte wird gedruckt", w.__printed === true);
+    check("Druckbereich enthält die Akte", q("print-area").innerHTML.includes("Fahrzeugakte"));
+    w.__printed = false;
+  }
 
   console.log("\n--- Druckansicht ---");
   App.Snapshot.open(stand.id);
@@ -358,7 +432,14 @@ function macheApp(optionen) {
   check("Fahrzeug auf dem Server", server.zeilen("vehicles").some((z) => z.id === v2.id));
   check("Schaden auf dem Server", server.zeilen("damages").length === 1);
   check("Stand auf dem Server", server.zeilen("snapshots").some((z) => z.code === s2.code));
-  check("Bild wurde mit übertragen", server.zeilen("damages")[0].image === "data:image/jpeg;base64,X1");
+  check("Bild wurde mit übertragen",
+    (server.zeilen("damages")[0].images || [])[0] === "data:image/jpeg;base64,X1",
+    JSON.stringify(server.zeilen("damages")[0].images));
+  check("Anzahl wird mit übertragen", server.zeilen("damages")[0].count === 1,
+    String(server.zeilen("damages")[0].count));
+  check("Beschreibung wird mit übertragen",
+    server.zeilen("damages")[0].description === "Delle Schiebetür",
+    server.zeilen("damages")[0].description);
   check("Server-Zeile hat Kennzeichen",
     server.zeilen("vehicles").find((z) => z.id === v2.id).plate === "NOM-JA 200");
 
@@ -386,13 +467,14 @@ function macheApp(optionen) {
     A2.Store.getVehicle(v2.id).name);
 
   console.log("\n--- Abgleich: Löschen setzt sich durch ---");
-  const zuLoeschen = A3.Store.damagesOf(v2.id).find((d) => d.note.includes("Kratzer Heck"));
+  const zuLoeschen = A3.Store.damagesOf(v2.id).find((d) => (d.description || "").includes("Kratzer Heck"));
   await A3.Store.deleteDamage(v2.id, zuLoeschen.id);
   await A3.Cloud.sync();
   await A2.Cloud.sync();
   await wait(50);
   check("Löschung ist beim ersten Gerät angekommen", A2.Store.damagesOf(v2.id).length === 1);
-  check("Löschung wird nicht wiederbelebt", !A2.Store.damagesOf(v2.id).some((d) => d.note.includes("Kratzer Heck")));
+  check("Löschung wird nicht wiederbelebt",
+    !A2.Store.damagesOf(v2.id).some((d) => (d.description || "").includes("Kratzer Heck")));
 
   console.log("\n--- Abgleich: jüngere Änderung gewinnt ---");
   await A2.Store.updateVehicle(v2.id, { name: "Ford Transit (neu benannt)", plate: "NOM-JA 200" });

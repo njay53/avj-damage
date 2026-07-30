@@ -188,7 +188,17 @@ textarea{line-height:1.5;resize:vertical;}
 .vehicle-card:hover{border-color:var(--blue);box-shadow:0 3px 16px rgba(27,47,196,.10);}
 .vehicle-card h3{font-size:14px;font-weight:600;margin-bottom:3px;letter-spacing:-.01em;}
 .vehicle-card .plate{
-  font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:12px;
+  font-family:var(--mono);font-size:15px;font-weight:500;letter-spacing:.04em;
+  color:var(--ink);margin-bottom:12px;
+}
+
+/* Kennzeichen in der Fahrzeugansicht — steht direkt unter dem Namen */
+.plate-big{
+  font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:.06em;
+  color:var(--ink);margin:-4px 0 16px;
+}
+.plate-big.leer{
+  font-size:13px;font-weight:400;letter-spacing:0;color:var(--muted-light);
 }
 .chip{
   display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;
@@ -203,7 +213,14 @@ textarea{line-height:1.5;resize:vertical;}
   overflow:hidden;cursor:pointer;box-shadow:var(--shadow);transition:border-color .15s;
 }
 .damage-card:hover{border-color:var(--blue);}
+.damage-card .dc-img{position:relative;}
 .damage-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:var(--result-bg);}
+.dc-badge{
+  position:absolute;bottom:6px;right:6px;
+  background:rgba(26,26,24,.82);color:#fff;font-size:10.5px;font-weight:500;
+  padding:2px 7px;border-radius:999px;
+}
+.dc-badge.count{left:6px;right:auto;background:var(--blue);}
 .damage-card .meta{padding:7px 9px 2px;font-size:10.5px;color:var(--muted-light);font-family:var(--mono);}
 .damage-card .note{
   font-size:12px;padding:0 9px 9px;min-height:1.1em;line-height:1.4;
@@ -267,6 +284,35 @@ textarea{line-height:1.5;resize:vertical;}
 .pick-label{font-size:15px;font-weight:500;}
 .pick-sub{font-size:11.5px;color:var(--muted);font-weight:400;}
 .pick-status{font-size:12px;color:var(--muted);min-height:16px;margin-bottom:4px;}
+
+/* Fotostreifen im Erfassungsdialog — ein Schaden kann mehrere Fotos haben */
+.photo-strip{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none;}
+.photo-strip::-webkit-scrollbar{display:none;}
+.strip-item{
+  position:relative;flex:none;width:64px;height:64px;border-radius:8px;overflow:hidden;
+  border:2px solid var(--field-line);cursor:pointer;background:var(--result-bg);
+}
+.strip-item.active{border-color:var(--blue);}
+.strip-item canvas{display:block;width:64px;height:64px;}
+.strip-nr{
+  position:absolute;left:3px;bottom:3px;background:rgba(26,26,24,.75);color:#fff;
+  font-size:10px;font-weight:600;padding:0 5px;border-radius:4px;
+}
+.strip-del{
+  position:absolute;top:2px;right:2px;width:20px;height:20px;min-height:0;
+  padding:0;border-radius:50%;font-size:11px;line-height:1;
+  background:rgba(26,26,24,.75);border:none;color:#fff;
+}
+.strip-del:hover{background:var(--red);opacity:1;}
+
+/* Miniaturen in der Detailansicht */
+.detail-thumbs{display:flex;gap:8px;overflow-x:auto;margin:-4px 0 12px;padding-bottom:4px;}
+.detail-thumb{
+  flex:none;width:58px;height:58px;padding:0;overflow:hidden;border-radius:8px;
+  border:2px solid var(--field-line);background:none;min-height:0;
+}
+.detail-thumb.active{border-color:var(--blue);}
+.detail-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 .pick-status.ok{color:var(--green);}
 .pick-status.err{color:var(--red);}
 
@@ -371,6 +417,23 @@ input[type=range]{width:104px;height:36px;}
   font-size:10px;color:var(--muted-light);font-family:var(--mono);
 }
 
+/* Fahrzeugakte — Übersicht für den Kunden, grosse Bilder */
+.akte-eintrag{
+  margin-top:22px;padding-top:16px;border-top:1px solid var(--line);
+  break-inside:avoid;
+}
+.akte-titel{font-size:14px;font-weight:600;margin-bottom:4px;}
+.akte-anzahl{
+  display:inline-block;background:var(--blue);color:#fff;font-size:11px;
+  font-weight:500;padding:1px 8px;border-radius:999px;margin-left:6px;
+  vertical-align:1px;
+}
+.akte-meta{font-size:11.5px;color:var(--muted);margin-bottom:6px;}
+.akte-text{font-size:13px;line-height:1.5;margin-bottom:10px;}
+.akte-bilder{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
+.akte-bild{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;break-inside:avoid;}
+.akte-bild img{width:100%;display:block;background:var(--result-bg);}
+
 /* ------------------------------------------------------------------ Fehlerband */
 .runtime-error{
   position:fixed;left:0;right:0;bottom:0;z-index:300;
@@ -392,6 +455,11 @@ input[type=range]{width:104px;height:36px;}
   .doc-damages{grid-template-columns:1fr 1fr;gap:10px;}
   .doc-damage{page-break-inside:avoid;}
   .doc-section{page-break-after:avoid;}
+  /* In der Fahrzeugakte sollen die Bilder gross sein — der Kunde soll etwas
+     erkennen können, deshalb nur zwei Spalten und kein Umbruch im Eintrag. */
+  .akte-bilder{grid-template-columns:1fr 1fr;gap:8px;}
+  .akte-eintrag{page-break-inside:avoid;}
+  .akte-titel{page-break-after:avoid;}
   @page{margin:14mm 12mm;}
 }
 

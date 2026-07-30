@@ -166,6 +166,44 @@
     return save();
   }
 
+  /* Überführt einen Schaden ins aktuelle Format.
+     Früher: ein Bild in "image", Text in "note".
+     Heute:  Bilderliste in "images", Text in "description", dazu "count" für
+     den Fall, dass ein Foto mehrere Schäden zeigt.
+     Wird beim Laden und nach jedem Abgleich angewendet, damit alte und neue
+     Datensätze nebeneinander bestehen können. */
+  function normalisiereSchaden(d) {
+    if (!d) return d;
+    if (!Array.isArray(d.images)) {
+      d.images = d.image ? [d.image] : [];
+    }
+    if (typeof d.description !== "string") {
+      d.description = d.note || "";
+    }
+    var n = parseInt(d.count, 10);
+    d.count = (isNaN(n) || n < 1) ? 1 : n;
+    delete d.image;
+    delete d.note;
+    return d;
+  }
+
+  function normalisiereAlles() {
+    state.vehicles.forEach(function (v) {
+      (v.damages || []).forEach(normalisiereSchaden);
+    });
+    state.snapshots.forEach(function (s) {
+      (s.damages || []).forEach(normalisiereSchaden);
+    });
+  }
+
+  /* Ein Fahrzeug kann mehr Schäden haben als Einträge — ein Foto vom Heck mit
+     drei Kratzern ist ein Eintrag mit Anzahl 3. */
+  function damageCount(vehicleId) {
+    return damagesOf(vehicleId).reduce(function (summe, d) {
+      return summe + (parseInt(d.count, 10) || 1);
+    }, 0);
+  }
+
   function addDamage(vehicleId, damage) {
     var v = getVehicle(vehicleId);
     if (!v) return Promise.resolve(null);
@@ -173,10 +211,16 @@
          date      — wann der Schaden entstanden ist (kann unbekannt sein)
          createdAt — wann du ihn fotografiert hast (immer bekannt)
        Für den Nachweis zählt createdAt, deshalb wird es immer gesetzt. */
+    var bilder = Array.isArray(damage.images)
+      ? damage.images.slice()
+      : (damage.image ? [damage.image] : []);
+    var anzahl = parseInt(damage.count, 10);
+
     var d = {
       id: uid("dmg"),
-      image: damage.image,
-      note: damage.note || "",
+      images: bilder,
+      count: (isNaN(anzahl) || anzahl < 1) ? 1 : anzahl,
+      description: damage.description || damage.note || "",
       date: damage.date || "",
       dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
@@ -224,8 +268,9 @@
       damages: damagesOf(v.id).map(function (d) {
         return {
           id: d.id,
-          image: d.image,
-          note: d.note || "",
+          images: (d.images || []).slice(),
+          count: parseInt(d.count, 10) || 1,
+          description: d.description || "",
           date: d.date || "",
           dateMode: d.dateMode || "exact",
           createdAt: d.createdAt || 0,
@@ -352,6 +397,9 @@
     var a = mergeVehicles(payload && payload.vehicles);
     var b = mergeSnapshots(payload && payload.snapshots);
     var changed = a || b;
+    /* Von einem Gerät mit älterem Build können Datensätze im alten Format
+       hereinkommen — die werden hier gleich überführt. */
+    if (changed) normalisiereAlles();
     return (changed ? persistOnly() : Promise.resolve()).then(function () { return changed; });
   }
 
@@ -410,6 +458,7 @@
     }).then(function (res) {
       if (Array.isArray(res[0])) state.vehicles = res[0];
       if (Array.isArray(res[1])) state.snapshots = res[1];
+      normalisiereAlles();
     });
   }
 
@@ -425,6 +474,8 @@
     vehicles: vehicles,
     getVehicle: getVehicle,
     damagesOf: damagesOf,
+    damageCount: damageCount,
+    normalisiereSchaden: normalisiereSchaden,
     addVehicle: addVehicle,
     updateVehicle: updateVehicle,
     deleteVehicle: deleteVehicle,

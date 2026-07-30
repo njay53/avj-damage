@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v11";
+  var APP_VERSION = "v12";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -248,7 +248,7 @@
     bindGlobalErrors();
 
     var vEl = document.getElementById("app-version");
-    if (vEl) vEl.textContent = "Fassung " + APP_VERSION;
+    if (vEl) vEl.textContent = "Build " + APP_VERSION.replace(/^v/, "");
     App.Store.onStatus(setStatus);
     App.Cloud.onStatus(function () {
       if (Nav.current() === "settings") refreshCloudUi();
