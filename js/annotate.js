@@ -8,7 +8,7 @@
  * Das kostet etwas Rechenzeit, bringt aber drei Dinge:
  *   · Zoomen bleibt scharf, weil immer aus dem Original gezeichnet wird
  *   · Rückgängig braucht keinen Speicher für ganze Bildkopien
- *   · die Lupe kann den darunterliegenden Bildinhalt sauber abgreifen
+ *   · Markierungen sitzen bei jedem Zoomgrad an derselben Bildstelle
  *
  * Zwei Zeichenflächen:
  *   work    — volle Bildauflösung, hier entsteht das Ergebnis
@@ -23,7 +23,7 @@
 
   var overlay, canvas, ctx, placeholder, camInput, fileInput, noteInput, dateInput,
       areaInput, saveBtn, titleEl, colorInput, widthInput, statusEl, dateModeSel,
-      dateRow, zoomLabel, loupeFactorSel, loupeWrap, lupe, lupeCtx;
+      dateRow, zoomLabel;
 
   var work, workCtx;        // volle Auflösung
   var img = null;           // Originalbild
@@ -31,7 +31,6 @@
   var tool = "circle";
   var color = "#ff3b30";
   var width = 6;
-  var loupeFactor = 2.5;
   var imageLoaded = false;
   var onSaveCb = null;
 
@@ -43,6 +42,7 @@
   var drawing = false;
   var current = null;       // Operation in Arbeit
   var pinch = null;
+  var panning = null;       // Verschieben ohne aktives Werkzeug
 
   function q(id) { return App.el(id, "annotate.js"); }
 
@@ -72,31 +72,34 @@
     colorInput = q("input-color");
     widthInput = q("input-width");
     zoomLabel = q("zoom-label");
-    loupeFactorSel = q("input-loupe-factor");
-    loupeWrap = q("loupe-factor-wrap");
-    lupe = q("draw-loupe");
-    lupeCtx = lupe.getContext("2d");
 
     work = document.createElement("canvas");
     workCtx = work.getContext("2d");
 
+    /* Nochmal auf dasselbe Werkzeug tippen schaltet es ab. Ohne aktives
+       Werkzeug verschiebt ein Finger den Bildausschnitt, statt zu zeichnen —
+       praktisch, wenn man hineingezoomt hat. */
     document.querySelectorAll(".tool-btn[data-tool]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        tool = btn.getAttribute("data-tool");
+        var gewaehlt = btn.getAttribute("data-tool");
+        var schonAktiv = (tool === gewaehlt);
         document.querySelectorAll(".tool-btn[data-tool]").forEach(function (b) {
           b.classList.remove("active");
         });
-        btn.classList.add("active");
-        loupeWrap.classList.toggle("hidden", tool !== "loupe");
+        if (schonAktiv) {
+          tool = null;
+        } else {
+          tool = gewaehlt;
+          btn.classList.add("active");
+        }
+        canvas.style.cursor = tool ? "crosshair" : "grab";
+        zeigeWerkzeugHinweis();
       });
     });
 
     colorInput.addEventListener("input", function () { color = colorInput.value; });
     widthInput.addEventListener("input", function () {
       width = parseInt(widthInput.value, 10);
-    });
-    loupeFactorSel.addEventListener("change", function () {
-      loupeFactor = parseFloat(loupeFactorSel.value);
     });
 
     dateModeSel.addEventListener("change", function () {
@@ -154,7 +157,6 @@
     canvas.classList.add("hidden");
     q("zoom-row").classList.add("hidden");
     placeholder.classList.remove("hidden");
-    lupe.classList.add("hidden");
     camInput.value = "";
     fileInput.value = "";
     statusEl.textContent = "";
@@ -232,9 +234,10 @@
     c.restore();
   }
 
-  /* Der Schaft endet kurz VOR der Spitze und hat stumpfe Enden — sonst ragt
-     die runde Linienkappe vorne aus dem Dreieck heraus. Genau das sah beim
-     alten Pfeil aus wie ein Fehler. */
+  /* Der Schaft endet MITTEN im Dreieck und wird von der gefüllten Spitze
+     verdeckt — deshalb wird er zuerst gezeichnet und der Kopf darüber.
+     Vorher endete er hinter dem Dreieck, wodurch die Linienkappe vorne
+     herausragte und die Spitze abgeschnitten aussah. */
   function drawArrow(c, o) {
     var dx = o.x2 - o.x1, dy = o.y2 - o.y1;
     var laenge = Math.sqrt(dx * dx + dy * dy);
@@ -243,7 +246,11 @@
     var kopf = Math.max(20, o.width * 3.6);
     if (kopf > laenge * 0.65) kopf = laenge * 0.65;
 
-    var schaftEnde = laenge - kopf * 0.9;
+    // Die Einbuchtung hinten in der Mitte des Dreiecks liegt bei kopf * 0.7
+    // von der Spitze. Der Schaft endet auf halbem Weg dorthin, also klar
+    // innerhalb der gefüllten Fläche.
+    var einbuchtung = kopf * 0.7;
+    var schaftEnde = laenge - einbuchtung * 0.55;
     var ex = o.x1 + Math.cos(winkel) * schaftEnde;
     var ey = o.y1 + Math.sin(winkel) * schaftEnde;
 
@@ -252,6 +259,8 @@
     c.fillStyle = o.color;
     c.lineWidth = o.width;
     c.lineCap = "butt";
+    c.lineJoin = "miter";
+
     c.beginPath();
     c.moveTo(o.x1, o.y1);
     c.lineTo(ex, ey);
@@ -260,7 +269,7 @@
     c.beginPath();
     c.moveTo(o.x2, o.y2);
     c.lineTo(o.x2 - kopf * Math.cos(winkel - 0.42), o.y2 - kopf * Math.sin(winkel - 0.42));
-    c.lineTo(o.x2 - kopf * Math.cos(winkel) * 0.7, o.y2 - kopf * Math.sin(winkel) * 0.7);
+    c.lineTo(o.x2 - einbuchtung * Math.cos(winkel), o.y2 - einbuchtung * Math.sin(winkel));
     c.lineTo(o.x2 - kopf * Math.cos(winkel + 0.42), o.y2 - kopf * Math.sin(winkel + 0.42));
     c.closePath();
     c.fill();
@@ -319,45 +328,11 @@
     c.restore();
   }
 
-  /* Lupe als Werkzeug: der Kreisinhalt zeigt denselben Ausschnitt vergrössert.
-     Gelesen wird aus einer Kopie des bisherigen Standes, damit sich die Lupe
-     nicht selbst abbildet. */
-  function drawLoupe(c, o, quelle) {
-    var r = Math.max(20, o.r);
-    c.save();
-    c.beginPath();
-    c.arc(o.x, o.y, r, 0, 2 * Math.PI);
-    c.closePath();
-    c.clip();
-
-    var f = o.factor || 2.5;
-    c.translate(o.x, o.y);
-    c.scale(f, f);
-    c.translate(-o.x, -o.y);
-    c.drawImage(quelle, 0, 0);
-    c.restore();
-
-    c.save();
-    c.strokeStyle = o.color;
-    c.lineWidth = Math.max(3, o.width);
-    c.beginPath();
-    c.arc(o.x, o.y, r, 0, 2 * Math.PI);
-    c.stroke();
-    c.restore();
-  }
-
   function drawOp(c, o) {
     if (o.type === "circle") return drawEllipse(c, o);
     if (o.type === "arrow") return drawArrow(c, o);
     if (o.type === "freehand") return drawFree(c, o);
     if (o.type === "text") return drawText(c, o);
-    if (o.type === "loupe") {
-      var kopie = document.createElement("canvas");
-      kopie.width = work.width;
-      kopie.height = work.height;
-      kopie.getContext("2d").drawImage(c.canvas, 0, 0);
-      return drawLoupe(c, o, kopie);
-    }
   }
 
   function renderWork(zusatz) {
@@ -423,46 +398,14 @@
     };
   }
 
-  // ---------------------------------------------------------------- Zeichenhilfe
-
-  function zeigeLupe(p, evt) {
-    var rect = canvas.getBoundingClientRect();
-    var groesse = 116;
-    if (lupe.width !== groesse * 2) {
-      lupe.width = groesse * 2;
-      lupe.height = groesse * 2;
-    }
-
-    var f = 3;
-    var aus = groesse / f;
-    lupeCtx.save();
-    lupeCtx.clearRect(0, 0, lupe.width, lupe.height);
-    lupeCtx.beginPath();
-    lupeCtx.arc(groesse, groesse, groesse - 2, 0, 2 * Math.PI);
-    lupeCtx.closePath();
-    lupeCtx.fillStyle = "#111";
-    lupeCtx.fill();
-    lupeCtx.clip();
-    lupeCtx.drawImage(work, p.x - aus, p.y - aus, aus * 2, aus * 2, 0, 0, lupe.width, lupe.height);
-    lupeCtx.strokeStyle = "rgba(255,255,255,.85)";
-    lupeCtx.lineWidth = 2;
-    lupeCtx.beginPath();
-    lupeCtx.moveTo(groesse - 14, groesse); lupeCtx.lineTo(groesse + 14, groesse);
-    lupeCtx.moveTo(groesse, groesse - 14); lupeCtx.lineTo(groesse, groesse + 14);
-    lupeCtx.stroke();
-    lupeCtx.restore();
-
-    // über dem Finger platzieren, damit die Hand nichts verdeckt
-    var x = evt.clientX - rect.left - groesse / 2;
-    var y = evt.clientY - rect.top - groesse - 46;
-    if (y < 4) y = evt.clientY - rect.top + 40;
-    x = Math.min(Math.max(4, x), Math.max(4, rect.width - groesse - 4));
-    lupe.style.left = Math.round(x) + "px";
-    lupe.style.top = Math.round(y) + "px";
-    lupe.classList.remove("hidden");
+  /* Hinweistext in der Zoomleiste — sagt, was ein Finger gerade tut. */
+  function zeigeWerkzeugHinweis() {
+    var el = document.getElementById("zoom-hint");
+    if (!el) return;
+    el.textContent = tool
+      ? "Zwei Finger zum Zoomen · Werkzeug nochmal antippen zum Abwählen"
+      : "Kein Werkzeug aktiv — ein Finger verschiebt, zwei zoomen";
   }
-
-  function versteckeLupe() { lupe.classList.add("hidden"); }
 
   // ---------------------------------------------------------------- Eingabe
 
@@ -475,7 +418,7 @@
       // zweiter Finger: laufende Markierung verwerfen, jetzt wird gezoomt
       drawing = false;
       current = null;
-      versteckeLupe();
+      panning = null;
       var pts = Array.from(pointers.values());
       pinch = {
         dist: abstand(pts[0], pts[1]),
@@ -490,6 +433,14 @@
 
     var p = toImage(e);
 
+    // Kein Werkzeug gewählt: ein Finger verschiebt den Ausschnitt
+    if (!tool) {
+      panning = { start: p, viewX: view.x, viewY: view.y };
+      canvas.style.cursor = "grabbing";
+      if (e.preventDefault) e.preventDefault();
+      return;
+    }
+
     if (tool === "text") {
       var text = prompt("Text für die Markierung:");
       if (text) {
@@ -503,12 +454,9 @@
     drawing = true;
     if (tool === "freehand") {
       current = { type: "freehand", punkte: [p], color: color, width: width };
-    } else if (tool === "loupe") {
-      current = { type: "loupe", x: p.x, y: p.y, r: 0, color: color, width: width, factor: loupeFactor };
     } else {
       current = { type: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color: color, width: width };
     }
-    zeigeLupe(p, e);
     if (e.preventDefault) e.preventDefault();
   }
 
@@ -530,33 +478,46 @@
       return;
     }
 
+    // Verschieben ohne Werkzeug
+    if (panning) {
+      var rect = canvas.getBoundingClientRect();
+      var v = viewport();
+      var dx = ((e.clientX - rect.left) / (rect.width || canvas.width)) * v.sw;
+      var dy = ((e.clientY - rect.top) / (rect.height || canvas.height)) * v.sh;
+      view.x = panning.viewX + (panning.start.x - panning.viewX - dx);
+      view.y = panning.viewY + (panning.start.y - panning.viewY - dy);
+      renderView();
+      if (e.preventDefault) e.preventDefault();
+      return;
+    }
+
     if (!drawing || !current) return;
     var p = toImage(e);
 
     if (current.type === "freehand") {
       current.punkte.push(p);
-    } else if (current.type === "loupe") {
-      current.r = Math.sqrt(Math.pow(p.x - current.x, 2) + Math.pow(p.y - current.y, 2));
     } else {
       current.x2 = p.x;
       current.y2 = p.y;
     }
     renderWork(current);
     renderView();
-    zeigeLupe(p, e);
     if (e.preventDefault) e.preventDefault();
   }
 
   function onUp(e) {
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
-    versteckeLupe();
+    if (panning) {
+      panning = null;
+      canvas.style.cursor = tool ? "crosshair" : "grab";
+      return;
+    }
     if (!drawing || !current) return;
     drawing = false;
 
     var gueltig = true;
     if (current.type === "freehand") gueltig = current.punkte.length > 1;
-    if (current.type === "loupe") gueltig = current.r > 12;
     if (current.type === "circle" || current.type === "arrow") {
       gueltig = Math.abs(current.x2 - current.x1) > 4 || Math.abs(current.y2 - current.y1) > 4;
     }
@@ -614,6 +575,7 @@
     _toImage: toImage,
     _ops: function () { return ops; },
     _view: function () { return view; },
+    _tool: function () { return tool; },
     _zoomBy: zoomBy,
     _istHell: istHell
   };

@@ -312,13 +312,6 @@ input[type=range]{width:104px;height:36px;}
   position:relative;
 }
 .canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;}
-
-/* Zeichenhilfe: vergrösserter Ausschnitt neben der Fingerspitze */
-.draw-loupe{
-  position:absolute;width:116px;height:116px;border-radius:50%;
-  border:2px solid #fff;box-shadow:0 3px 14px rgba(0,0,0,.45);
-  pointer-events:none;z-index:5;
-}
 .placeholder-note{color:#8a8a82;font-size:12.5px;padding:44px 12px;text-align:center;}
 
 .detail-img-wrap{

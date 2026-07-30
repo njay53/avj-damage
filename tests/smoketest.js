@@ -189,26 +189,39 @@ function macheApp(optionen) {
     await App.Store.deleteDamage(v.id, unbek.id);
   }
 
-  console.log("\n--- Markierwerkzeug: Operationen, Zoom, Lupe ---");
+  console.log("\n--- Markierwerkzeug ---");
   {
     App.Annotate.open({ title: "t", onSave: () => {} });
-    const cv = q("annotate-canvas");
-    // Bild vortäuschen: 1000x500, Anzeige 500x250
-    cv.getBoundingClientRect = () => ({ left: 0, top: 0, width: 500, height: 250 });
     const werkzeug = q("modal-annotate");
-    check("Lupen-Werkzeug vorhanden", !!werkzeug.querySelector('[data-tool="loupe"]'));
-    check("Vergrösserung erst versteckt", q("loupe-factor-wrap").classList.contains("hidden"));
-    werkzeug.querySelector('[data-tool="loupe"]').click();
-    check("Vergrösserung erscheint bei Lupe", !q("loupe-factor-wrap").classList.contains("hidden"));
-    werkzeug.querySelector('[data-tool="circle"]').click();
-    check("und verschwindet wieder", q("loupe-factor-wrap").classList.contains("hidden"));
+
+    check("keine Lupe mehr im Werkzeugkasten", !werkzeug.querySelector('[data-tool="loupe"]'));
+    check("keine Vergrösserungsauswahl mehr", !w.document.getElementById("loupe-factor-wrap"));
+    check("keine Zeichenhilfe mehr", !w.document.getElementById("draw-loupe"));
+    check("vier Werkzeuge übrig", werkzeug.querySelectorAll("[data-tool]").length === 4,
+      String(werkzeug.querySelectorAll("[data-tool]").length));
 
     check("Standardfarbe ist kräftiges Rot", q("input-color").value === "#ff3b30",
       q("input-color").value);
     check("Standardstärke erhöht", q("input-width").value === "6", q("input-width").value);
-
     check("dunkle Farbe → heller Kasten", App.Annotate._istHell("#ff3b30") === false);
     check("helle Farbe → dunkler Kasten", App.Annotate._istHell("#f5ec22") === true);
+
+    // Werkzeug abwählen
+    const kreis = werkzeug.querySelector('[data-tool="circle"]');
+    const pfeil = werkzeug.querySelector('[data-tool="arrow"]');
+    check("Kreis ist anfangs aktiv", App.Annotate._tool() === "circle", String(App.Annotate._tool()));
+    pfeil.click();
+    check("Umschalten auf Pfeil", App.Annotate._tool() === "arrow", String(App.Annotate._tool()));
+    check("nur ein Werkzeug hervorgehoben",
+      werkzeug.querySelectorAll("[data-tool].active").length === 1);
+    pfeil.click();
+    check("nochmal antippen wählt ab", App.Annotate._tool() === null, String(App.Annotate._tool()));
+    check("kein Werkzeug hervorgehoben",
+      werkzeug.querySelectorAll("[data-tool].active").length === 0);
+    check("Hinweis erklärt den Zustand",
+      /ein Finger verschiebt/.test(q("zoom-hint").textContent), q("zoom-hint").textContent);
+    kreis.click();
+    check("wieder anwählbar", App.Annotate._tool() === "circle");
     App.Annotate.close();
   }
 

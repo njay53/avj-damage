@@ -1,13 +1,22 @@
 /* sw.js — Service Worker
  *
- * App-Shell wird gecacht, damit die App auf dem Hof auch ohne Empfang startet.
- * Die Fahrzeug- und Protokolldaten liegen ohnehin in IndexedDB, nicht im Cache.
+ * Sorgt dafür, dass die App auf dem Hof auch ohne Empfang startet.
+ * Die Fahrzeugdaten liegen ohnehin in IndexedDB, nicht hier.
  *
- * WICHTIG bei Änderungen am Code: CACHE_VERSION hochzählen, sonst laden die
- * Geräte weiter die alte Version aus dem Cache.
+ * Auslieferungsregel: erst das Netz versuchen, aber nur kurz warten. Kommt
+ * nichts, wird aus dem Zwischenspeicher geliefert.
+ *
+ * Vorher war es umgekehrt — erst Zwischenspeicher, Auffrischen im Hintergrund.
+ * Das hatte einen bösen Nebeneffekt: nach einer Änderung lief auf dem Gerät
+ * neues HTML mit altem JavaScript, weil das HTML über einen anderen Weg geholt
+ * wurde als die Skripte. Die App sah dann aus wie die neue Fassung, verhielt
+ * sich aber wie die alte. Genau das darf nicht passieren.
+ *
+ * WICHTIG bei Änderungen am Code: CACHE_VERSION hochzählen.
  */
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
+const NETZ_TIMEOUT = 3000;
 
 const ASSETS = [
   "./",
@@ -45,6 +54,34 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/* Netz versuchen, aber nicht ewig warten. Ohne Zeitgrenze würde die App bei
+   schlechtem Empfang minutenlang hängen, statt die vorhandene Fassung zu
+   zeigen. */
+function ausDemNetz(req) {
+  return new Promise((resolve, reject) => {
+    let erledigt = false;
+    const uhr = setTimeout(() => {
+      if (!erledigt) { erledigt = true; reject(new Error("Zeitüberschreitung")); }
+    }, NETZ_TIMEOUT);
+
+    fetch(req).then((res) => {
+      if (erledigt) return;
+      erledigt = true;
+      clearTimeout(uhr);
+      if (res && res.ok) {
+        const kopie = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(req, kopie)).catch(() => {});
+      }
+      resolve(res);
+    }).catch((err) => {
+      if (erledigt) return;
+      erledigt = true;
+      clearTimeout(uhr);
+      reject(err);
+    });
+  });
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
@@ -52,34 +89,18 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  /* Navigationsanfragen: erst Netz (damit Updates ankommen), sonst Cache.
-     Alles andere: erst Cache (schnell und offline), im Hintergrund auffrischen. */
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put("./index.html", copy));
-          return res;
-        })
-        .catch(() => caches.match("./index.html"))
-    );
-    return;
-  }
+  const istNavigation = req.mode === "navigate";
 
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) {
-        fetch(req)
-          .then((res) => caches.open(CACHE_NAME).then((c) => c.put(req, res)))
-          .catch(() => {});
-        return cached;
-      }
-      return fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(req, copy));
-        return res;
-      });
-    })
+    ausDemNetz(req).catch(() =>
+      caches.match(req).then((treffer) => {
+        if (treffer) return treffer;
+        if (istNavigation) return caches.match("./index.html");
+        return new Response("Offline und nicht im Zwischenspeicher", {
+          status: 504,
+          headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
+      })
+    )
   );
 });
