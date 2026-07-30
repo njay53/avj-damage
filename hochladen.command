@@ -86,9 +86,29 @@ hochladen() {
           echo ""
           git diff --name-only HEAD origin/main 2>/dev/null | sed 's/^/    /' | head -20
           echo ""
-          echo "  Wenn dort nur die automatisch erzeugte README liegt, kannst du"
-          echo "  deinen Stand durchsetzen. Alles, was oben steht, wird dabei"
-          echo "  auf GitHub ersetzt. Deine Dateien hier bleiben unangetastet."
+
+          # Dateien, die es NUR auf GitHub gibt, verschwinden beim Überschreiben.
+          # Besonders heikel: CNAME (die eigene Domain) — die legt GitHub selbst
+          # an, wenn man unter Settings → Pages eine Domain einträgt.
+          # Filter A: was beim Wechsel von meinem Stand zu GitHub hinzukäme —
+          # also Dateien, die es dort gibt und hier nicht.
+          NUR_DORT="$(git diff --name-only --diff-filter=A HEAD origin/main 2>/dev/null)"
+          if [ -n "$NUR_DORT" ]; then
+            echo "  ACHTUNG — diese Dateien gibt es NUR auf GitHub und sie gehen verloren:"
+            echo "$NUR_DORT" | sed 's/^/    · /'
+            echo ""
+            if echo "$NUR_DORT" | grep -qx "CNAME"; then
+              echo "  Darunter CNAME — das ist deine eigene Domain. Ohne sie ist die Seite"
+              echo "  danach nur noch unter der github.io-Adresse erreichbar."
+              echo "  Besser vorher abbrechen und die Datei hier anlegen:"
+              echo "    echo \"deine-domain.de\" > CNAME"
+              echo ""
+            fi
+          fi
+
+          echo "  Wenn dort nichts Wichtiges liegt, kannst du deinen Stand"
+          echo "  durchsetzen. Alles Obige wird auf GitHub ersetzt."
+          echo "  Deine Dateien hier bleiben unangetastet."
           echo ""
           read -r -p "  Stand auf GitHub mit deinem überschreiben? [j/n] " HART
           case "$HART" in
