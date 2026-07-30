@@ -16,6 +16,14 @@ ende() {
   exit "${1:-0}"
 }
 
+geschafft() {
+  echo ""
+  echo "  Fertig. GitHub Pages braucht ein bis zwei Minuten."
+  echo ""
+  echo "  WICHTIG: Auf iPhone und iPad die Seite einmal neu laden,"
+  echo "  sonst zeigt der Zwischenspeicher noch die alte Fassung."
+}
+
 hochladen() {
   echo "  Lade hoch nach $(git remote get-url origin) …"
   echo ""
@@ -26,15 +34,87 @@ hochladen() {
   echo "    Nur EINMAL einfügen, dann Enter."
   echo ""
 
-  if git push -u origin main; then
-    echo ""
-    echo "  Fertig. GitHub Pages braucht ein bis zwei Minuten."
-    echo ""
-    echo "  WICHTIG: Auf iPhone und iPad die Seite einmal neu laden,"
-    echo "  sonst zeigt der Zwischenspeicher noch die alte Fassung."
+  local LOG
+  LOG="$(mktemp -t avjpush)"
+
+  git push -u origin main 2>&1 | tee "$LOG"
+  local STATUS=${PIPESTATUS[0]}
+
+  if [ "$STATUS" -eq 0 ]; then
+    rm -f "$LOG"
+    geschafft
     return 0
   fi
 
+  # ------------------------------------------------------------------
+  # Häufigster Fall beim allerersten Mal: auf GitHub liegt schon eine
+  # README oder Lizenz, die beim Anlegen des Repos erzeugt wurde. Git
+  # verweigert dann das Hochladen, um nichts zu überschreiben.
+  # ------------------------------------------------------------------
+  if grep -qiE "fetch first|non-fast-forward|rejected" "$LOG"; then
+    echo ""
+    echo "  Auf GitHub liegt bereits etwas, das hier fehlt —"
+    echo "  meist die README, die beim Anlegen des Repos erzeugt wurde."
+    echo ""
+    echo "  Ich kann den Stand von GitHub holen und deinen daraufsetzen."
+    echo "  Deine Dateien bleiben dabei erhalten."
+    echo ""
+    read -r -p "  Zusammenführen und nochmal versuchen? [j/n] " ANTWORT
+    case "$ANTWORT" in
+      j|J|ja|Ja|y|Y)
+        echo ""
+        if git pull --rebase origin main; then
+          echo ""
+          echo "  Zusammengeführt. Zweiter Versuch …"
+          echo ""
+          if git push -u origin main; then
+            rm -f "$LOG"
+            geschafft
+            return 0
+          fi
+        else
+          # Klassiker: beide Seiten haben eine README.md. Dann lässt sich das
+          # nicht automatisch zusammenlegen.
+          git rebase --abort 2>/dev/null
+          echo ""
+          echo "  Zusammenführen nicht möglich — dieselbe Datei wurde auf beiden"
+          echo "  Seiten angelegt, fast immer die README.md."
+          echo ""
+          echo "  Das liegt derzeit auf GitHub:"
+          git fetch -q origin main 2>/dev/null
+          git log --oneline origin/main 2>/dev/null | sed 's/^/    /' | head -10
+          echo ""
+          git diff --name-only HEAD origin/main 2>/dev/null | sed 's/^/    /' | head -20
+          echo ""
+          echo "  Wenn dort nur die automatisch erzeugte README liegt, kannst du"
+          echo "  deinen Stand durchsetzen. Alles, was oben steht, wird dabei"
+          echo "  auf GitHub ersetzt. Deine Dateien hier bleiben unangetastet."
+          echo ""
+          read -r -p "  Stand auf GitHub mit deinem überschreiben? [j/n] " HART
+          case "$HART" in
+            j|J|ja|Ja|y|Y)
+              echo ""
+              if git push -u origin main --force; then
+                rm -f "$LOG"
+                geschafft
+                return 0
+              fi
+              ;;
+            *)
+              echo "  Abgebrochen. Auf GitHub wurde nichts verändert."
+              ;;
+          esac
+        fi
+        ;;
+      *)
+        echo "  Abgebrochen. Es wurde nichts verändert."
+        ;;
+    esac
+    rm -f "$LOG"
+    return 1
+  fi
+
+  rm -f "$LOG"
   echo ""
   echo "  Hochladen fehlgeschlagen. Häufigste Gründe:"
   echo ""
@@ -43,9 +123,6 @@ hochladen() {
   echo "        printf \"protocol=https\\nhost=github.com\\n\" | git credential-osxkeychain erase"
   echo ""
   echo "    · Das Repo existiert noch nicht — auf github.com anlegen."
-  echo ""
-  echo "    · Im Repo liegt schon etwas, das hier fehlt:"
-  echo "        git pull --rebase origin main"
   echo ""
   echo "  Der Commit bleibt erhalten. Dieses Skript einfach erneut starten —"
   echo "  es lädt dann den vorhandenen Stand hoch, ohne dass etwas verloren geht."
