@@ -212,7 +212,7 @@
           '<figcaption><span class="dmg-no">' + (i + 1) + '</span> ' +
           (d.area ? '<strong>' + esc(d.area) + '</strong> · ' : '') +
           esc(d.note || "ohne Notiz") +
-          '<span class="dmg-date">erfasst am ' + fmtDate(d.date) + '</span>' +
+          '<span class="dmg-date">' + esc(App.Fleet.fmtDamageDateLong(d)) + '</span>' +
           '</figcaption></figure>';
       });
       h += '</div>';

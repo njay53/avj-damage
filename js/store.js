@@ -129,9 +129,12 @@
   function damagesOf(vehicleId) {
     var v = getVehicle(vehicleId);
     if (!v) return [];
+    /* Sortiert nach Erfassungszeitpunkt — der ist immer vorhanden. Nach dem
+       Schadensdatum zu sortieren würde alle Einträge ohne Datum ans Ende
+       schieben, obwohl sie gerade erst erfasst wurden. */
     return v.damages
       .filter(function (d) { return !d.deleted; })
-      .sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+      .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
   }
 
   function addVehicle(data) {
@@ -166,11 +169,16 @@
   function addDamage(vehicleId, damage) {
     var v = getVehicle(vehicleId);
     if (!v) return Promise.resolve(null);
+    /* dateMode trennt zwei Dinge, die oft verwechselt werden:
+         date      — wann der Schaden entstanden ist (kann unbekannt sein)
+         createdAt — wann du ihn fotografiert hast (immer bekannt)
+       Für den Nachweis zählt createdAt, deshalb wird es immer gesetzt. */
     var d = {
       id: uid("dmg"),
       image: damage.image,
       note: damage.note || "",
-      date: damage.date,
+      date: damage.date || "",
+      dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
       createdAt: now(),
       updatedAt: now()
@@ -218,7 +226,9 @@
           id: d.id,
           image: d.image,
           note: d.note || "",
-          date: d.date,
+          date: d.date || "",
+          dateMode: d.dateMode || "exact",
+          createdAt: d.createdAt || 0,
           area: d.area || ""
         };
       })

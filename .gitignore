@@ -4,6 +4,9 @@
 node_modules
 package-lock.json
 
+# Testausgaben, nur zum Anschauen gedacht
+testergebnis.txt
+
 # Betriebssystem-Kram
 .DS_Store
 Thumbs.db

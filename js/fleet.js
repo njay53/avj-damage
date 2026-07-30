@@ -21,6 +21,33 @@
     return p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : s;
   }
 
+  function fmtStamp(ms) {
+    if (!ms) return "";
+    var d = new Date(ms);
+    return d.toLocaleDateString("de-DE") + ", " +
+      d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /* Wann ist der Schaden entstanden? Kurzform für Kacheln. */
+  function fmtDamageDate(d) {
+    var modus = d.dateMode || (d.date ? "exact" : "unknown");
+    if (modus === "stock") return "Bestandsschaden";
+    if (modus === "unknown") return "Datum unbekannt";
+    return fmtDate(d.date);
+  }
+
+  /* Ausführlich, für Detailansicht und Dokument. Der Erfassungszeitpunkt
+     steht immer dabei — er ist der belastbare Teil. */
+  function fmtDamageDateLong(d) {
+    var modus = d.dateMode || (d.date ? "exact" : "unknown");
+    var text;
+    if (modus === "stock") text = "Bestandsschaden, bei Übernahme vorhanden";
+    else if (modus === "unknown") text = "Schadensdatum unbekannt";
+    else text = "Schaden vom " + fmtDate(d.date);
+    if (d.createdAt) text += " · erfasst am " + fmtStamp(d.createdAt);
+    return text;
+  }
+
   function bind() {
     Store = App.Store;
 
@@ -97,7 +124,7 @@
       card.className = "damage-card";
       card.innerHTML =
         '<img src="' + d.image + '" alt="Schaden" loading="lazy">' +
-        '<div class="meta">' + fmtDate(d.date) + (d.area ? " · " + esc(d.area) : "") + '</div>' +
+        '<div class="meta">' + esc(fmtDamageDate(d)) + (d.area ? " · " + esc(d.area) : "") + '</div>' +
         '<div class="note">' + esc(d.note || "(keine Notiz)") + '</div>';
       card.addEventListener("click", function () { openDetail(d.id); });
       grid.appendChild(card);
@@ -175,7 +202,7 @@
     if (!d) return;
     currentDamageId = damageId;
     q("detail-img").src = d.image;
-    q("detail-date").textContent = "Erfasst am " + fmtDate(d.date) +
+    q("detail-date").textContent = fmtDamageDateLong(d) +
       (d.area ? " · Bereich: " + d.area : "");
     q("detail-note-input").value = d.note || "";
     q("modal-detail").classList.remove("hidden");
@@ -206,7 +233,10 @@
     openVehicle: openVehicle,
     currentVehicleId: function () { return currentVehicleId; },
     esc: esc,
-    fmtDate: fmtDate
+    fmtDate: fmtDate,
+    fmtStamp: fmtStamp,
+    fmtDamageDate: fmtDamageDate,
+    fmtDamageDateLong: fmtDamageDateLong
   };
 
 })(window.App = window.App || {});

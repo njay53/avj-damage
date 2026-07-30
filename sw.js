@@ -6,7 +6,7 @@
  * WICHTIG bei Änderungen am Code: CACHE_VERSION hochzählen, sonst laden die
  * Geräte weiter die alte Version aus dem Cache.
  */
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 
 const ASSETS = [

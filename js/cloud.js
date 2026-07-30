@@ -179,7 +179,8 @@
       (v.damages || []).forEach(function (d) {
         damageRows.push({
           id: d.id, vehicle_id: v.id, image: d.image, note: d.note || "",
-          date: d.date || "", area: d.area || "",
+          date: d.date || "", date_mode: d.dateMode || "exact",
+          created_at: d.createdAt || 0, area: d.area || "",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -211,6 +212,7 @@
     (damageRows || []).forEach(function (r) {
       var d = {
         id: r.id, image: r.image, note: r.note || "", date: r.date || "",
+        dateMode: r.date_mode || "exact", createdAt: Number(r.created_at) || 0,
         area: r.area || "", deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0
       };
       if (!byId[r.vehicle_id]) {

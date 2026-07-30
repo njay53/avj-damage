@@ -115,12 +115,17 @@ create table public.vehicles (
 );
 
 -- Schäden (ein Datensatz je Foto)
+-- date      = wann der Schaden entstanden ist (kann leer sein)
+-- date_mode = exact | unknown | stock
+-- created_at= wann das Foto erfasst wurde (immer gesetzt, zählt als Nachweis)
 create table public.damages (
   id          text primary key,
   vehicle_id  text not null,
   image       text not null default '',
   note        text not null default '',
   date        text not null default '',
+  date_mode   text not null default 'exact',
+  created_at  bigint  not null default 0,
   area        text not null default '',
   deleted     boolean not null default false,
   updated_at  bigint  not null default 0
@@ -157,6 +162,14 @@ create policy "angemeldete duerfen alles" on public.damages
   for all to authenticated using (true) with check (true);
 create policy "angemeldete duerfen alles" on public.snapshots
   for all to authenticated using (true) with check (true);
+```
+
+Falls du die Tabellen schon vor dieser Version angelegt hattest, fehlen zwei
+Spalten. Dann zusätzlich einmal ausführen:
+
+```sql
+alter table public.damages add column if not exists date_mode  text   not null default 'exact';
+alter table public.damages add column if not exists created_at bigint not null default 0;
 ```
 
 Der letzte Block ist der wichtige: **Row Level Security**. Ohne sie könnte

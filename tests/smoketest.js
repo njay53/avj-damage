@@ -39,11 +39,22 @@ function macheApp(optionen) {
   w.indexedDB = o.indexedDB === undefined ? new FDBFactory() : o.indexedDB;
   w.IDBKeyRange = IDBKeyRange;
   w.ImageData = class { constructor(d, a, b) { this.data = d; this.width = a; this.height = b; } };
+  /* Zeichenbefehle werden mitgeschrieben, damit sich pruefen laesst, WAS
+     gezeichnet wurde — jsdom kann selbst nicht zeichnen. */
+  w.__zeichnungen = [];
   w.HTMLCanvasElement.prototype.getContext = function () {
-    const n = () => {};
+    const canvas = this;
+    const log = (name) => (...args) => { w.__zeichnungen.push({ op: name, args: args }); };
     return {
-      drawImage: n, fillRect: n, fillText: n, stroke: n, fill: n, beginPath: n,
-      moveTo: n, lineTo: n, ellipse: n, closePath: n, putImageData: n,
+      canvas: canvas,
+      drawImage: log("drawImage"), fillRect: log("fillRect"), fillText: log("fillText"),
+      stroke: log("stroke"), fill: log("fill"), beginPath: log("beginPath"),
+      moveTo: log("moveTo"), lineTo: log("lineTo"), ellipse: log("ellipse"),
+      arc: log("arc"), closePath: log("closePath"), putImageData: log("putImageData"),
+      clearRect: log("clearRect"), save: log("save"), restore: log("restore"),
+      translate: log("translate"), scale: log("scale"), clip: log("clip"),
+      quadraticCurveTo: log("quadraticCurveTo"),
+      measureText: () => ({ width: 42 }),
       getImageData: (x, y, a, b) => new w.ImageData(new Uint8ClampedArray(4), a || 1, b || 1)
     };
   };
@@ -109,6 +120,25 @@ function macheApp(optionen) {
     App.Annotate.close();
   }
 
+  console.log("\n--- Datumsangaben ---");
+  {
+    const modus = q("input-date-mode");
+    check("drei Auswahlmöglichkeiten", modus.options.length === 3, String(modus.options.length));
+    check("Werte stimmen",
+      Array.from(modus.options).map(o => o.value).join(",") === "exact,unknown,stock",
+      Array.from(modus.options).map(o => o.value).join(","));
+
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    check("Datumsfeld sichtbar bei 'exact'", !q("date-row").classList.contains("hidden"));
+    modus.value = "unknown";
+    modus.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("Datumsfeld verschwindet bei 'unbekannt'", q("date-row").classList.contains("hidden"));
+    modus.value = "stock";
+    modus.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("Datumsfeld bleibt weg bei 'Bestand'", q("date-row").classList.contains("hidden"));
+    App.Annotate.close();
+  }
+
   console.log("\n--- Fahrzeug und Schäden ---");
   const v = await App.Store.addVehicle({ name: "Toyota Yaris #3", plate: "NOM-JA 123" });
   await App.Store.addDamage(v.id, { image: "data:image/jpeg;base64,ALT1", note: "Kratzer Stossstange h.l.", date: "2026-05-04", area: "Stossstange h.l." });
@@ -117,6 +147,70 @@ function macheApp(optionen) {
   check("Fahrzeug in der Übersicht", q("fleet-grid").textContent.includes("Toyota Yaris #3"));
   check("Badge zeigt 2 Schäden", q("fleet-grid").textContent.includes("2 Schäden"));
   check("Register hat 2 Schäden", App.Store.damagesOf(v.id).length === 2);
+
+  console.log("\n--- Schäden ohne Datum ---");
+  {
+    const ohne = await App.Store.addDamage(v.id, {
+      image: "data:image/jpeg;base64,X", note: "Rost Radlauf, war beim Kauf da",
+      dateMode: "stock", date: "", area: "Radlauf h.r."
+    });
+    check("Bestandsschaden gespeichert", ohne.dateMode === "stock");
+    check("kein Datum gesetzt", ohne.date === "");
+    check("Erfassungszeitpunkt trotzdem da", typeof ohne.createdAt === "number" && ohne.createdAt > 0);
+
+    const unbek = await App.Store.addDamage(v.id, {
+      image: "data:image/jpeg;base64,Y", note: "Kratzer, wann unklar",
+      dateMode: "unknown", date: ""
+    });
+    check("Kurzform Bestandsschaden", App.Fleet.fmtDamageDate(ohne) === "Bestandsschaden",
+      App.Fleet.fmtDamageDate(ohne));
+    check("Kurzform unbekannt", App.Fleet.fmtDamageDate(unbek) === "Datum unbekannt");
+    check("Langform nennt Erfassung", /erfasst am/.test(App.Fleet.fmtDamageDateLong(ohne)),
+      App.Fleet.fmtDamageDateLong(ohne));
+    check("Langform bei exaktem Datum",
+      /Schaden vom 04\.05\.2026/.test(App.Fleet.fmtDamageDateLong(
+        App.Store.damagesOf(v.id).find(d => d.date === "2026-05-04"))));
+
+    // Alte Schäden ohne dateMode dürfen nicht kaputtgehen
+    const alt = { date: "2026-01-02" };
+    check("Altdaten ohne Modus gelten als exakt",
+      App.Fleet.fmtDamageDate(alt) === "02.01.2026", App.Fleet.fmtDamageDate(alt));
+
+    // Fahrzeug erst öffnen — sonst weiss renderVehicle nicht, was es zeichnen soll
+    App.Fleet.openVehicle(v.id);
+    await wait(20);
+    check("Kacheln zeigen den Hinweis",
+      q("damage-grid").textContent.includes("Bestandsschaden"),
+      q("damage-grid").textContent.slice(0, 120));
+    check("Kacheln zeigen auch 'Datum unbekannt'",
+      q("damage-grid").textContent.includes("Datum unbekannt"));
+
+    await App.Store.deleteDamage(v.id, ohne.id);
+    await App.Store.deleteDamage(v.id, unbek.id);
+  }
+
+  console.log("\n--- Markierwerkzeug: Operationen, Zoom, Lupe ---");
+  {
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    const cv = q("annotate-canvas");
+    // Bild vortäuschen: 1000x500, Anzeige 500x250
+    cv.getBoundingClientRect = () => ({ left: 0, top: 0, width: 500, height: 250 });
+    const werkzeug = q("modal-annotate");
+    check("Lupen-Werkzeug vorhanden", !!werkzeug.querySelector('[data-tool="loupe"]'));
+    check("Vergrösserung erst versteckt", q("loupe-factor-wrap").classList.contains("hidden"));
+    werkzeug.querySelector('[data-tool="loupe"]').click();
+    check("Vergrösserung erscheint bei Lupe", !q("loupe-factor-wrap").classList.contains("hidden"));
+    werkzeug.querySelector('[data-tool="circle"]').click();
+    check("und verschwindet wieder", q("loupe-factor-wrap").classList.contains("hidden"));
+
+    check("Standardfarbe ist kräftiges Rot", q("input-color").value === "#ff3b30",
+      q("input-color").value);
+    check("Standardstärke erhöht", q("input-width").value === "6", q("input-width").value);
+
+    check("dunkle Farbe → heller Kasten", App.Annotate._istHell("#ff3b30") === false);
+    check("helle Farbe → dunkler Kasten", App.Annotate._istHell("#f5ec22") === true);
+    App.Annotate.close();
+  }
 
   console.log("\n--- Schadensstand einfrieren ---");
   App.Fleet.openVehicle(v.id);

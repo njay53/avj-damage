@@ -206,17 +206,37 @@
       <button type="button" class="tool-btn" data-tool="arrow">↗ Pfeil</button>
       <button type="button" class="tool-btn" data-tool="freehand">✎ Freihand</button>
       <button type="button" class="tool-btn" data-tool="text">Text</button>
+      <button type="button" class="tool-btn" data-tool="loupe">⊕ Lupe</button>
       <hr class="divider-v" />
-      <label class="inline">Farbe <input type="color" id="input-color" value="#c0392b" /></label>
-      <label class="inline">Stärke <input type="range" id="input-width" min="2" max="14" value="5" /></label>
+      <label class="inline">Farbe <input type="color" id="input-color" value="#ff3b30" /></label>
+      <label class="inline">Stärke <input type="range" id="input-width" min="2" max="16" value="6" /></label>
+      <label class="inline hidden" id="loupe-factor-wrap">Vergrösserung
+        <select id="input-loupe-factor">
+          <option value="2">2×</option>
+          <option value="2.5" selected>2,5×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
       <hr class="divider-v" />
       <button type="button" class="tool-btn" id="btn-undo">↩ Zurück</button>
       <button type="button" class="tool-btn" id="btn-reset-canvas">Alles löschen</button>
     </div>
 
+    <div class="zoom-row hidden" id="zoom-row">
+      <span class="zoom-hint">Zwei Finger zum Zoomen und Verschieben</span>
+      <div class="zoom-ctrl">
+        <button type="button" class="tool-btn" id="btn-zoom-out">−</button>
+        <span class="zoom-label" id="zoom-label">100 %</span>
+        <button type="button" class="tool-btn" id="btn-zoom-in">+</button>
+        <button type="button" class="tool-btn" id="btn-zoom-reset">Ganzes Bild</button>
+      </div>
+    </div>
+
     <div class="canvas-wrap">
       <div class="placeholder-note" id="canvas-placeholder">Noch kein Foto ausgewählt.</div>
       <canvas id="annotate-canvas" class="hidden"></canvas>
+      <canvas id="draw-loupe" class="draw-loupe hidden"></canvas>
     </div>
 
     <div class="two-col" style="margin-top:1.1rem">
@@ -225,9 +245,17 @@
         <input type="text" id="input-area" placeholder="z. B. Stossstange hinten links" />
       </div>
       <div class="field">
-        <label for="input-date">Datum</label>
-        <input type="date" id="input-date" />
+        <label for="input-date-mode">Wann ist der Schaden entstanden?</label>
+        <select id="input-date-mode">
+          <option value="exact">An diesem Datum</option>
+          <option value="unknown">Datum unbekannt</option>
+          <option value="stock">Bestandsschaden bei Übernahme</option>
+        </select>
       </div>
+    </div>
+    <div class="field" id="date-row">
+      <label for="input-date">Datum</label>
+      <input type="date" id="input-date" />
     </div>
     <div class="field">
       <label for="input-note">Notiz</label>
