@@ -16,6 +16,42 @@ ende() {
   exit "${1:-0}"
 }
 
+hochladen() {
+  echo "  Lade hoch nach $(git remote get-url origin) …"
+  echo ""
+  echo "  Falls nach Benutzername und Passwort gefragt wird:"
+  echo "    Username = dein GitHub-Name"
+  echo "    Password = das Token (beginnt mit github_pat_), NICHT das Kontopasswort"
+  echo "    Beim Einfügen bleibt die Zeile leer — das ist normal."
+  echo "    Nur EINMAL einfügen, dann Enter."
+  echo ""
+
+  if git push -u origin main; then
+    echo ""
+    echo "  Fertig. GitHub Pages braucht ein bis zwei Minuten."
+    echo ""
+    echo "  WICHTIG: Auf iPhone und iPad die Seite einmal neu laden,"
+    echo "  sonst zeigt der Zwischenspeicher noch die alte Fassung."
+    return 0
+  fi
+
+  echo ""
+  echo "  Hochladen fehlgeschlagen. Häufigste Gründe:"
+  echo ""
+  echo "    · Token falsch oder unvollständig eingefügt."
+  echo "      Gemerkten Eintrag löschen und neu versuchen:"
+  echo "        printf \"protocol=https\\nhost=github.com\\n\" | git credential-osxkeychain erase"
+  echo ""
+  echo "    · Das Repo existiert noch nicht — auf github.com anlegen."
+  echo ""
+  echo "    · Im Repo liegt schon etwas, das hier fehlt:"
+  echo "        git pull --rebase origin main"
+  echo ""
+  echo "  Der Commit bleibt erhalten. Dieses Skript einfach erneut starten —"
+  echo "  es lädt dann den vorhandenen Stand hoch, ohne dass etwas verloren geht."
+  return 1
+}
+
 echo ""
 echo "  AVJ Schäden — Hochladen nach GitHub"
 echo "  ───────────────────────────────────"
@@ -28,24 +64,12 @@ echo ""
 if ! git --version >/dev/null 2>&1; then
   echo "  Auf diesem Mac fehlen noch die Entwicklerwerkzeuge, zu denen git gehört."
   echo ""
-  echo "  So installierst du sie:"
-  echo "    1. Terminal öffnen (Spotlight: Cmd+Leertaste, 'Terminal')"
-  echo "    2. Diese Zeile eingeben und Enter drücken:"
-  echo ""
-  echo "         xcode-select --install"
-  echo ""
-  echo "    3. Im Fenster auf 'Installieren' klicken und warten (ein paar Minuten)"
-  echo "    4. Danach dieses Skript erneut doppelklicken"
-  echo ""
-  echo "  Alternative ohne Installation: die Dateien von Hand über"
-  echo "  'Add file' → 'Upload files' auf github.com hochladen."
+  echo "  Terminal öffnen und eingeben:   xcode-select --install"
+  echo "  Danach dieses Skript erneut doppelklicken."
   ende 1
 fi
 
 # ---------------------------------------------------------------- Adresse prüfen
-# Erlaubt sind:  https://github.com/nutzer/repo(.git)
-#                git@github.com:nutzer/repo.git
-#                nutzer/repo          (Kurzform)
 adresse_normalisieren() {
   local eingabe="$1"
   eingabe="$(echo "$eingabe" | tr -d '[:space:]')"
@@ -66,7 +90,7 @@ adresse_normalisieren() {
         "") echo "" ;;
         *)
           case "$rest" in
-            */*) echo "" ;;                       # mehr als zwei Ebenen
+            */*) echo "" ;;
             "")  echo "" ;;
             *)   echo "https://github.com/${nutzer}/${rest%.git}.git" ;;
           esac
@@ -82,11 +106,9 @@ adresse_normalisieren() {
 adresse_erfragen() {
   echo "  Die Repo-Adresse ist NICHT die Adresse der Webseite."
   echo ""
-  echo "    falsch:   njay53.github.io"
-  echo "    richtig:  https://github.com/njay53/avj-damage.git"
+  echo "    falsch:    njay53.github.io"
+  echo "    richtig:   https://github.com/njay53/avj-damage.git"
   echo "    oder kurz: njay53/avj-damage"
-  echo ""
-  echo "  Du findest sie auf github.com im Repo unter dem grünen Knopf 'Code'."
   echo ""
   while true; do
     read -r -p "  Repo-Adresse: " EINGABE
@@ -129,7 +151,25 @@ fi
 git add -A
 
 if git diff --cached --quiet 2>/dev/null; then
-  echo "  Keine Änderungen — es gibt nichts hochzuladen."
+  # Keine neuen Änderungen — aber vielleicht liegt hier ein fertiger Commit,
+  # dessen Upload beim letzten Mal gescheitert ist. Der darf nicht liegenbleiben.
+  OFFEN=0
+  if git rev-parse HEAD >/dev/null 2>&1; then
+    if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+      OFFEN="$(git rev-list --count '@{u}'..HEAD 2>/dev/null || echo 0)"
+    else
+      OFFEN="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+    fi
+  fi
+
+  if [ "${OFFEN:-0}" -gt 0 ]; then
+    echo "  Keine neuen Änderungen — aber ${OFFEN} Commit(s) warten noch auf den Upload."
+    echo ""
+    hochladen
+    ende 0
+  fi
+
+  echo "  Alles aktuell — es gibt nichts hochzuladen."
   ende 0
 fi
 
@@ -148,24 +188,5 @@ if ! git commit -q -m "$NACHRICHT"; then
   ende 1
 fi
 
-echo "  Lade hoch nach $(git remote get-url origin) …"
-echo ""
-
-if git push -u origin main; then
-  echo ""
-  echo "  Fertig. GitHub Pages braucht ein bis zwei Minuten."
-  echo ""
-  echo "  WICHTIG: Auf iPhone und iPad die Seite einmal neu laden,"
-  echo "  sonst zeigt der Zwischenspeicher noch die alte Fassung."
-else
-  echo ""
-  echo "  Hochladen fehlgeschlagen. Häufigste Gründe:"
-  echo "    · GitHub-Anmeldung fehlt oder wurde abgelehnt"
-  echo "    · das Repo existiert noch nicht — auf github.com anlegen"
-  echo "    · im Repo liegt schon etwas, das hier fehlt"
-  echo "      (dann einmal im Terminal: git pull --rebase origin main)"
-  echo ""
-  echo "  Adresse ändern: git remote set-url origin NEUE-ADRESSE"
-fi
-
+hochladen
 ende 0
