@@ -1,0 +1,13 @@
+# Nur für den Funktionstest nötig, gehört nicht ins Repo und nicht auf GitHub Pages
+# Ohne Schrägstrich, damit auch eine Verknüpfung mit diesem Namen erfasst wird —
+# "node_modules/" allein greift nur bei echten Ordnern.
+node_modules
+package-lock.json
+
+# Betriebssystem-Kram
+.DS_Store
+Thumbs.db
+
+# Sync- und Backup-Dateien niemals einchecken (enthalten Fahrzeug- und Schadensdaten)
+*.json.bak
+fahrzeug-schaeden*.json

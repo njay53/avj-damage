@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="AVJ Schäden" />
+<meta name="theme-color" content="#1a1a18" />
+<title>AVJ Schäden</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" href="icons/favicon.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<div class="header">
+  <img src="icons/logo.png" alt="AVJ Logo" />
+  <span class="header-title">Autovermietung Jansen – Schäden</span>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" data-tab="fleet">Fuhrpark</button>
+  <button class="nav-btn" data-tab="settings">Einstellungen</button>
+</div>
+
+<div class="status-bar">
+  <span class="status-pill" id="sync-status">Wird geladen …</span>
+  <button class="mini ghost hidden" id="btn-sync-now">Jetzt abgleichen</button>
+</div>
+
+<!-- ============================================ FUHRPARK -->
+<section id="view-fleet" class="content wide">
+  <div class="card">
+    <div class="tool-title">Kennung nachschlagen</div>
+    <div class="field" style="margin-bottom:0">
+      <label for="input-code-search">Aus dem rentsoft-Protokoll übernehmen</label>
+      <input type="text" id="input-code-search" placeholder="z. B. K7QF" autocapitalize="characters" />
+    </div>
+    <div id="code-search-result" class="note-box hidden"></div>
+  </div>
+
+  <div class="view-head">
+    <h2>Fuhrpark</h2>
+    <button id="btn-add-vehicle">+ Fahrzeug</button>
+  </div>
+  <div id="fleet-grid" class="fleet-grid"></div>
+</section>
+
+<!-- ============================================ FAHRZEUG -->
+<section id="view-vehicle" class="content wide hidden">
+  <button class="secondary back" id="btn-back-fleet">&larr; Übersicht</button>
+
+  <div class="view-head">
+    <div class="titlewrap">
+      <h2 id="vehicle-title"></h2>
+      <button class="icon-btn secondary" id="btn-edit-vehicle" title="Fahrzeug bearbeiten">✎</button>
+    </div>
+    <button class="ghost-danger" id="btn-delete-vehicle">Löschen</button>
+  </div>
+  <div class="sub-line" id="vehicle-plate"></div>
+
+  <div class="section-label">Dokumentierte Schäden</div>
+  <div id="damage-grid" class="damage-grid"></div>
+
+  <div class="view-head" style="margin-top:1.75rem">
+    <h3>Schadensstände</h3>
+    <button class="accent" id="btn-create-snapshot">Stand festhalten</button>
+  </div>
+  <p class="hint no-top">
+    Vor der Übergabe einmal antippen: der aktuelle Zustand wird eingefroren und bekommt
+    eine Kennung, die ins rentsoft-Protokoll gehört.
+  </p>
+  <div id="snapshot-list"></div>
+</section>
+
+<!-- ============================================ SCHADENSSTAND ANSEHEN -->
+<section id="view-snapshot-view" class="content wide hidden">
+  <button class="secondary back" id="btn-snapshot-back">&larr; Zurück</button>
+  <div class="view-head">
+    <h2 id="snapshot-view-heading"></h2>
+    <div class="btn-row">
+      <button id="btn-snapshot-print">PDF / Drucken</button>
+      <button class="ghost-danger" id="btn-snapshot-delete">Löschen</button>
+    </div>
+  </div>
+  <div id="snapshot-view-body" class="doc-wrap"></div>
+</section>
+
+<!-- ============================================ EINSTELLUNGEN -->
+<section id="view-settings" class="content hidden">
+  <div class="card">
+    <div class="tool-title">Abgleich zwischen Geräten</div>
+    <div id="cloud-state" class="note-box"></div>
+
+    <p class="hint no-top">
+      Gespeichert werden ausschliesslich Fahrzeuge, Schadensfotos und Schadensstände —
+      keine Kundendaten. Einrichtung siehe README.
+    </p>
+
+    <div class="field">
+      <label for="input-cloud-url">Projekt-URL</label>
+      <input type="text" id="input-cloud-url" placeholder="https://xxxxxxxx.supabase.co" autocapitalize="off" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label for="input-cloud-key">Öffentlicher Projekt-Schlüssel</label>
+      <input type="text" id="input-cloud-key" placeholder="eyJhbGciOi…" autocapitalize="off" spellcheck="false" />
+    </div>
+    <div class="btn-row">
+      <button id="btn-cloud-save">Speichern</button>
+      <button class="secondary" id="btn-cloud-test">Verbindung prüfen</button>
+      <button class="ghost-danger" id="btn-cloud-forget">Entfernen</button>
+    </div>
+    <div id="cloud-test-result" class="note-box hidden"></div>
+
+    <div id="login-block" class="hidden">
+      <div class="section-label">Anmelden</div>
+      <div class="two-col">
+        <div class="field">
+          <label for="input-cloud-email">E-Mail</label>
+          <input type="text" id="input-cloud-email" autocapitalize="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="input-cloud-password">Passwort</label>
+          <input type="password" id="input-cloud-password" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="accent" id="btn-cloud-login">Anmelden</button>
+      </div>
+    </div>
+
+    <div id="logged-in-block" class="hidden">
+      <div class="btn-row">
+        <button class="secondary" id="btn-cloud-logout">Abmelden</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">Sicherung als Datei</div>
+    <p class="hint no-top">
+      Unabhängig vom Abgleich: alle Fahrzeuge, Schäden und Stände als eine Datei sichern
+      oder einlesen. Sinnvoll vor grösseren Änderungen.
+    </p>
+    <div class="btn-row">
+      <button class="secondary" id="btn-export">Exportieren</button>
+      <button class="secondary" id="btn-import">Importieren</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Offline nutzbar &middot; keine Kundendaten &middot; Fotos bleiben im Browser und, sofern
+  eingerichtet, auf deinem Server
+</footer>
+
+<!-- ============================================ DIALOG: Fahrzeug -->
+<div id="modal-vehicle" class="modal-overlay hidden">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-vehicle">✕</button>
+    <h3 id="vehicle-modal-title">Fahrzeug hinzufügen</h3>
+    <form id="form-vehicle">
+      <div class="field">
+        <label for="input-vehicle-name">Bezeichnung</label>
+        <input type="text" id="input-vehicle-name" placeholder="z. B. Toyota Yaris #3" required />
+      </div>
+      <div class="field">
+        <label for="input-vehicle-plate">Kennzeichen</label>
+        <input type="text" id="input-vehicle-plate" placeholder="z. B. NOM-JA 123" />
+      </div>
+      <div class="btn-row right">
+        <button type="button" class="secondary" data-close="modal-vehicle">Abbrechen</button>
+        <button type="submit">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================ DIALOG: Foto markieren -->
+<div id="modal-annotate" class="modal-overlay hidden">
+  <div class="modal wide">
+    <button class="modal-close" data-close="modal-annotate">✕</button>
+    <h3 id="annotate-title">Schaden erfassen</h3>
+
+    <div class="photo-pick">
+      <button type="button" class="pick-btn" id="btn-photo-camera">
+        <span class="pick-icon" aria-hidden="true">◉</span>
+        <span class="pick-label">Kamera</span>
+        <span class="pick-sub">Foto jetzt aufnehmen</span>
+      </button>
+      <button type="button" class="pick-btn" id="btn-photo-file">
+        <span class="pick-icon" aria-hidden="true">▣</span>
+        <span class="pick-label">Album</span>
+        <span class="pick-sub">Aus Fotos oder Dateien</span>
+      </button>
+    </div>
+    <div class="pick-status" id="photo-status"></div>
+
+    <input type="file" id="input-photo-camera" accept="image/*" capture="environment" hidden />
+    <input type="file" id="input-photo-file" accept="image/*" hidden />
+
+    <div class="toolbar">
+      <button type="button" class="tool-btn active" data-tool="circle">◯ Kreis</button>
+      <button type="button" class="tool-btn" data-tool="arrow">↗ Pfeil</button>
+      <button type="button" class="tool-btn" data-tool="freehand">✎ Freihand</button>
+      <button type="button" class="tool-btn" data-tool="text">Text</button>
+      <hr class="divider-v" />
+      <label class="inline">Farbe <input type="color" id="input-color" value="#c0392b" /></label>
+      <label class="inline">Stärke <input type="range" id="input-width" min="2" max="14" value="5" /></label>
+      <hr class="divider-v" />
+      <button type="button" class="tool-btn" id="btn-undo">↩ Zurück</button>
+      <button type="button" class="tool-btn" id="btn-reset-canvas">Alles löschen</button>
+    </div>
+
+    <div class="canvas-wrap">
+      <div class="placeholder-note" id="canvas-placeholder">Noch kein Foto ausgewählt.</div>
+      <canvas id="annotate-canvas" class="hidden"></canvas>
+    </div>
+
+    <div class="two-col" style="margin-top:1.1rem">
+      <div class="field">
+        <label for="input-area">Bereich (optional)</label>
+        <input type="text" id="input-area" placeholder="z. B. Stossstange hinten links" />
+      </div>
+      <div class="field">
+        <label for="input-date">Datum</label>
+        <input type="date" id="input-date" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="input-note">Notiz</label>
+      <textarea id="input-note" rows="2" placeholder="z. B. Kratzer ca. 5 cm, nicht durchgerostet"></textarea>
+    </div>
+
+    <div class="btn-row right">
+      <button type="button" class="secondary" data-close="modal-annotate">Abbrechen</button>
+      <button type="button" class="accent" id="btn-save-damage" disabled>Schaden speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ DIALOG: Schadensdetail -->
+<div id="modal-detail" class="modal-overlay hidden">
+  <div class="modal wide">
+    <button class="modal-close" data-close="modal-detail">✕</button>
+    <h3>Schadensdetail</h3>
+    <div class="detail-img-wrap">
+      <img id="detail-img" src="" alt="Schaden" />
+    </div>
+    <div class="sub-line" id="detail-date"></div>
+    <div class="field">
+      <label for="detail-note-input">Notiz</label>
+      <textarea id="detail-note-input" rows="2"></textarea>
+    </div>
+    <div class="btn-row spread">
+      <button type="button" class="ghost-danger" id="btn-delete-damage">Schaden löschen</button>
+      <div class="btn-row">
+        <button type="button" class="secondary" data-close="modal-detail">Schliessen</button>
+        <button type="button" id="btn-save-note">Notiz speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ DIALOG: Schadensstand -->
+<div id="modal-snapshot" class="modal-overlay hidden">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-snapshot">✕</button>
+    <h3 id="snapshot-modal-title">Schadensstand festhalten</h3>
+
+    <div id="snapshot-form">
+      <div id="snapshot-modal-info" class="note-box"></div>
+      <div class="field">
+        <label for="input-snapshot-reference">Interne Referenz (optional)</label>
+        <input type="text" id="input-snapshot-reference" placeholder="z. B. MV 2026-0418" />
+        <p class="hint">Nur für deine Zuordnung. Keine Kundennamen eintragen.</p>
+      </div>
+      <div class="btn-row right">
+        <button type="button" class="secondary" data-close="modal-snapshot">Abbrechen</button>
+        <button type="button" class="accent" id="btn-confirm-snapshot">Einfrieren</button>
+      </div>
+    </div>
+
+    <div id="snapshot-result" class="hidden">
+      <div class="result-box">
+        <div class="result-label">Kennung</div>
+        <div class="code-display" id="snapshot-code"></div>
+      </div>
+      <div class="sub-line center" id="snapshot-result-info" style="margin-top:12px"></div>
+      <div class="transfer-line" id="snapshot-transfer"></div>
+      <p class="hint">Diese Zeile gehört ins Notizfeld des rentsoft-Protokolls.</p>
+      <div class="btn-row right">
+        <button type="button" class="secondary" id="btn-copy-code">Zeile kopieren</button>
+        <button type="button" data-close="modal-snapshot">Fertig</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-import-input" accept="application/json" hidden />
+
+<!-- Druckbereich: wird nur beim Drucken sichtbar -->
+<div id="print-area"></div>
+
+<script src="js/store.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/annotate.js"></script>
+<script src="js/fleet.js"></script>
+<script src="js/snapshot.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
