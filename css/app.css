@@ -288,6 +288,10 @@ textarea{line-height:1.5;resize:vertical;}
 }
 input[type=color]{width:44px;height:38px;border:1px solid var(--field-line);border-radius:8px;padding:2px;background:#fff;}
 input[type=range]{width:104px;height:36px;}
+.width-value{
+  font-family:var(--mono);font-size:12px;color:var(--ink);
+  min-width:22px;text-align:right;
+}
 
 .toolbar select{
   width:auto;padding:6px 8px;font-size:13px;background:#fff;

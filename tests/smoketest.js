@@ -202,7 +202,14 @@ function macheApp(optionen) {
 
     check("Standardfarbe ist kräftiges Rot", q("input-color").value === "#ff3b30",
       q("input-color").value);
-    check("Standardstärke erhöht", q("input-width").value === "6", q("input-width").value);
+    check("Standardstärke erhöht", q("input-width").value === "12", q("input-width").value);
+    check("Regler reicht bis 40", q("input-width").max === "40", q("input-width").max);
+    check("Stärke wird angezeigt", q("width-value").textContent === "12",
+      q("width-value").textContent);
+    q("input-width").value = "28";
+    q("input-width").dispatchEvent(new w.Event("input", { bubbles: true }));
+    check("Anzeige folgt dem Regler", q("width-value").textContent === "28",
+      q("width-value").textContent);
     check("dunkle Farbe → heller Kasten", App.Annotate._istHell("#ff3b30") === false);
     check("helle Farbe → dunkler Kasten", App.Annotate._istHell("#f5ec22") === true);
 

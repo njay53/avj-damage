@@ -23,14 +23,14 @@
 
   var overlay, canvas, ctx, placeholder, camInput, fileInput, noteInput, dateInput,
       areaInput, saveBtn, titleEl, colorInput, widthInput, statusEl, dateModeSel,
-      dateRow, zoomLabel;
+      dateRow, zoomLabel, widthValue;
 
   var work, workCtx;        // volle Auflösung
   var img = null;           // Originalbild
   var ops = [];             // bestätigte Markierungen
   var tool = "circle";
   var color = "#ff3b30";
-  var width = 6;
+  var width = 12;
   var imageLoaded = false;
   var onSaveCb = null;
 
@@ -71,6 +71,7 @@
     titleEl = q("annotate-title");
     colorInput = q("input-color");
     widthInput = q("input-width");
+    widthValue = q("width-value");
     zoomLabel = q("zoom-label");
 
     work = document.createElement("canvas");
@@ -100,6 +101,7 @@
     colorInput.addEventListener("input", function () { color = colorInput.value; });
     widthInput.addEventListener("input", function () {
       width = parseInt(widthInput.value, 10);
+      widthValue.textContent = String(width);
     });
 
     dateModeSel.addEventListener("change", function () {
@@ -243,7 +245,7 @@
     var laenge = Math.sqrt(dx * dx + dy * dy);
     if (laenge < 1) return;
     var winkel = Math.atan2(dy, dx);
-    var kopf = Math.max(20, o.width * 3.6);
+    var kopf = Math.max(26, o.width * 4.2);
     if (kopf > laenge * 0.65) kopf = laenge * 0.65;
 
     // Die Einbuchtung hinten in der Mitte des Dreiecks liegt bei kopf * 0.7

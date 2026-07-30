@@ -14,7 +14,7 @@
  *
  * WICHTIG bei Änderungen am Code: CACHE_VERSION hochzählen.
  */
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v10";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 const NETZ_TIMEOUT = 3000;
 
