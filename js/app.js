@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v20";
+  var APP_VERSION = "v21";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -103,7 +103,7 @@
       ? "Nicht eingerichtet — die Daten bleiben auf diesem Gerät."
       : (s.angemeldet
         ? "Angemeldet als " + s.email + (s.lastSync
-          ? " · zuletzt abgeglichen " + new Date(s.lastSync).toLocaleString("de-DE")
+          ? " · zuletzt synchronisiert " + new Date(s.lastSync).toLocaleString("de-DE")
           : "")
         : "Eingerichtet, aber nicht angemeldet.");
     q("cloud-state").className = "note-box " + (s.angemeldet ? "ok" : "");

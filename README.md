@@ -99,7 +99,25 @@ liegen ohnehin lokal.
 
 ---
 
-## Abgleich zwischen Geräten einrichten
+## Wann synchronisiert wird
+
+Von allein, ohne Knopfdruck:
+
+- **zwei Sekunden nach jeder Änderung** — die Verzögerung fasst mehrere
+  schnell aufeinanderfolgende Eingaben zu einer Übertragung zusammen
+- **beim Start** der App
+- **beim Zurückkommen in den Vordergrund**, höchstens alle 15 Sekunden — damit
+  das iPad im Büro nicht stundenlang einen alten Stand zeigt
+- **wenn das Netz zurückkommt**, mit allem, was offline liegengeblieben ist
+
+Die Statuspille oben zeigt den Zustand: grüner Punkt und „Synchronisiert
+14:32", wenn alles steht. Ist der Stand älter als heute, steht das Datum
+dabei. Der Knopf „Jetzt synchronisieren" ist nur für den Fall, dass man es
+erzwingen will.
+
+---
+
+## Synchronisierung zwischen Geräten einrichten
 
 Der Abgleich läuft über Supabase. Der kostenlose Tarif reicht für diesen
 Zweck deutlich aus. Einmalige Einrichtung, danach läuft es von allein.

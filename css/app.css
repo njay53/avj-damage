@@ -77,9 +77,20 @@ body{
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   justify-content:center;
 }
-.status-pill{padding:3px 10px;border-radius:999px;background:var(--result-bg);color:var(--muted);}
+.status-pill{
+  padding:3px 11px;border-radius:999px;background:var(--result-bg);color:var(--muted);
+  display:inline-flex;align-items:center;gap:6px;
+}
+/* Der Punkt nimmt die Textfarbe an — grün wenn alles steht, gelb bei Störung. */
+.status-pill::before{
+  content:"";width:7px;height:7px;border-radius:50%;
+  background:currentColor;flex:none;
+}
 .status-pill.ok{background:#eef6f0;color:var(--green);}
 .status-pill.warn{background:#fdf6e6;color:var(--gold);}
+.status-pill.busy{background:var(--blue-soft);color:var(--blue);}
+.status-pill.busy::before{animation:puls 1s ease-in-out infinite;}
+@keyframes puls{0%,100%{opacity:1;}50%{opacity:.25;}}
 
 /* ------------------------------------------------------------------ Inhalt */
 .content{padding:1.25rem 1rem;max-width:520px;margin:0 auto;}

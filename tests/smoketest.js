@@ -652,6 +652,60 @@ function macheApp(optionen) {
   check("Server-Zeile hat Kennzeichen",
     server.zeilen("vehicles").find((z) => z.id === v2.id).plate === "NOM-JA 200");
 
+  console.log("\n--- Statusanzeige ---");
+  {
+    const pille = w2.document.getElementById("sync-status");
+    check("Status meldet Synchronisiert", /^Synchronisiert /.test(pille.textContent), pille.textContent);
+    check("Status ist grün gesetzt", /\bok\b/.test(pille.className), pille.className);
+    check("heute nur die Uhrzeit", /^Synchronisiert \d{2}:\d{2}$/.test(pille.textContent),
+      pille.textContent);
+    check("gestern mit Datum",
+      /^\d{2}\.\d{2}\. \d{2}:\d{2}$/.test(A2.Cloud.zeitstempel(Date.now() - 26 * 3600 * 1000)),
+      A2.Cloud.zeitstempel(Date.now() - 26 * 3600 * 1000));
+    check("Knopf heisst Jetzt synchronisieren",
+      w2.document.getElementById("btn-sync-now").textContent === "Jetzt synchronisieren",
+      w2.document.getElementById("btn-sync-now").textContent);
+    check("kein 'Abgleich' mehr in der Oberfläche",
+      !/abgeglichen|Jetzt abgleichen|Abgleich läuft/.test(w2.document.body.innerHTML));
+
+    const css = fs.readFileSync(path.join(APP, "css/app.css"), "utf8");
+    check("Statuspille hat einen Punkt", /\.status-pill::before/.test(css));
+    check("Punkt nimmt die Textfarbe an", /background:currentColor/.test(css));
+    check("laufender Sync pulsiert", /\.status-pill\.busy::before/.test(css));
+  }
+
+  console.log("\n--- Sync beim Zurückkommen in den Vordergrund ---");
+  {
+    /* Bewusst nichts lokal ändern: sonst löst schon der übliche Push-Zeitgeber
+       einen Abgleich aus und der Test würde auch ohne die Vordergrund-Logik
+       bestehen. Stattdessen legt ein anderes Gerät etwas auf den Server. */
+    server.fremdeAenderung("vehicles", {
+      id: "veh-vordergrund", name: "Vom iPad angelegt", plate: "NOM-JA 777",
+      deleted: false, updated_at: Date.now()
+    });
+    check("noch nicht bekannt", !A2.Store.getVehicle("veh-vordergrund"));
+
+    A2.Cloud._setzeVordergrundSperre(0);
+    Object.defineProperty(w2.document, "visibilityState", { value: "visible", configurable: true });
+    w2.document.dispatchEvent(new w2.Event("visibilitychange"));
+    await bisWahr(() => !!A2.Store.getVehicle("veh-vordergrund"), 3000);
+    check("Vordergrundwechsel holt fremde Änderungen",
+      !!A2.Store.getVehicle("veh-vordergrund"));
+
+    // Sperre greift: direkt danach passiert nichts mehr
+    A2.Cloud._setzeVordergrundSperre(15000);
+    server.fremdeAenderung("vehicles", {
+      id: "veh-gesperrt", name: "Kommt erst später", plate: "", deleted: false,
+      updated_at: Date.now()
+    });
+    w2.document.dispatchEvent(new w2.Event("visibilitychange"));
+    await wait(120);
+    check("Sperre verhindert Dauerfeuer", !A2.Store.getVehicle("veh-gesperrt"));
+
+    await A2.Store.deleteVehicle("veh-vordergrund");
+    await A2.Cloud.sync();
+  }
+
   console.log("\n--- Abgleich: zweites Gerät ---");
   const w3 = macheApp({ fetch: server.fetch });
   await wait(300);

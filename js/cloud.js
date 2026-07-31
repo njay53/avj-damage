@@ -293,6 +293,18 @@
     });
   }
 
+  /* Heute reicht die Uhrzeit — steht dagegen noch der Stand von gestern da,
+     will man das auf einen Blick sehen und nicht "14:32" für bare Münze nehmen. */
+  function zeitstempel(ts) {
+    var d = ts ? new Date(ts) : new Date();
+    var uhr = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    var heute = new Date();
+    var gleicherTag = d.getDate() === heute.getDate() &&
+      d.getMonth() === heute.getMonth() && d.getFullYear() === heute.getFullYear();
+    if (gleicherTag) return uhr;
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) + " " + uhr;
+  }
+
   function sync(still) {
     var info = statusInfo();
     if (!info.konfiguriert || !info.angemeldet) return Promise.resolve(false);
@@ -304,7 +316,7 @@
 
     syncing = true;
     emit();
-    if (!still) App.Store.setStatus("Abgleich läuft …", "info");
+    if (!still) App.Store.setStatus("Synchronisiere …", "busy");
 
     /* Der Stempel wird VOR dem Abgleich genommen: was währenddessen entsteht,
        geht beim nächsten Durchlauf raus statt verloren. */
@@ -315,20 +327,19 @@
       .then(function (anzahl) {
         lastSync = stempel;
         return App.Store.idbSet("lastSync", lastSync).then(function () {
-          App.Store.setStatus("Abgeglichen " + new Date().toLocaleTimeString("de-DE",
-            { hour: "2-digit", minute: "2-digit" }), "ok");
+          App.Store.setStatus("Synchronisiert " + zeitstempel(), "ok");
           return anzahl;
         });
       })
       .catch(function (err) {
-        console.warn("Abgleich fehlgeschlagen:", err);
+        console.warn("Sync fehlgeschlagen:", err);
         var text = String(err && err.message || err);
         if (/Failed to fetch|NetworkError/i.test(text)) {
           App.Store.setStatus("Kein Netz — wird nachgeholt", "warn");
         } else if (/JWT|401|Nicht angemeldet|abgelaufen/i.test(text)) {
           App.Store.setStatus("Anmeldung abgelaufen", "warn");
         } else {
-          App.Store.setStatus("Abgleich fehlgeschlagen", "warn");
+          App.Store.setStatus("Sync fehlgeschlagen", "warn");
         }
         return false;
       })
@@ -343,6 +354,18 @@
     if (!statusInfo().angemeldet) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(function () { sync(true); }, 2000);
+  }
+
+  /* Kommt die App in den Vordergrund, wird nachgesehen, was die anderen Geräte
+     inzwischen gemacht haben. Die Sperre verhindert, dass schnelles Hin- und
+     Herschalten zwischen Apps eine Anfrage nach der anderen auslöst. */
+  var VORDERGRUND_SPERRE = 15000;
+
+  function beiVordergrund() {
+    if (document.visibilityState !== "visible") return;
+    if (!statusInfo().angemeldet) return;
+    if (Date.now() - lastSync < VORDERGRUND_SPERRE) return;
+    sync(true);
   }
 
   /* Verbindungsprobe für die Einstellungsseite */
@@ -363,6 +386,11 @@
         App.Store.setStatus("Offline — Änderungen bleiben lokal", "warn");
         emit();
       });
+
+      /* Wer das Telefon zwischendurch weglegt, bekommt beim Zurückkommen den
+         Stand der anderen Geräte. Ohne das hätte man auf dem iPad im Büro
+         stundenlang einen alten Stand vor sich, ohne es zu merken. */
+      document.addEventListener("visibilitychange", beiVordergrund);
       if (statusInfo().angemeldet) return sync();
     });
   }
@@ -378,6 +406,9 @@
     logout: logout,
     sync: sync,
     schedulePush: schedulePush,
+    zeitstempel: zeitstempel,
+    _beiVordergrund: beiVordergrund,
+    _setzeVordergrundSperre: function (ms) { VORDERGRUND_SPERRE = ms; },
     testConnection: testConnection,
     _toRows: toRows,
     _fromRows: fromRows
