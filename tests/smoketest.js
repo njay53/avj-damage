@@ -88,6 +88,25 @@ function macheApp(optionen) {
   return w;
 }
 
+/* WCAG-Kontrast — dieselbe Rechnung, mit der schon die helle Palette
+   nachgeschärft wurde. 4.5:1 ist die Schwelle für normalen Fliesstext. */
+function lum(hex) {
+  const h = String(hex || "").replace("#", "");
+  if (h.length !== 6) return null;
+  const k = [0, 2, 4].map((i) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * k[0] + 0.7152 * k[1] + 0.0722 * k[2];
+}
+
+function kontrast(a, b) {
+  const la = lum(a), lb = lum(b);
+  if (la === null || lb === null) return null;
+  const [hoch, tief] = la > lb ? [la, lb] : [lb, la];
+  return (hoch + 0.05) / (tief + 0.05);
+}
+
 (async function run() {
   const w = macheApp();
   await wait(300);
@@ -143,6 +162,52 @@ function macheApp(optionen) {
     check("Homescreen-Name ist Schadenmanager", mani.short_name === "Schadenmanager", mani.short_name);
     const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
     check("kein alter Name mehr im HTML", !/AVJ Schäden|– damage/.test(html));
+  }
+
+  console.log("\n--- Dunkelmodus ---");
+  {
+    const css = fs.readFileSync(path.join(APP, "css/app.css"), "utf8");
+    const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
+
+    check("folgt der Systemeinstellung",
+      /@media \(prefers-color-scheme: dark\)/.test(css));
+    check("Formularfelder ziehen mit",
+      /name="color-scheme"[^>]*content="light dark"/.test(html));
+
+    const dunkel = css.split("@media (prefers-color-scheme: dark)")[1] || "";
+    const werte = {};
+    (dunkel.match(/--[a-z-]+:\s*#[0-9a-fA-F]{6}/g) || []).forEach((z) => {
+      const [k, v] = z.split(":");
+      werte[k.trim()] = v.trim();
+    });
+    check("Grund wird dunkel", werte["--bg"] && lum(werte["--bg"]) < 0.1, werte["--bg"]);
+    check("Schrift wird hell", werte["--ink"] && lum(werte["--ink"]) > 0.7, werte["--ink"]);
+    check("Karte hebt sich vom Grund ab",
+      werte["--paper"] !== werte["--bg"], werte["--paper"] + " / " + werte["--bg"]);
+
+    // Das Dokument zeigt, was gedruckt wird — es darf nicht mitdunkeln
+    check("Dokument bleibt Papier", !/--doc-bg/.test(dunkel));
+    check("Druck erzwingt weiss", /body\{background:#fff;color:#1a1a18;\}/.test(css));
+    check("Dokument beim Druck weiss", /\.doc-wrap\{background:#fff/.test(css));
+
+    // Lesbarkeit — dieselbe Schwelle wie im hellen Bild
+    const paare = [
+      ["Text auf Grund", "--ink", "--bg"],
+      ["Text auf Karte", "--ink", "--paper"],
+      ["Nebentext", "--muted", "--paper"],
+      ["kleiner Nebentext", "--muted-light", "--paper"],
+      ["Blau auf Karte", "--blue", "--paper"],
+      ["Blau im blauen Kasten", "--blue", "--blue-soft"],
+      ["Grün im Erfolgskasten", "--green", "--ok-bg"],
+      ["Gold im Warnkasten", "--gold", "--warn-bg"],
+      ["Rot auf Karte", "--red", "--paper"],
+      ["Knopfschrift", "--btn-fg", "--btn-bg"]
+    ];
+    paare.forEach(([name, vorn, hinten]) => {
+      const v = kontrast(werte[vorn], werte[hinten]);
+      check("lesbar: " + name, v >= 4.5, (werte[vorn] || "?") + " auf " +
+        (werte[hinten] || "?") + " = " + (v ? v.toFixed(2) : "?"));
+    });
   }
 
   console.log("\n--- Fotoauswahl: Kamera und Album getrennt ---");

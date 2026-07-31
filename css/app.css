@@ -32,6 +32,29 @@
   --red:#C0392B;
   --green:#15803d;
 
+  /* Flächen, die in beiden Erscheinungsbildern dunkel bleiben */
+  --header-bg:#1a1a18;
+  --header-fg:#fff;
+  --auf-blau:#fff;          /* Text auf blauem Grund */
+
+  /* Hauptknopf: hell/dunkel dreht sich um */
+  --btn-bg:#1a1a18;
+  --btn-fg:#fff;
+
+  /* Getönte Kästen */
+  --ok-bg:#eef6f0;
+  --warn-bg:#fdf6e6;
+  --danger-bg:#fdf4f3;
+  --danger-line:#e8c5c0;
+
+  /* Das Dokument sieht aus wie Papier und bleibt es auch im Dunkelmodus —
+     es wird gedruckt und soll dem entsprechen, was hinterher herauskommt. */
+  --doc-bg:#fff;
+  --doc-ink:#1a1a18;
+  --doc-muted:#75756d;
+  --doc-line:#e0dfd8;
+  --doc-blue:#1B2FC4;
+
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
 }
 
@@ -48,18 +71,18 @@ body{
 
 /* ------------------------------------------------------------------ Kopfzeile */
 .header{
-  background:var(--ink);
+  background:var(--header-bg);
   padding:14px 20px;
   padding-top:calc(14px + env(safe-area-inset-top));
   display:flex;align-items:center;gap:12px;
   position:sticky;top:0;z-index:100;
 }
 .header img{width:36px;height:36px;border-radius:50%;object-fit:contain;background:#fff;padding:2px;}
-.header-title{font-size:16px;font-weight:500;color:#fff;letter-spacing:-.01em;}
+.header-title{font-size:16px;font-weight:500;color:var(--header-fg);letter-spacing:-.01em;}
 
 /* ------------------------------------------------------------------ Reiter */
 .nav{
-  background:#fff;border-bottom:1px solid var(--line);
+  background:var(--paper);border-bottom:1px solid var(--line);
   display:flex;overflow-x:auto;scrollbar-width:none;
 }
 .nav::-webkit-scrollbar{display:none;}
@@ -72,7 +95,7 @@ body{
 
 /* ------------------------------------------------------------------ Statusleiste */
 .status-bar{
-  background:#fff;border-bottom:1px solid var(--line);
+  background:var(--paper);border-bottom:1px solid var(--line);
   padding:7px 16px;font-size:12px;
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   justify-content:center;
@@ -86,8 +109,8 @@ body{
   content:"";width:7px;height:7px;border-radius:50%;
   background:currentColor;flex:none;
 }
-.status-pill.ok{background:#eef6f0;color:var(--green);}
-.status-pill.warn{background:#fdf6e6;color:var(--gold);}
+.status-pill.ok{background:var(--ok-bg);color:var(--green);}
+.status-pill.warn{background:var(--warn-bg);color:var(--gold);}
 .status-pill.busy{background:var(--blue-soft);color:var(--blue);}
 .status-pill.busy::before{animation:puls 1s ease-in-out infinite;}
 @keyframes puls{0%,100%{opacity:1;}50%{opacity:.25;}}
@@ -127,8 +150,8 @@ footer{
   border-radius:var(--radius-sm);padding:11px 13px;font-size:12.5px;
   line-height:1.5;color:var(--ink);margin:12px 0;
 }
-.note-box.ok{background:#eef6f0;border-left-color:var(--green);}
-.note-box.warn{background:#fdf6e6;border-left-color:var(--gold);}
+.note-box.ok{background:var(--ok-bg);border-left-color:var(--green);}
+.note-box.warn{background:var(--warn-bg);border-left-color:var(--gold);}
 .empty-hint{
   color:var(--muted);font-size:13px;padding:22px 12px;text-align:center;
   border:1px dashed var(--field-line);border-radius:10px;background:var(--paper);margin:8px 0;
@@ -141,21 +164,21 @@ footer{
 button{
   font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;
   padding:9px 16px;border-radius:var(--radius-sm);
-  border:1px solid var(--ink);background:var(--ink);color:#fff;
+  border:1px solid var(--btn-bg);background:var(--btn-bg);color:var(--btn-fg);
   transition:opacity .15s,background .15s,border-color .15s;
 }
 button:hover{opacity:.85;}
 button:active{opacity:.7;}
-button.secondary{background:#fff;color:var(--ink);border-color:var(--field-line);}
+button.secondary{background:var(--paper);color:var(--ink);border-color:var(--field-line);}
 button.secondary:hover{background:var(--field-bg);opacity:1;border-color:var(--muted);}
 button.accent{background:var(--blue);border-color:var(--blue);}
 button.accent:hover{background:var(--blue-deep);border-color:var(--blue-deep);opacity:1;}
 button.danger{background:var(--red);border-color:var(--red);}
-button.ghost-danger{background:#fff;color:var(--red);border-color:#e8c5c0;}
-button.ghost-danger:hover{background:#fdf4f3;opacity:1;}
+button.ghost-danger{background:var(--paper);color:var(--red);border-color:var(--danger-line);}
+button.ghost-danger:hover{background:var(--danger-bg);opacity:1;}
 button.icon-btn{padding:7px 10px;}
 button.mini{padding:5px 10px;font-size:11.5px;border-radius:6px;}
-button.mini.ghost{background:#fff;color:var(--ink);border-color:var(--field-line);}
+button.mini.ghost{background:var(--paper);color:var(--ink);border-color:var(--field-line);}
 button:disabled{opacity:.4;cursor:not-allowed;}
 
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -171,7 +194,7 @@ input[type=text],input[type=password],input[type=date],select,textarea{
   color:var(--ink);background:var(--field-bg);border:1px solid var(--field-line);
   border-radius:var(--radius-sm);outline:none;transition:border-color .15s,background .15s;
 }
-input:focus,select:focus,textarea:focus{border-color:var(--blue);background:#fff;}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);background:var(--paper);}
 textarea{line-height:1.5;resize:vertical;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.1rem;}
 .two-col .field{margin-bottom:0;}
@@ -185,7 +208,7 @@ textarea{line-height:1.5;resize:vertical;}
 }
 .transfer-line{
   font-family:var(--mono);font-size:11.5px;line-height:1.6;text-align:left;
-  background:#fff;border:1px solid var(--field-line);border-radius:var(--radius-sm);
+  background:var(--paper);border:1px solid var(--field-line);border-radius:var(--radius-sm);
   padding:10px 12px;margin-top:12px;word-break:break-word;user-select:all;color:var(--ink);
 }
 
@@ -213,7 +236,7 @@ textarea{line-height:1.5;resize:vertical;}
 }
 .chip{
   display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;
-  border-radius:999px;margin-right:5px;background:var(--blue);color:#fff;
+  border-radius:999px;margin-right:5px;background:var(--blue);color:var(--auf-blau);
 }
 .chip.zero{background:var(--result-bg);color:var(--muted);}
 .chip.ghost{background:var(--blue-soft);color:var(--blue-deep);}
@@ -286,7 +309,7 @@ textarea{line-height:1.5;resize:vertical;}
 .pick-btn{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   min-height:88px;padding:14px 10px;
-  background:#fff;color:var(--ink);border:1px solid var(--field-line);
+  background:var(--paper);color:var(--ink);border:1px solid var(--field-line);
   border-radius:var(--radius);text-align:center;
 }
 .pick-btn:hover{background:var(--blue-soft);border-color:var(--blue);opacity:1;}
@@ -334,16 +357,16 @@ textarea{line-height:1.5;resize:vertical;}
   border:1px solid var(--line-soft);border-radius:10px;
 }
 .tool-btn{
-  background:#fff;color:var(--ink);border:1px solid var(--field-line);
+  background:var(--paper);color:var(--ink);border:1px solid var(--field-line);
   min-height:44px;padding:10px 14px;font-size:14px;font-weight:500;border-radius:8px;
 }
-.tool-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.tool-btn.active{background:var(--blue);color:var(--auf-blau);border-color:var(--blue);}
 .toolbar .divider-v{width:1px;height:26px;background:var(--field-line);border:none;margin:0 2px;}
 .toolbar label.inline{
   display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
   margin:0;min-height:44px;
 }
-input[type=color]{width:44px;height:38px;border:1px solid var(--field-line);border-radius:8px;padding:2px;background:#fff;}
+input[type=color]{width:44px;height:38px;border:1px solid var(--field-line);border-radius:8px;padding:2px;background:var(--paper);}
 input[type=range]{width:104px;height:36px;}
 .app-version{
   display:inline-block;margin-top:4px;font-family:var(--mono);
@@ -355,7 +378,7 @@ input[type=range]{width:104px;height:36px;}
 }
 
 .toolbar select{
-  width:auto;padding:6px 8px;font-size:13px;background:#fff;
+  width:auto;padding:6px 8px;font-size:13px;background:var(--paper);
   border:1px solid var(--field-line);border-radius:6px;
 }
 
@@ -388,46 +411,47 @@ input[type=range]{width:104px;height:36px;}
 
 /* ------------------------------------------------------------------ Dokument */
 .doc-wrap{
-  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--doc-bg);color:var(--doc-ink);
+  border:1px solid var(--line);border-radius:var(--radius);
   padding:1.5rem;box-shadow:var(--shadow);
 }
 .doc{font-size:13px;line-height:1.5;}
 .doc-head{
   display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
-  border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:18px;
+  border-bottom:2px solid var(--doc-ink);padding-bottom:10px;margin-bottom:18px;
 }
 .doc-brand{font-size:15px;font-weight:700;letter-spacing:-.01em;}
-.doc-brand-sub{font-size:11px;color:var(--muted);margin-top:2px;}
-.doc-type{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);text-align:right;}
+.doc-brand-sub{font-size:11px;color:var(--doc-muted);margin-top:2px;}
+.doc-type{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--doc-muted);text-align:right;}
 .doc-code{
   display:block;font-family:var(--mono);font-size:24px;letter-spacing:.12em;
-  color:var(--blue);text-transform:none;margin-top:4px;font-weight:600;
+  color:var(--doc-blue);text-transform:none;margin-top:4px;font-weight:600;
 }
 .doc-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
 .doc-table th{
-  text-align:left;font-weight:400;color:var(--muted);width:36%;
+  text-align:left;font-weight:400;color:var(--doc-muted);width:36%;
   padding:6px 10px 6px 0;vertical-align:top;font-size:12px;
 }
-.doc-table td{padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.doc-table td{padding:6px 0;border-bottom:1px solid var(--doc-line);font-size:12.5px;}
 .doc-section{
   font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--muted-light);margin:22px 0 10px;
+  color:var(--doc-muted);margin:22px 0 10px;
 }
 .doc-damages{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
 .doc-damage{
-  border:1px solid var(--line);border-radius:10px;overflow:hidden;break-inside:avoid;
+  border:1px solid var(--doc-line);border-radius:10px;overflow:hidden;break-inside:avoid;
 }
-.doc-damage img{width:100%;display:block;background:var(--result-bg);}
+.doc-damage img{width:100%;display:block;background:#f5f5f2;}
 .doc-damage figcaption{padding:7px 9px;font-size:11.5px;line-height:1.4;}
 .dmg-no{
-  display:inline-block;background:var(--blue);color:#fff;border-radius:4px;
+  display:inline-block;background:var(--doc-blue);color:#fff;border-radius:4px;
   padding:0 5px;font-size:10.5px;font-weight:600;margin-right:4px;font-family:var(--mono);
 }
-.dmg-date{display:block;color:var(--muted-light);font-size:10.5px;margin-top:3px;font-family:var(--mono);}
-.doc-text{font-size:12.5px;color:var(--muted);}
+.dmg-date{display:block;color:var(--doc-muted);font-size:10.5px;margin-top:3px;font-family:var(--mono);}
+.doc-text{font-size:12.5px;color:var(--doc-muted);}
 .doc-foot{
-  margin-top:22px;padding-top:9px;border-top:1px solid var(--line-soft);
-  font-size:10px;color:var(--muted-light);font-family:var(--mono);
+  margin-top:22px;padding-top:9px;border-top:1px solid var(--doc-line);
+  font-size:10px;color:var(--doc-muted);font-family:var(--mono);
 }
 
 /* ------------------------------------------------------------------ Fehlerband */
@@ -440,12 +464,65 @@ input[type=range]{width:104px;height:36px;}
 .runtime-error code{display:block;margin-top:5px;font-size:11px;opacity:.9;word-break:break-word;font-family:var(--mono);}
 .runtime-error button{background:rgba(255,255,255,.18);border-color:transparent;padding:5px 10px;flex:none;}
 
+/* ------------------------------------------------------------------ Dunkelmodus
+
+   Folgt der Systemeinstellung. Wer am iPhone "Automatisch" mit Sonnenauf- und
+   -untergang eingestellt hat, bekommt das hier ohne Zutun mit: iOS schaltet um,
+   der Browser meldet es über prefers-color-scheme, die Seite zieht nach.
+
+   Zwei Dinge bleiben bewusst hell:
+     - das Dokument, denn es zeigt, was beim Drucken herauskommt
+     - die Fotos selbst, an denen wird nichts gedreht                          */
+
+@media (prefers-color-scheme: dark) {
+  :root{
+    --bg:#141413;
+    --paper:#1e1e1c;
+    --ink:#f0efe9;
+    --ink-soft:#c3c2ba;
+    --muted:#a3a29a;
+    --muted-light:#8f8e87;
+    --line:#34332f;
+    --line-soft:#2a2926;
+    --field-bg:#232320;
+    --field-line:#3c3b36;
+    --result-bg:#26251f;
+    --shadow:0 2px 12px rgba(0,0,0,.45);
+
+    /* Das Logoblau ist auf dunklem Grund nicht mehr lesbar — aufgehellt,
+       aber im selben Farbton. */
+    --blue:#93a0ff;
+    --blue-deep:#b3bcff;
+    --blue-soft:#1e2038;
+    --auf-blau:#12132a;
+
+    --gold:#e3ba43;
+    --red:#f4796a;
+    --green:#5fca8c;
+
+    /* Hauptknopf dreht sich um: heller Knopf, dunkle Schrift */
+    --btn-bg:#ecebe4;
+    --btn-fg:#171715;
+
+    --ok-bg:#16281d;
+    --warn-bg:#2c2415;
+    --danger-bg:#2b1a18;
+    --danger-line:#573531;
+  }
+
+  /* Der Kasten hinter einem Foto, solange es lädt — im Dunkeln kein weisses
+     Aufblitzen. Die Fotos selbst bleiben unangetastet. */
+  .detail-img-wrap{background:#000;}
+}
+
 /* ------------------------------------------------------------------ Druck */
 #print-area{display:none;}
 
 @media print{
   .header,.nav,.status-bar,.content,footer,.modal-overlay,.runtime-error{display:none !important;}
-  body{background:#fff;}
+  /* Auch wenn das Gerät gerade dunkel läuft: Papier ist weiss. */
+  body{background:#fff;color:#1a1a18;}
+  .doc-wrap{background:#fff;color:#1a1a18;box-shadow:none;border:none;}
   #print-area{display:block !important;padding:0;}
   .doc{font-size:10.5pt;}
   .doc-damages{grid-template-columns:1fr 1fr;gap:10px;}

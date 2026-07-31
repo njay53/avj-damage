@@ -99,6 +99,28 @@ liegen ohnehin lokal.
 
 ---
 
+## Hell und dunkel
+
+Die App folgt der Systemeinstellung des Geräts. Wer am iPhone unter
+*Anzeige & Helligkeit* auf „Automatisch" mit Sonnenauf- und -untergang steht,
+bekommt das ohne weiteres Zutun: iOS schaltet um, der Browser meldet es über
+`prefers-color-scheme`, die Seite zieht nach. Einen eigenen Schalter gibt es
+bewusst nicht — er wäre eine zweite Wahrheit neben der des Systems.
+
+Zwei Dinge bleiben in beiden Fällen hell:
+
+- **Das Dokument** in der Schadensstandansicht. Es zeigt, was beim Drucken
+  herauskommt, und Papier ist weiss.
+- **Die Fotos.** An denen wird nichts gedreht — ein Schaden soll auf beiden
+  Geräten gleich aussehen.
+
+Die dunkle Palette ist nicht die helle mit umgedrehten Werten: das Logoblau
+`#1B2FC4` ist auf dunklem Grund nicht mehr lesbar und wurde im selben Farbton
+aufgehellt. Der Testlauf rechnet die Kontraste nach und schlägt an, wenn ein
+Paar unter 4,5:1 fällt.
+
+---
+
 ## Wann synchronisiert wird
 
 Von allein, ohne Knopfdruck:
