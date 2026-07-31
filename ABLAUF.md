@@ -2,15 +2,16 @@
 
 Kurzfassung zum Nachschlagen. Ausführlich steht alles in der README.
 
-## Normaler Weg — ohne Terminal
+## Normaler Weg
 
-1. Claude sagen, was geändert werden soll. Er schreibt direkt in diesen Ordner.
-2. **`testen.command`** doppelklicken → prüft alles, schreibt `testergebnis.txt`
-3. Claude sagen „Test ist durch" → er liest die Datei
-4. **`hochladen.command`** doppelklicken → Beschreibung eintippen, Enter
-5. Auf iPhone/iPad die Seite einmal neu laden
+1. Claude sagen, was geändert werden soll. Er schreibt direkt in diesen Ordner
+   und lässt den Test selbst laufen.
+2. **`hochladen.command`** doppelklicken → Beschreibung eintippen, Enter
+3. Auf iPhone/iPad die Seite neu laden und unten die Build-Nummer prüfen
 
-Schritt 2 und 3 kann man weglassen, wenn es nur um Text oder Farben ging.
+Wenn Claude keinen Zugriff auf den Ordner hat — das kommt je nach Sitzung vor —
+sagt er Bescheid. Dann selbst **`testen.command`** doppelklicken und ihm
+mitteilen, dass der Test durch ist; er liest `testergebnis.txt`.
 
 ## Falls doch mal das Terminal nötig ist
 

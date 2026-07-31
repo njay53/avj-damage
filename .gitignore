@@ -6,6 +6,7 @@ package-lock.json
 
 # Testausgaben, nur zum Anschauen gedacht
 testergebnis.txt
+testausgabe.pdf
 
 # Betriebssystem-Kram
 .DS_Store

@@ -16,7 +16,7 @@
  */
 /* Muss mit APP_VERSION in js/app.js übereinstimmen — die Nummer steht in der
    Fusszeile der App, damit man sieht, welche Fassung ein Gerät geladen hat. */
-const CACHE_VERSION = "v12";
+const CACHE_VERSION = "v15";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 const NETZ_TIMEOUT = 3000;
 
@@ -26,8 +26,10 @@ const ASSETS = [
   "./css/app.css",
   "./js/store.js",
   "./js/cloud.js",
+  "./js/pdf.js",
   "./js/annotate.js",
   "./js/fleet.js",
+  "./js/uebersicht.js",
   "./js/snapshot.js",
   "./js/app.js",
   "./manifest.webmanifest",

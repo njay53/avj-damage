@@ -293,77 +293,39 @@
     });
   }
 
-  // -------------------------------------------------------------- Fahrzeugakte
+  // ------------------------------------------------------------ Schadenübersicht
 
-  /* Übersicht für den Kunden — grosse Bilder, Beschreibung, Bereich.
-     Bewusst OHNE Kennung: das ist kein Nachweis, sondern eine Auskunft.
-     Der Nachweis bleibt der eingefrorene Schadensstand. */
-  function akteHtml(v) {
-    var schaeden = Store.damagesOf(v.id);
-    var gesamt = Store.damageCount(v.id);
-    var jetzt = new Date();
-
-    var h = '<div class="doc">';
-    h += '<div class="doc-head">' +
-      '<div><div class="doc-brand">Autovermietung Jansen</div>' +
-      '<div class="doc-brand-sub">Berliner Allee 14 · 37154 Northeim</div></div>' +
-      '<div class="doc-type">Fahrzeugakte</div></div>';
-
-    h += '<table class="doc-table">' +
-      '<tr><th>Fahrzeug</th><td>' + esc(v.name) + '</td></tr>' +
-      (v.plate ? '<tr><th>Kennzeichen</th><td><strong>' + esc(v.plate) + '</strong></td></tr>' : '') +
-      '<tr><th>Dokumentierte Schäden</th><td>' + gesamt +
-        (schaeden.length !== gesamt ? ' (in ' + schaeden.length + ' Einträgen)' : '') + '</td></tr>' +
-      '<tr><th>Stand</th><td>' + jetzt.toLocaleDateString("de-DE") + ', ' +
-        jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + '</td></tr>' +
-      '</table>';
-
-    if (!schaeden.length) {
-      h += '<p class="doc-text">Für dieses Fahrzeug sind derzeit keine Schäden dokumentiert.</p>';
-    } else {
-      schaeden.forEach(function (d, i) {
-        h += '<div class="akte-eintrag">';
-        h += '<h3 class="akte-titel"><span class="dmg-no">' + (i + 1) + '</span> ' +
-          (d.area ? esc(d.area) : "ohne Bereichsangabe") +
-          (d.count > 1 ? ' <span class="akte-anzahl">' + d.count + ' Schäden</span>' : '') +
-          '</h3>';
-        h += '<div class="akte-meta">' + esc(fmtDamageDateLong(d)) + '</div>';
-        h += '<p class="akte-text">' + esc(d.description || "Keine Beschreibung hinterlegt.") + '</p>';
-        h += '<div class="akte-bilder">';
-        (d.images || []).forEach(function (src, j) {
-          h += '<figure class="akte-bild"><img src="' + src + '" alt="Schaden ' +
-            (i + 1) + ", Foto " + (j + 1) + '"></figure>';
-        });
-        h += '</div></div>';
-      });
-    }
-
-    h += '<div class="doc-foot">Übersicht der dokumentierten Schäden · erstellt am ' +
-      jetzt.toLocaleDateString("de-DE") + '</div>';
-    h += '</div>';
-    return h;
-  }
-
+  /* Heisst nach aussen "Schadenübersicht"; im Code tragen Funktionen und
+     CSS-Klassen noch das kürzere "akte" — gemeint ist dasselbe Dokument.
+     Bewusst OHNE Kennung: das ist kein Nachweis, sondern eine Auskunft für
+     den Kunden. Der Nachweis bleibt der eingefrorene Schadensstand. */
+  /* Erzeugt die PDF-Datei selbst statt über den Druckdialog zu gehen. Der
+     setzt Adresse und Datum in die Seitenränder, und am iPad lässt sich das
+     nicht abstellen — ein Dokument für Kunden soll die interne Adresse nicht
+     preisgeben. */
   function druckeAkte() {
     var v = Store.getVehicle(currentVehicleId);
     if (!v) return;
-    q("print-area").innerHTML = akteHtml(v);
+    var knopf = q("btn-vehicle-doc");
+    var beschriftung = knopf.textContent;
+    knopf.disabled = true;
+    knopf.textContent = "Erzeuge PDF …";
 
-    var alt = document.title;
-    document.title = "Fahrzeugakte_" + (v.plate || v.name).replace(/[^\w-]+/g, "_") +
-      "_" + new Date().toISOString().slice(0, 10);
-
-    var zurueck = function () {
-      document.title = alt;
-      window.removeEventListener("afterprint", zurueck);
-    };
-    window.addEventListener("afterprint", zurueck);
-    setTimeout(function () { window.print(); setTimeout(zurueck, 1500); }, 400);
+    setTimeout(function () {
+      try {
+        var ergebnis = App.Uebersicht.erzeuge(v, Store.damagesOf(v.id), Store.damageCount(v.id));
+        ergebnis.doc.speichern(ergebnis.name);
+      } catch (err) {
+        alert("Die PDF-Datei konnte nicht erzeugt werden.\n\n" + (err.message || err));
+        console.error(err);
+      }
+      knopf.disabled = false;
+      knopf.textContent = beschriftung;
+    }, 30);
   }
 
   App.Fleet = {
     bind: bind,
-    akteHtml: akteHtml,
     druckeAkte: druckeAkte,
     renderFleet: renderFleet,
     renderVehicle: renderVehicle,

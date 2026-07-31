@@ -14,8 +14,13 @@ const { createFakeServer } = require("./fake-server");
 require("fake-indexeddb/auto");
 
 const APP = path.join(__dirname, "..");
-const DATEIEN = ["js/store.js", "js/cloud.js", "js/annotate.js", "js/fleet.js",
-                 "js/snapshot.js", "js/app.js"];
+const DATEIEN = ["js/store.js", "js/cloud.js", "js/pdf.js", "js/annotate.js",
+                 "js/fleet.js", "js/uebersicht.js", "js/snapshot.js", "js/app.js"];
+
+/* Ein winziges echtes JPEG (48x36) — gebraucht, um den PDF-Erzeuger
+   mit richtigen Bilddaten zu pruefen statt mit Platzhaltern. */
+const MINI_JPEG = "data:image/jpeg;base64," +
+  "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAkADADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDuaKKzdU1GS3ZLS0QvdzD5RjhR6/of61nKSirs1o0Z1pqEf682aVFYq6BJcjfqV7LK+SQEPC564yPp2FDeHVhUtY3k8MuMZLcEenGO+Kz5578v4nV9Xw1+V1tf8Lt9/wDwDaorK0/ULhbs6fqA/wBI5KSAcSD/AD/nNatXGSkro5q1GVGXLL1TWzXdBWJJIun+JXnuDtiuYwqP2B4HJ/D9RW3UN3aQ3tu0E65U9D3B9R70qkXJabo0wtaNOTU/hkrPvYmorFXSdSshssNQHlkn5JR90dscH1PpQ2m6xdKYrrUUWMj/AJZryfY8Dip9pL+V3NfqlG91Wjy/O/3W/US/kW+1yzt7c7mtnLynsvIOM+vH5kVt1VsdPg0+IxwA/McszclvrVqqhFq7e7M8TVhPlhT+GKsr9dbthRRRWhyBRRRQAUUUUAf/2Q==";
 
 let failures = 0;
 function check(name, cond, extra) {
@@ -160,6 +165,13 @@ function macheApp(optionen) {
 
   console.log("\n--- Mehrere Bilder und Anzahl je Schaden ---");
   {
+    const anzahlFeld = q("input-count");
+    check("Anzahl ist ein Auswahlfeld", anzahlFeld.tagName === "SELECT", anzahlFeld.tagName);
+    check("Auswahl von 1 bis 10", anzahlFeld.options.length === 10,
+      String(anzahlFeld.options.length));
+    check("Beschriftung mit Einzahl bei 1", anzahlFeld.options[0].textContent === "1 Schaden",
+      anzahlFeld.options[0].textContent);
+
     const mehr = await App.Store.addDamage(v.id, {
       images: ["data:image/jpeg;base64,A", "data:image/jpeg;base64,B", "data:image/jpeg;base64,C"],
       count: 3, description: "Drei Kratzer am Heck", area: "Heck",
@@ -363,28 +375,77 @@ function macheApp(optionen) {
   }
   check("61 Stände, 61 verschiedene Kennungen", codes.size === 61, "verschieden: " + codes.size);
 
-  console.log("\n--- Fahrzeugakte ---");
+  console.log("\n--- PDF-Erzeuger ---");
+  {
+    check("PDF-Modul geladen", !!(App.PDF && App.PDF.neu));
+    const info = App.PDF._jpegInfo(
+      Uint8Array.from(atob(MINI_JPEG.split(",")[1]), (c) => c.charCodeAt(0)));
+    check("JPEG-Masse werden gelesen", info && info.breite === 48 && info.hoehe === 36,
+      JSON.stringify(info));
+    check("Farbkanaele erkannt", info && info.kanaele === 3, String(info && info.kanaele));
+
+    const doc = App.PDF.neu();
+    doc.text("Prüfung äöüß ÄÖÜ", 20, 20, { size: 12, bold: true });
+    doc.linie(20, 25, 190, 25);
+    const lage = doc.bild(MINI_JPEG, 20, 30, 80, 60);
+    check("Bild liefert seine Lage zurueck", lage && lage.breite > 0, JSON.stringify(lage));
+    check("Seitenverhaeltnis bleibt erhalten",
+      Math.abs(lage.breite / lage.hoehe - 48 / 36) < 0.01,
+      (lage.breite / lage.hoehe).toFixed(3));
+    doc.neueSeite();
+    doc.text("Zweite Seite", 20, 20);
+    check("zwei Seiten", doc.seiten() === 2, String(doc.seiten()));
+
+    const bytes = doc.bauen();
+    const roh = Buffer.from(bytes).toString("latin1");
+    check("Datei beginnt mit %PDF", roh.slice(0, 5) === "%PDF-", roh.slice(0, 8));
+    check("Datei endet mit %%EOF", /%%EOF\s*$/.test(roh));
+    check("JPEG unveraendert eingebettet", roh.includes("/DCTDecode"));
+    check("Querverweistabelle vorhanden", roh.includes("xref") && roh.includes("startxref"));
+    check("beide Seiten im Baum", /\/Count 2/.test(roh));
+    check("Umlaute als Latin-1 kodiert", roh.includes("Pr\u00fcfung"), "");
+
+    // Zeilenumbruch rechnet in Millimetern
+    const zeilen = doc.umbrechen(
+      "Ein recht langer Text der auf jeden Fall umgebrochen werden muss weil er nicht passt",
+      40, 9, false);
+    check("Text wird umgebrochen", zeilen.length > 2, String(zeilen.length));
+    check("keine Zeile ist zu breit",
+      zeilen.every((z) => doc.textBreite(z, 9, false) <= 40.5),
+      JSON.stringify(zeilen.map((z) => doc.textBreite(z, 9, false).toFixed(1))));
+  }
+
+  console.log("\n--- Schadenuebersicht als PDF ---");
   {
     const fz = App.Store.getVehicle(v.id);
-    const akte = App.Fleet.akteHtml(fz);
-    check("Akte nennt das Fahrzeug", akte.includes("Toyota Yaris #3"));
-    check("Akte nennt das Kennzeichen", akte.includes("NOM-JA 123"));
-    check("Akte trägt den richtigen Titel", akte.includes("Fahrzeugakte"));
-    check("Akte enthält Bilder", /<img src="data:/.test(akte));
-    // Nicht auf einen festen Text prüfen — vorherige Schritte ändern
-    // Beschreibungen absichtlich. Stattdessen gegen den Ist-Stand vergleichen.
-    const ersteBeschreibung = (App.Store.damagesOf(v.id)[0] || {}).description || "";
-    check("Akte zeigt die aktuelle Beschreibung",
-      ersteBeschreibung.length > 0 && akte.includes(ersteBeschreibung),
-      "gesucht: " + ersteBeschreibung);
-    check("Akte enthält KEINE Kennung", !/Kennung/.test(akte));
-    check("Akte zählt die Summe", /Dokumentierte Schäden<\/th><td>\d+/.test(akte));
+    const schaeden = App.Store.damagesOf(v.id).map((d) =>
+      Object.assign({}, d, { images: [MINI_JPEG, MINI_JPEG] }));
+    const e = App.Uebersicht.erzeuge(fz, schaeden, App.Store.damageCount(v.id));
 
-    q("btn-vehicle-doc").click();
-    await wait(600);
-    check("Akte wird gedruckt", w.__printed === true);
-    check("Druckbereich enthält die Akte", q("print-area").innerHTML.includes("Fahrzeugakte"));
-    w.__printed = false;
+    check("Dateiname beginnt richtig", /^Schadenuebersicht_/.test(e.name), e.name);
+    check("Kennzeichen im Dateinamen", e.name.includes("NOM-JA-123"), e.name);
+    check("Datum im Dateinamen", /\d{4}-\d{2}-\d{2}\.pdf$/.test(e.name), e.name);
+    check("mindestens zwei Seiten", e.doc.seiten() >= 2, String(e.doc.seiten()));
+
+    const bytes = e.doc.bauen();
+    const roh = Buffer.from(bytes).toString("latin1");
+    check("gueltige PDF-Datei", roh.slice(0, 5) === "%PDF-" && /%%EOF\s*$/.test(roh));
+    check("Fotos eingebettet", roh.includes("/DCTDecode"));
+    check("Bild nur einmal gespeichert",
+      (roh.match(/\/DCTDecode/g) || []).length === 1,
+      String((roh.match(/\/DCTDecode/g) || []).length));
+    check("Seitenzahlen eingetragen", roh.includes("Seite 1 / "), "");
+    check("keine Internetadresse im Dokument",
+      !/rent-in-nom|github\.io|https?:/i.test(roh),
+      (roh.match(/https?:[^\s)]{0,40}/) || [""])[0]);
+
+    // Zum Ansehen ablegen — Claude kann die Datei lesen
+    try {
+      fs.writeFileSync(path.join(APP, "testausgabe.pdf"), Buffer.from(bytes));
+      check("Probedatei geschrieben", fs.existsSync(path.join(APP, "testausgabe.pdf")));
+    } catch (err) {
+      check("Probedatei geschrieben", false, String(err.message));
+    }
   }
 
   console.log("\n--- Druckansicht ---");
