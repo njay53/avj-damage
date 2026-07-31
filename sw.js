@@ -16,7 +16,7 @@
  */
 /* Muss mit APP_VERSION in js/app.js übereinstimmen — die Nummer steht in der
    Fusszeile der App, damit man sieht, welche Fassung ein Gerät geladen hat. */
-const CACHE_VERSION = "v16";
+const CACHE_VERSION = "v17";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 const NETZ_TIMEOUT = 3000;
 
@@ -69,7 +69,13 @@ function ausDemNetz(req) {
       if (!erledigt) { erledigt = true; reject(new Error("Zeitüberschreitung")); }
     }, NETZ_TIMEOUT);
 
-    fetch(req).then((res) => {
+    /* cache:"no-store" ist entscheidend: ohne diese Angabe darf der Browser
+       die Anfrage aus seinem EIGENEN Zwischenspeicher beantworten, ohne das
+       Netz zu fragen. GitHub Pages erlaubt zehn Minuten — Safari hält sich
+       auch länger daran. Ergebnis war: neuer Server, altes Programm.
+       Der Umweg über die reine Adresse ist nötig, weil eine bestehende
+       Anfrage ihre Zwischenspeicher-Einstellung nicht ändern lässt. */
+    fetch(req.url, { cache: "no-store", credentials: "same-origin" }).then((res) => {
       if (erledigt) return;
       erledigt = true;
       clearTimeout(uhr);
@@ -98,7 +104,7 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     ausDemNetz(req).catch(() =>
-      caches.match(req).then((treffer) => {
+      caches.match(req, { ignoreSearch: true }).then((treffer) => {
         if (treffer) return treffer;
         if (istNavigation) return caches.match("./index.html");
         return new Response("Offline und nicht im Zwischenspeicher", {

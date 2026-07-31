@@ -89,6 +89,28 @@ function macheApp(optionen) {
   check("Status meldet: nur dieses Gerät", /Nur dieses Gerät/.test(q("sync-status").textContent),
     q("sync-status").textContent);
 
+  /* Zwischenspeicher-Falle: Skripte muessen eine Build-Angabe in der Adresse
+     tragen, sonst liefert Safari beim naechsten Besuch die alte Datei aus
+     seinem eigenen HTTP-Zwischenspeicher — der Server ist dann neu, das
+     Programm auf dem Geraet aber alt. */
+  {
+    const rohHtml = fs.readFileSync(path.join(APP, "index.html"), "utf8");
+    const sw = fs.readFileSync(path.join(APP, "sw.js"), "utf8");
+    const build = (sw.match(/CACHE_VERSION = "v(\d+)"/) || [])[1];
+
+    const verweise = rohHtml.match(/(?:src|href)="(?:js|css)\/[^"]+"/g) || [];
+    check("eigene Dateien werden ueberhaupt eingebunden", verweise.length >= 8,
+      String(verweise.length));
+    const ohneBuild = verweise.filter((v) => !v.includes("?b=" + build));
+    check("alle Skripte und Stile tragen die Build-Nummer",
+      ohneBuild.length === 0, ohneBuild.join(" "));
+
+    check("Service Worker umgeht den Browser-Zwischenspeicher",
+      /cache:\s*"no-store"/.test(sw));
+    check("Zwischenspeicher ignoriert die Build-Angabe beim Nachschlagen",
+      /ignoreSearch:\s*true/.test(sw));
+  }
+
   // Versionsanzeige — sie soll verraten, welche Fassung ein Gerät geladen hat
   {
     const gezeigt = q("app-version").textContent;
