@@ -175,7 +175,18 @@
     noteInput.value = (d && d.description) || "";
     areaInput.value = (d && d.area) || "";
     countInput.value = String((d && d.count) || 1);
-    saveBtn.textContent = d ? "Änderungen speichern" : "Schaden speichern";
+
+    /* Eine Zustandsaufnahme zeigt gerade keinen Schaden — nach der Anzahl zu
+       fragen wäre sinnlos. */
+    var art = opts.art || (d && d.kind) || "schaden";
+    var istZustand = art === "zustand";
+    document.getElementById("count-row").classList.toggle("hidden", istZustand);
+    if (istZustand) countInput.value = "1";
+    noteInput.parentNode.querySelector("label").textContent =
+      istZustand ? "Beschreibung" : "Beschreibung";
+    saveBtn.textContent = d
+      ? "Änderungen speichern"
+      : (istZustand ? "Aufnahme speichern" : "Schaden speichern");
 
     if (d && d.images && d.images.length) {
       var offen = d.images.length;

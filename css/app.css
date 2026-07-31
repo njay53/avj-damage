@@ -78,20 +78,27 @@ body{
   position:sticky;top:0;z-index:100;
 }
 .header img{width:36px;height:36px;border-radius:50%;object-fit:contain;background:#fff;padding:2px;}
-.header-title{font-size:16px;font-weight:500;color:var(--header-fg);letter-spacing:-.01em;}
+.header-title{font-size:16px;font-weight:500;color:var(--header-fg);letter-spacing:-.01em;flex:1;}
+/* Einstellungen sind selten dran — ein Zahnrad in der Ecke reicht. */
+.header-btn{
+  background:rgba(255,255,255,.1);border:none;color:var(--header-fg);
+  width:34px;height:34px;padding:0;border-radius:9px;font-size:16px;line-height:1;flex:none;
+}
+.header-btn:hover{background:rgba(255,255,255,.2);opacity:1;}
+.header-btn.zurueck{font-size:15px;}
 
-/* ------------------------------------------------------------------ Reiter */
-.nav{
-  background:var(--paper);border-bottom:1px solid var(--line);
-  display:flex;overflow-x:auto;scrollbar-width:none;
+/* ------------------------------------------------------------------ Fokus
+
+   Safari zeichnet seinen eigenen Fokusring — im Dunkelmodus weiss, fett und
+   mit runden Ecken quer über die Schaltfläche. Deshalb ein eigener, dezenter
+   Ring. Er bleibt sichtbar: wer mit der Tastatur bedient, braucht ihn.        */
+:focus{outline:none;}
+:focus-visible{
+  outline:2px solid var(--blue);
+  outline-offset:2px;
+  border-radius:var(--radius-sm);
 }
-.nav::-webkit-scrollbar{display:none;}
-.nav-btn{
-  flex:1;min-width:110px;padding:12px 16px;font-size:13px;font-family:inherit;font-weight:500;
-  color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;
-  cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;
-}
-.nav-btn.active{color:var(--ink);border-bottom-color:var(--ink);}
+button,select,input,textarea{-webkit-tap-highlight-color:transparent;}
 
 /* ------------------------------------------------------------------ Statusleiste */
 .status-bar{
@@ -571,3 +578,57 @@ input[type=range]{width:104px;height:36px;}
 .speicher-zeile.summe{
   border-top:1px solid var(--line-soft);margin-top:6px;padding-top:7px;font-weight:600;
 }
+
+
+/* ------------------------------------------------------------------ Filter */
+.filterleiste{
+  display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;
+  padding-bottom:4px;margin-bottom:12px;
+}
+.filterleiste::-webkit-scrollbar{display:none;}
+.filter-chip{
+  flex:none;padding:6px 13px;font-size:12.5px;font-weight:500;border-radius:999px;
+  background:var(--paper);color:var(--muted);border:1px solid var(--field-line);
+}
+.filter-chip.aktiv{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.filter-chip.leise{border-style:dashed;}
+
+/* ------------------------------------------------------------------ Schalter */
+.schalter{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:11px 0;border-top:1px solid var(--line-soft);cursor:pointer;
+}
+.schalter:first-of-type{border-top:none;}
+.schalter input{width:19px;height:19px;flex:none;margin-top:1px;accent-color:var(--blue);}
+.schalter span{font-size:13px;line-height:1.45;}
+.schalter em{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px;}
+
+/* ------------------------------------------------------------------ Klappe */
+.klappe{
+  margin-top:1.75rem;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--paper);overflow:hidden;
+}
+.klappe summary{
+  padding:12px 15px;font-size:13.5px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  list-style:none;
+}
+.klappe summary::-webkit-details-marker{display:none;}
+.klappe summary::after{
+  content:"›";font-size:17px;color:var(--muted);transition:transform .15s;
+  margin-left:auto;padding-left:8px;
+}
+.klappe[open] summary::after{transform:rotate(90deg);}
+.klappe-zahl{font-size:11.5px;font-weight:400;color:var(--muted);}
+.klappe-inhalt{padding:0 15px 15px;}
+
+/* ------------------------------------------------------------------ Kategorienliste */
+.kat-zeile{
+  display:flex;align-items:center;gap:8px;padding:8px 0;
+  border-top:1px solid var(--line-soft);
+}
+.kat-zeile:first-child{border-top:none;}
+.kat-zeile input{flex:1;min-width:0;}
+.kat-anzahl{font-size:11.5px;color:var(--muted);font-family:var(--mono);flex:none;}
+.kat-knoepfe{display:flex;gap:4px;flex:none;}
+.kat-knoepfe button{padding:5px 8px;font-size:12px;}

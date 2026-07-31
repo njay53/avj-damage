@@ -13,18 +13,15 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=22" />
+<link rel="stylesheet" href="css/app.css?b=23" />
 </head>
 <body>
 
 <div class="header">
   <img src="icons/logo.png" alt="AVJ Logo" />
   <span class="header-title">Schadenmanager</span>
-</div>
-
-<div class="nav">
-  <button class="nav-btn active" data-tab="fleet">Fuhrpark</button>
-  <button class="nav-btn" data-tab="settings">Einstellungen</button>
+  <button class="header-btn" id="btn-settings" data-tab="settings"
+          title="Einstellungen" aria-label="Einstellungen">⚙</button>
 </div>
 
 <div class="status-bar">
@@ -34,7 +31,7 @@
 
 <!-- ============================================ FUHRPARK -->
 <section id="view-fleet" class="content wide">
-  <div class="card">
+  <div class="card hidden" id="card-code-search">
     <div class="tool-title">Kennung nachschlagen</div>
     <div class="field" style="margin-bottom:0">
       <label for="input-code-search">Aus dem rentsoft-Protokoll übernehmen</label>
@@ -47,6 +44,7 @@
     <h2>Fuhrpark</h2>
     <button id="btn-add-vehicle">+ Fahrzeug</button>
   </div>
+  <div class="filterleiste" id="kategorie-filter"></div>
   <div id="fleet-grid" class="fleet-grid"></div>
 </section>
 
@@ -69,15 +67,31 @@
   <div class="section-label">Dokumentierte Schäden</div>
   <div id="damage-grid" class="damage-grid"></div>
 
-  <div class="view-head" style="margin-top:1.75rem">
-    <h3>Schadensstände</h3>
-    <button class="accent" id="btn-create-snapshot">Stand festhalten</button>
-  </div>
-  <p class="hint no-top">
-    Vor der Übergabe einmal antippen: der aktuelle Zustand wird eingefroren und bekommt
-    eine Kennung, die ins rentsoft-Protokoll gehört.
-  </p>
-  <div id="snapshot-list"></div>
+  <section id="zustand-block" class="hidden">
+    <div class="section-label">Zustandsaufnahmen</div>
+    <p class="hint no-top">
+      Fotos vom Fahrzeug, die keinen Schaden zeigen — etwa der heile Zustand bei
+      Übergabe einer Langzeitmiete. Sie zählen nicht in die Schadenszahl.
+    </p>
+    <div id="zustand-grid" class="damage-grid"></div>
+  </section>
+
+  <details id="snapshot-block" class="klappe">
+    <summary>
+      <span>Schadensstände</span>
+      <span class="klappe-zahl" id="snapshot-count"></span>
+    </summary>
+    <div class="klappe-inhalt">
+      <p class="hint no-top">
+        Vor der Übergabe einmal antippen: der aktuelle Zustand wird eingefroren und bekommt
+        eine Kennung, die ins rentsoft-Protokoll gehört.
+      </p>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="accent" id="btn-create-snapshot">Stand festhalten</button>
+      </div>
+      <div id="snapshot-list"></div>
+    </div>
+  </details>
 </section>
 
 <!-- ============================================ SCHADENSSTAND ANSEHEN -->
@@ -95,6 +109,8 @@
 
 <!-- ============================================ EINSTELLUNGEN -->
 <section id="view-settings" class="content hidden">
+  <button class="secondary back" id="btn-settings-back">&larr; Fuhrpark</button>
+
   <div class="card">
     <div class="tool-title">Synchronisierung zwischen Geräten</div>
     <div id="cloud-state" class="note-box"></div>
@@ -144,6 +160,33 @@
   </div>
 
   <div class="card">
+    <div class="tool-title">Kategorien</div>
+    <p class="hint no-top">
+      Die Einteilung deines Fuhrparks. Sie taucht als Filter über der Übersicht auf.
+      Eine gelöschte Kategorie nimmt kein Fahrzeug mit — die Fahrzeuge stehen danach
+      nur ohne Zuordnung da.
+    </p>
+    <div id="kategorie-liste"></div>
+    <div class="btn-row" style="margin-top:10px">
+      <input type="text" id="input-kategorie-neu" placeholder="z. B. Transporter"
+             style="flex:1;min-width:140px" />
+      <button id="btn-kategorie-add">Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">Schadensstände</div>
+    <label class="schalter">
+      <input type="checkbox" id="input-kennung-aktiv" />
+      <span>
+        Kennungen verwenden
+        <em>Blendet das Suchfeld im Fuhrpark ein und klappt die Stände im Fahrzeug auf.
+        Aus, solange du den Schadenmanager nur zum Dokumentieren nutzt.</em>
+      </span>
+    </label>
+  </div>
+
+  <div class="card">
     <div class="tool-title">Belegter Platz</div>
     <div id="speicher-zahlen" class="result-box"></div>
     <div id="speicher-balken-wrap" class="speicher-balken">
@@ -185,6 +228,24 @@
         <label for="input-vehicle-plate">Kennzeichen</label>
         <input type="text" id="input-vehicle-plate" placeholder="z. B. NOM-JA 123" />
       </div>
+      <div class="field">
+        <label for="input-vehicle-category">Kategorie</label>
+        <select id="input-vehicle-category"></select>
+      </div>
+      <label class="schalter">
+        <input type="checkbox" id="input-vehicle-hidden" />
+        <span>
+          Aus der Übersicht ausblenden
+          <em>Für Langzeitmieten, die man selten in der Hand hat.</em>
+        </span>
+      </label>
+      <label class="schalter">
+        <input type="checkbox" id="input-vehicle-zustand" />
+        <span>
+          Zustandsaufnahmen führen
+          <em>Eigener Bereich für Fotos, die keinen Schaden zeigen.</em>
+        </span>
+      </label>
       <div class="btn-row right">
         <button type="button" class="secondary" data-close="modal-vehicle">Abbrechen</button>
         <button type="submit">Speichern</button>
@@ -267,7 +328,7 @@
         <label for="input-date">Datum</label>
         <input type="date" id="input-date" />
       </div>
-      <div class="field">
+      <div class="field" id="count-row">
         <label for="input-count">Anzahl Schäden auf diesen Fotos</label>
         <select id="input-count">
           <option value="1">1 Schaden</option>
@@ -360,14 +421,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=22"></script>
-<script src="js/cloud.js?b=22"></script>
-<script src="js/logo.js?b=22"></script>
-<script src="js/pdf.js?b=22"></script>
-<script src="js/annotate.js?b=22"></script>
-<script src="js/fleet.js?b=22"></script>
-<script src="js/uebersicht.js?b=22"></script>
-<script src="js/snapshot.js?b=22"></script>
-<script src="js/app.js?b=22"></script>
+<script src="js/store.js?b=23"></script>
+<script src="js/cloud.js?b=23"></script>
+<script src="js/logo.js?b=23"></script>
+<script src="js/pdf.js?b=23"></script>
+<script src="js/annotate.js?b=23"></script>
+<script src="js/fleet.js?b=23"></script>
+<script src="js/uebersicht.js?b=23"></script>
+<script src="js/snapshot.js?b=23"></script>
+<script src="js/app.js?b=23"></script>
 </body>
 </html>

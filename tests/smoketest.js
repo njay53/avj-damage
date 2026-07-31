@@ -371,6 +371,164 @@ function kontrast(a, b) {
     await App.Store.deleteDamage(v.id, unbek.id);
   }
 
+  console.log("\n--- Kategorien ---");
+  {
+    const pkw = await App.Store.addCategory("PKW");
+    const trans = await App.Store.addCategory("Transporter");
+    await App.Store.addCategory("  ");   // leer darf nicht durchkommen
+    check("zwei Kategorien angelegt", App.Store.categories().length === 2,
+      String(App.Store.categories().length));
+    check("Reihenfolge wie angelegt", App.Store.categories()[0].name === "PKW");
+
+    await App.Store.moveCategory(trans.id, -1);
+    check("nach oben verschoben", App.Store.categories()[0].name === "Transporter",
+      App.Store.categories().map((c) => c.name).join(","));
+    await App.Store.moveCategory(trans.id, -1);
+    check("ganz oben bleibt oben", App.Store.categories()[0].name === "Transporter");
+
+    await App.Store.updateCategory(pkw.id, "Personenwagen");
+    check("umbenannt", App.Store.categoryName(pkw.id) === "Personenwagen",
+      App.Store.categoryName(pkw.id));
+
+    await App.Store.updateVehicle(v.id, { categoryId: pkw.id });
+    check("Fahrzeug hat die Kategorie", App.Store.getVehicle(v.id).categoryId === pkw.id);
+    check("Kategorie zählt ihr Fahrzeug", App.Store.categoryCount(pkw.id) === 1);
+
+    await App.Store.deleteCategory(pkw.id);
+    check("Kategorie gelöscht", App.Store.categories().length === 1);
+    check("Fahrzeug lebt weiter", !!App.Store.getVehicle(v.id) && !App.Store.getVehicle(v.id).deleted);
+    check("Fahrzeug steht jetzt ohne Kategorie", App.Store.getVehicle(v.id).categoryId === "");
+
+    // Filter in der Übersicht
+    const kombi = await App.Store.addCategory("Kleinbus");
+    const bus = await App.Store.addVehicle({ name: "VW Crafter", plate: "NOM-JA 9", categoryId: kombi.id });
+    check("Filter zeigt nur die Kategorie",
+      App.Store.vehicles({ kategorie: kombi.id }).length === 1);
+    check("ohne Filter sind alle da", App.Store.vehicles().length >= 2);
+
+    App.Fleet.renderFleet();
+    const chips = [...q("kategorie-filter").querySelectorAll(".filter-chip")].map((b) => b.textContent);
+    check("Filterleiste zeigt Alle und die Kategorien",
+      chips[0] === "Alle" && chips.includes("Kleinbus"), chips.join(" | "));
+    [...q("kategorie-filter").querySelectorAll(".filter-chip")]
+      .find((b) => b.textContent === "Kleinbus").click();
+    check("Chip setzt den Filter", App.Fleet._filter().kategorie === kombi.id);
+    check("Raster zeigt nur den Kleinbus",
+      q("fleet-grid").querySelectorAll(".vehicle-card").length === 1,
+      String(q("fleet-grid").querySelectorAll(".vehicle-card").length));
+    q("kategorie-filter").querySelector(".filter-chip").click();   // "Alle"
+    check("Filter wieder zurückgesetzt", App.Fleet._filter().kategorie === "");
+
+    await App.Store.deleteVehicle(bus.id);
+    await App.Store.deleteCategory(kombi.id);
+  }
+
+  console.log("\n--- Fahrzeuge ausblenden ---");
+  {
+    const lang = await App.Store.addVehicle({ name: "Langzeitmiete Corolla", plate: "NOM-JA 12" });
+    await App.Store.updateVehicle(lang.id, { hidden: true });
+    check("ausgeblendet taucht nicht auf",
+      !App.Store.vehicles().some((x) => x.id === lang.id));
+    check("auf Wunsch doch",
+      App.Store.vehicles({ mitVersteckten: true }).some((x) => x.id === lang.id));
+    check("Zähler kennt die Ausgeblendeten", App.Store.versteckteAnzahl() === 1,
+      String(App.Store.versteckteAnzahl()));
+
+    App.Fleet.renderFleet();
+    const schalter = [...q("kategorie-filter").querySelectorAll(".filter-chip")]
+      .find((b) => /Ausgeblendete/.test(b.textContent));
+    check("Schalter erscheint nur bei Bedarf", !!schalter,
+      q("kategorie-filter").textContent);
+    schalter.click();
+    check("Ausgeblendete werden gezeigt", App.Fleet._filter().versteckte === true);
+    check("Kachel ist als ausgeblendet erkennbar",
+      q("fleet-grid").innerHTML.includes("ausgeblendet"));
+    [...q("kategorie-filter").querySelectorAll(".filter-chip")]
+      .find((b) => /Ausgeblendete/.test(b.textContent)).click();
+    check("wieder aus", App.Fleet._filter().versteckte === false);
+
+    await App.Store.deleteVehicle(lang.id);
+  }
+
+  console.log("\n--- Zustandsaufnahmen ---");
+  {
+    const za = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,Z1"],
+      description: "Fahrzeug bei Übergabe, rundum heil",
+      kind: "zustand"
+    });
+    check("Art wird gespeichert", za.kind === "zustand", za.kind);
+    check("zählt nicht als Schaden",
+      !App.Store.damagesOf(v.id, "schaden").some((d) => d.id === za.id));
+    check("steht im eigenen Bereich",
+      App.Store.damagesOf(v.id, "zustand").some((d) => d.id === za.id));
+
+    const vorher = App.Store.damageCount(v.id);
+    await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,Z2"], description: "noch eine Aufnahme", kind: "zustand"
+    });
+    check("Schadenszahl bleibt unberührt", App.Store.damageCount(v.id) === vorher,
+      App.Store.damageCount(v.id) + " statt " + vorher);
+
+    const stand = await App.Store.createSnapshot(v.id, "");
+    check("Zustandsaufnahmen wandern nicht in den Stand",
+      !stand.damages.some((d) => d.kind === "zustand"),
+      JSON.stringify(stand.damages.map((d) => d.kind)));
+
+    // Bereich hängt am Schalter des Fahrzeugs
+    await App.Store.updateVehicle(v.id, { zustand: false });
+    App.Fleet.openVehicle(v.id);
+    check("Bereich bleibt zu, solange nicht gewünscht",
+      q("zustand-block").classList.contains("hidden"));
+    await App.Store.updateVehicle(v.id, { zustand: true });
+    App.Fleet.renderVehicle();
+    check("Bereich erscheint auf Wunsch",
+      !q("zustand-block").classList.contains("hidden"));
+    check("Bereich zeigt die Aufnahmen",
+      q("zustand-grid").querySelectorAll(".damage-card").length === 2,
+      String(q("zustand-grid").querySelectorAll(".damage-card").length));
+
+    await App.Store.deleteSnapshot(stand.id);
+    App.Store.damagesOf(v.id, "zustand").forEach(function (d) {
+      App.Store.deleteDamage(v.id, d.id);
+    });
+    await App.Store.updateVehicle(v.id, { zustand: false });
+    App.Fleet.renderVehicle();
+  }
+
+  console.log("\n--- Kennung abschaltbar ---");
+  {
+    check("Kennung ist anfangs aus", App.Einstellungen.kennungAktiv() === false);
+    check("Suchfeld ist weg", q("card-code-search").classList.contains("hidden"));
+    App.Fleet.openVehicle(v.id);
+    check("Schadensstände sind zugeklappt", q("snapshot-block").open === false);
+
+    await App.Einstellungen.setzeKennung(true);
+    check("Schalter merkt sich das", App.Einstellungen.kennungAktiv() === true);
+    check("Suchfeld ist da", !q("card-code-search").classList.contains("hidden"));
+    App.Fleet.renderVehicle();
+    check("Schadensstände sind aufgeklappt", q("snapshot-block").open === true);
+
+    await App.Einstellungen.setzeKennung(false);
+    check("und wieder aus", q("card-code-search").classList.contains("hidden"));
+  }
+
+  console.log("\n--- Einstellungen hinter dem Zahnrad ---");
+  {
+    check("keine Reiterleiste mehr", !w.document.querySelector(".nav"));
+    check("Zahnrad in der Kopfzeile", !!w.document.getElementById("btn-settings"));
+    w.document.getElementById("btn-settings").click();
+    check("Zahnrad öffnet die Einstellungen", App.Nav.current() === "settings");
+    check("Zahnrad ist hervorgehoben",
+      w.document.getElementById("btn-settings").classList.contains("active"));
+    w.document.getElementById("btn-settings").click();
+    check("nochmal antippen führt zurück", App.Nav.current() === "fleet");
+
+    const css = fs.readFileSync(path.join(APP, "css/app.css"), "utf8");
+    check("eigener Fokusring statt Safaris", /:focus-visible\{/.test(css));
+    check("Safaris Ring abgeschaltet", /:focus\{outline:none;\}/.test(css));
+  }
+
   console.log("\n--- Markierwerkzeug ---");
   {
     App.Annotate.open({ title: "t", onSave: () => {} });
@@ -528,7 +686,7 @@ function kontrast(a, b) {
     check("Summe stimmt", b.gesamt === b.fotos + b.rest);
     check("zählt nur sichtbare Fahrzeuge", b.fahrzeuge === App.Store.vehicles().length);
 
-    w.document.querySelector('[data-tab="settings"]').click();
+    w.document.getElementById("btn-settings").click();
     check("Anzeige nennt die Fotoanzahl",
       q("speicher-zahlen").textContent.includes(String(b.anzahlFotos) + " Fotos"),
       q("speicher-zahlen").textContent);
@@ -536,7 +694,7 @@ function kontrast(a, b) {
       q("speicher-text").textContent.includes("500 MB"), q("speicher-text").textContent);
     check("Balken hat eine Breite", /%/.test(q("speicher-balken").style.width),
       q("speicher-balken").style.width);
-    w.document.querySelector('[data-tab="fleet"]').click();
+    w.document.getElementById("btn-settings-back").click();
   }
 
   console.log("\n--- Kennung nachschlagen ---");
@@ -717,6 +875,34 @@ function kontrast(a, b) {
   check("Server-Zeile hat Kennzeichen",
     server.zeilen("vehicles").find((z) => z.id === v2.id).plate === "NOM-JA 200");
 
+  console.log("\n--- Abgleich: Kategorien und neue Felder ---");
+  {
+    const kat = await A2.Store.addCategory("Transporter");
+    await A2.Store.updateVehicle(v2.id, { categoryId: kat.id, hidden: true, zustand: true });
+    await A2.Store.addDamage(v2.id, {
+      images: ["data:image/jpeg;base64,ZZ"], description: "Zustand bei Übergabe", kind: "zustand"
+    });
+    await A2.Cloud.sync();
+    await wait(50);
+
+    check("Kategorie liegt auf dem Server",
+      server.zeilen("categories").some((z) => z.id === kat.id && z.name === "Transporter"),
+      JSON.stringify(server.zeilen("categories")));
+    const zeile = server.zeilen("vehicles").find((z) => z.id === v2.id);
+    check("Kategorie am Fahrzeug übertragen", zeile.category_id === kat.id, zeile.category_id);
+    check("Ausgeblendet übertragen", zeile.hidden === true);
+    check("Zustandsschalter übertragen", zeile.zustand === true);
+    check("Art des Eintrags übertragen",
+      server.zeilen("damages").some((z) => z.kind === "zustand"),
+      JSON.stringify(server.zeilen("damages").map((z) => z.kind)));
+
+    /* Wieder einblenden: die folgenden Prüfungen erwarten das Fahrzeug in der
+       normalen Übersicht. */
+    await A2.Store.updateVehicle(v2.id, { hidden: false });
+    await A2.Cloud.sync();
+    await wait(30);
+  }
+
   console.log("\n--- Statusanzeige ---");
   {
     const pille = w2.document.getElementById("sync-status");
@@ -779,7 +965,7 @@ function kontrast(a, b) {
   await A3.Cloud.login("chef@jansen.de", "geheim");
   await wait(80);
   check("zweites Gerät sieht das Fahrzeug", A3.Store.vehicles().some((x) => x.id === v2.id));
-  check("zweites Gerät sieht den Schaden", A3.Store.damagesOf(v2.id).length === 1);
+  check("zweites Gerät sieht den Schaden", A3.Store.damagesOf(v2.id, "schaden").length === 1);
   check("zweites Gerät sieht den Stand", !!A3.Store.findSnapshotByCode(s2.code));
   check("Stand-Inhalt vollständig übertragen",
     A3.Store.findSnapshotByCode(s2.code).damages.length === 1);
@@ -789,20 +975,20 @@ function kontrast(a, b) {
   await A3.Cloud.sync();
   await A2.Cloud.sync();
   await wait(50);
-  check("erstes Gerät hat den neuen Schaden", A2.Store.damagesOf(v2.id).length === 2);
+  check("erstes Gerät hat den neuen Schaden", A2.Store.damagesOf(v2.id, "schaden").length === 2);
   check("Fahrzeugname nicht überschrieben",
     A2.Store.getVehicle(v2.id).name === "Ford Transit",
     A2.Store.getVehicle(v2.id).name);
 
   console.log("\n--- Abgleich: Löschen setzt sich durch ---");
-  const zuLoeschen = A3.Store.damagesOf(v2.id).find((d) => (d.description || "").includes("Kratzer Heck"));
+  const zuLoeschen = A3.Store.damagesOf(v2.id, "schaden").find((d) => (d.description || "").includes("Kratzer Heck"));
   await A3.Store.deleteDamage(v2.id, zuLoeschen.id);
   await A3.Cloud.sync();
   await A2.Cloud.sync();
   await wait(50);
-  check("Löschung ist beim ersten Gerät angekommen", A2.Store.damagesOf(v2.id).length === 1);
+  check("Löschung ist beim ersten Gerät angekommen", A2.Store.damagesOf(v2.id, "schaden").length === 1);
   check("Löschung wird nicht wiederbelebt",
-    !A2.Store.damagesOf(v2.id).some((d) => (d.description || "").includes("Kratzer Heck")));
+    !A2.Store.damagesOf(v2.id, "schaden").some((d) => (d.description || "").includes("Kratzer Heck")));
 
   console.log("\n--- Abgleich: jüngere Änderung gewinnt ---");
   await A2.Store.updateVehicle(v2.id, { name: "Ford Transit (neu benannt)", plate: "NOM-JA 200" });

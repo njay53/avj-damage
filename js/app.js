@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v22";
+  var APP_VERSION = "v23";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -77,10 +77,8 @@
       VIEWS.forEach(function (v) {
         q("view-" + v).classList.toggle("hidden", v !== view);
       });
-      var tab = (view === "settings") ? "settings" : "fleet";
-      document.querySelectorAll(".nav-btn").forEach(function (btn) {
-        btn.classList.toggle("active", btn.getAttribute("data-tab") === tab);
-      });
+      var knopf = document.getElementById("btn-settings");
+      if (knopf) knopf.classList.toggle("active", view === "settings");
       window.scrollTo(0, 0);
     },
     current: function () { return currentView; }
@@ -179,6 +177,23 @@
       });
     });
 
+    q("input-kennung-aktiv").addEventListener("change", function () {
+      Einstellungen.setzeKennung(q("input-kennung-aktiv").checked);
+    });
+
+    q("btn-kategorie-add").addEventListener("click", function () {
+      var feld = q("input-kategorie-neu");
+      if (!feld.value.trim()) return;
+      App.Store.addCategory(feld.value).then(function () {
+        feld.value = "";
+        renderKategorien();
+        App.Fleet.renderFleet();
+      });
+    });
+    q("input-kategorie-neu").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); q("btn-kategorie-add").click(); }
+    });
+
     q("btn-export").addEventListener("click", function () { App.Store.exportDownload(); });
     q("btn-import").addEventListener("click", function () { q("file-import-input").click(); });
 
@@ -193,6 +208,113 @@
       });
       e.target.value = "";
     });
+  }
+
+  // ---------------------------------------------------------------- Einstellungen
+
+  /* Der Kennungsschalter ist eine Ansichtssache und bleibt deshalb auf dem
+     Gerät: er beschreibt, wie DU gerade arbeitest, nicht wie die Daten
+     aussehen. Er wandert bewusst nicht in den Abgleich. */
+  var kennungAktiv = false;
+
+  var Einstellungen = {
+    kennungAktiv: function () { return kennungAktiv; },
+    laden: function () {
+      return App.Store.idbGet("kennungAktiv").then(function (wert) {
+        kennungAktiv = wert === true;
+        return kennungAktiv;
+      });
+    },
+    setzeKennung: function (an) {
+      kennungAktiv = !!an;
+      return App.Store.idbSet("kennungAktiv", kennungAktiv).then(wendeKennungAn);
+    }
+  };
+  App.Einstellungen = Einstellungen;
+
+  /* Sichtbarkeit überall nachziehen, wo die Kennung eine Rolle spielt. */
+  function wendeKennungAn() {
+    var feld = document.getElementById("card-code-search");
+    if (feld) feld.classList.toggle("hidden", !kennungAktiv);
+    var schalter = document.getElementById("input-kennung-aktiv");
+    if (schalter) schalter.checked = kennungAktiv;
+    if (Nav.current() === "vehicle") App.Fleet.renderVehicle();
+    if (Nav.current() === "fleet") App.Fleet.renderFleet();
+  }
+
+  // ---------------------------------------------------------------- Kategorien
+
+  function renderKategorien() {
+    var box = document.getElementById("kategorie-liste");
+    if (!box) return;
+    box.innerHTML = "";
+    var liste = App.Store.categories();
+
+    if (!liste.length) {
+      var leer = document.createElement("div");
+      leer.className = "empty-hint";
+      leer.textContent = "Noch keine Kategorie angelegt.";
+      box.appendChild(leer);
+      return;
+    }
+
+    liste.forEach(function (k, i) {
+      var zeile = document.createElement("div");
+      zeile.className = "kat-zeile";
+
+      var feld = document.createElement("input");
+      feld.type = "text";
+      feld.value = k.name;
+      /* Umbenennen beim Verlassen des Feldes — kein Speichern-Knopf für
+         eine Zeile mit einem Wort. */
+      feld.addEventListener("change", function () {
+        App.Store.updateCategory(k.id, feld.value).then(function () {
+          renderKategorien();
+          App.Fleet.renderFleet();
+        });
+      });
+
+      var anzahl = document.createElement("span");
+      anzahl.className = "kat-anzahl";
+      var n = App.Store.categoryCount(k.id);
+      anzahl.textContent = n + (n === 1 ? " Fahrzeug" : " Fahrzeuge");
+
+      var knoepfe = document.createElement("div");
+      knoepfe.className = "kat-knoepfe";
+      knoepfe.appendChild(katKnopf("↑", i === 0, function () {
+        App.Store.moveCategory(k.id, -1).then(renderKategorien);
+      }));
+      knoepfe.appendChild(katKnopf("↓", i === liste.length - 1, function () {
+        App.Store.moveCategory(k.id, 1).then(renderKategorien);
+      }));
+      knoepfe.appendChild(katKnopf("✕", false, function () {
+        var frage = n
+          ? 'Kategorie "' + k.name + '" löschen?\n\n' + n +
+            (n === 1 ? " Fahrzeug steht" : " Fahrzeuge stehen") +
+            " danach ohne Kategorie da. Gelöscht wird kein Fahrzeug."
+          : 'Kategorie "' + k.name + '" löschen?';
+        if (!confirm(frage)) return;
+        App.Store.deleteCategory(k.id).then(function () {
+          renderKategorien();
+          App.Fleet.renderFleet();
+        });
+      }, "ghost-danger"));
+
+      zeile.appendChild(feld);
+      zeile.appendChild(anzahl);
+      zeile.appendChild(knoepfe);
+      box.appendChild(zeile);
+    });
+  }
+
+  function katKnopf(text, aus, beiKlick, art) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "mini " + (art || "ghost");
+    b.textContent = text;
+    b.disabled = !!aus;
+    b.addEventListener("click", beiKlick);
+    return b;
   }
 
   // ---------------------------------------------------------------- Speicherplatz
@@ -268,18 +390,24 @@
     });
   }
 
+  /* Ein Zahnrad in der Kopfzeile statt einer Reiterleiste: die Einstellungen
+     sind einmal eingerichtet und danach selten dran — sie müssen nicht die
+     halbe Breite über dem Fuhrpark belegen. */
   function bindTabs() {
-    document.querySelectorAll(".nav-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        if (btn.getAttribute("data-tab") === "settings") {
-          Nav.go("settings");
-          refreshCloudUi();
-          zeigeSpeicher();
-        } else {
-          Nav.go("fleet");
-          App.Fleet.renderFleet();
-        }
-      });
+    q("btn-settings").addEventListener("click", function () {
+      if (Nav.current() === "settings") {
+        Nav.go("fleet");
+        App.Fleet.renderFleet();
+        return;
+      }
+      Nav.go("settings");
+      refreshCloudUi();
+      renderKategorien();
+      zeigeSpeicher();
+    });
+    q("btn-settings-back").addEventListener("click", function () {
+      Nav.go("fleet");
+      App.Fleet.renderFleet();
     });
   }
 
@@ -345,15 +473,17 @@
         }
       }
 
-      App.Fleet.renderFleet();
-      Nav.go("fleet");
-      registerServiceWorker();
-
-      /* Der Abgleich läuft nachgelagert — die App ist vorher schon bedienbar. */
-      return App.Cloud.init().then(function () {
-        refreshCloudUi();
+      /* Ansichtseinstellungen liegen in derselben Datenbank — erst holen,
+         dann zeichnen, sonst blitzt das Kennungsfeld kurz auf. */
+      return Einstellungen.laden().then(function () {
+        wendeKennungAn();
         App.Fleet.renderFleet();
+        Nav.go("fleet");
+        registerServiceWorker();
+        return weiter();
       });
+    }).then(function () {
+      return null;
     }).catch(function (err) {
       if (!document.getElementById("fatal-error")) {
         showFatal("Die App konnte nicht starten", {
@@ -362,6 +492,15 @@
         });
       }
     });
+
+    function weiter() {
+
+      /* Der Abgleich läuft nachgelagert — die App ist vorher schon bedienbar. */
+      return App.Cloud.init().then(function () {
+        refreshCloudUi();
+        App.Fleet.renderFleet();
+      });
+    }
 
     /* Nach jeder Änderung die Ansicht auffrischen — auch wenn sie vom
        Abgleich kam und nicht von diesem Gerät. */

@@ -121,6 +121,31 @@ Paar unter 4,5:1 fällt.
 
 ---
 
+## Fuhrpark ordnen
+
+**Kategorien** legst du selbst an (Einstellungen → Kategorien): anlegen,
+umbenennen, in der Reihenfolge schieben, löschen. Über der Übersicht stehen sie
+als Chips — antippen filtert, nochmal antippen hebt auf. Eine gelöschte
+Kategorie nimmt kein Fahrzeug mit; die Fahrzeuge stehen danach ohne Zuordnung
+da. Der Filter überlebt kein Neuladen, sonst sucht man ein Fahrzeug, das ein
+vergessener Filter versteckt.
+
+**Ausblenden** ist für Langzeitmieten gedacht — Fahrzeuge, die man monatelang
+nicht sieht. Sie verschwinden aus der Übersicht, ein Chip „Ausgeblendete · 3"
+holt sie zurück. Der Chip erscheint nur, wenn es welche gibt.
+
+**Zustandsaufnahmen** sind Fotos, die keinen Schaden zeigen: der heile Wagen
+bei Übergabe einer Langzeitmiete, oder die Runde ums Auto beim Radwechsel. Sie
+stehen in einem eigenen Bereich, zählen nicht in die Schadenszahl und wandern
+nicht in einen Schadensstand. Ein- und ausschaltbar je Fahrzeug — ein
+Bestandsfahrzeug mit lauter Altschäden braucht sie nicht.
+
+Intern liegen sie in derselben Tabelle wie die Schäden, unterschieden durch
+`kind`. Das spart eine Tabelle und macht das Umwidmen später leicht, falls sich
+im Alltag zeigt, dass die Grenze woanders verläuft.
+
+---
+
 ## Wann synchronisiert wird
 
 Von allein, ohne Knopfdruck:
@@ -156,10 +181,25 @@ Im Projekt → **SQL Editor** → **New query** → folgendes einfügen und ausf
 
 ```sql
 -- Fahrzeuge
+-- category_id = Kennung der Kategorie (leer = ohne Zuordnung)
+-- hidden      = aus der Übersicht ausgeblendet (Langzeitmieten)
+-- zustand     = führt dieses Fahrzeug Zustandsaufnahmen?
 create table public.vehicles (
   id          text primary key,
   name        text not null default '',
   plate       text not null default '',
+  category_id text not null default '',
+  hidden      boolean not null default false,
+  zustand     boolean not null default false,
+  deleted     boolean not null default false,
+  updated_at  bigint  not null default 0
+);
+
+-- Kategorien des Fuhrparks, frei pflegbar in den Einstellungen
+create table public.categories (
+  id          text primary key,
+  name        text not null default '',
+  sort        integer not null default 0,
   deleted     boolean not null default false,
   updated_at  bigint  not null default 0
 );
@@ -170,6 +210,7 @@ create table public.vehicles (
 -- date       = wann der Schaden entstanden ist (kann leer sein)
 -- date_mode  = exact | unknown | stock
 -- created_at = wann erfasst wurde (immer gesetzt, zählt als Nachweis)
+-- kind       = schaden | zustand (Zustandsaufnahmen zählen nicht als Schaden)
 create table public.damages (
   id          text primary key,
   vehicle_id  text not null,
@@ -180,6 +221,7 @@ create table public.damages (
   date_mode   text not null default 'exact',
   created_at  bigint  not null default 0,
   area        text not null default '',
+  kind        text not null default 'schaden',
   deleted     boolean not null default false,
   updated_at  bigint  not null default 0
 );
@@ -202,18 +244,22 @@ create table public.snapshots (
 create index on public.vehicles  (updated_at);
 create index on public.damages   (updated_at);
 create index on public.snapshots (updated_at);
+create index on public.categories (updated_at);
 create index on public.damages   (vehicle_id);
 
 -- Zugriffsschutz: ohne Anmeldung geht gar nichts
 alter table public.vehicles  enable row level security;
 alter table public.damages   enable row level security;
 alter table public.snapshots enable row level security;
+alter table public.categories enable row level security;
 
 create policy "angemeldete duerfen alles" on public.vehicles
   for all to authenticated using (true) with check (true);
 create policy "angemeldete duerfen alles" on public.damages
   for all to authenticated using (true) with check (true);
 create policy "angemeldete duerfen alles" on public.snapshots
+  for all to authenticated using (true) with check (true);
+create policy "angemeldete duerfen alles" on public.categories
   for all to authenticated using (true) with check (true);
 ```
 
@@ -226,6 +272,10 @@ alter table public.damages add column if not exists created_at  bigint  not null
 alter table public.damages add column if not exists images      jsonb   not null default '[]'::jsonb;
 alter table public.damages add column if not exists count       integer not null default 1;
 alter table public.damages add column if not exists description text    not null default '';
+alter table public.damages  add column if not exists kind        text    not null default 'schaden';
+alter table public.vehicles add column if not exists category_id text    not null default '';
+alter table public.vehicles add column if not exists hidden      boolean not null default false;
+alter table public.vehicles add column if not exists zustand     boolean not null default false;
 ```
 
 Die alten Spalten `image` und `note` dürfen bleiben — die App liest sie noch,
@@ -378,7 +428,7 @@ Mietvertrag selbst wandert, wäre ein Blick vom Anwalt sinnvoll.
 
 ---
 
-## Als Nächstes dran (Stand Build 20)
+## Als Nächstes dran (Stand Build 23)
 
 1. **Supabase einrichten.** Entschieden: es wird Supabase, kostenloser Tarif.
    SQL und Schritte stehen weiter unten im Abschnitt zur Einrichtung.

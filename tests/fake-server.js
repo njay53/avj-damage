@@ -7,7 +7,7 @@
  */
 function createFakeServer(opts) {
   const o = opts || {};
-  const tabellen = { vehicles: [], damages: [], snapshots: [] };
+  const tabellen = { vehicles: [], damages: [], snapshots: [], categories: [] };
   const zugang = { email: o.email || "test@example.org", password: o.password || "geheim" };
   const log = [];
   let offline = false;

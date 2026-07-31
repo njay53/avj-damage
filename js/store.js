@@ -39,7 +39,8 @@
 
   var state = {
     vehicles: [],
-    snapshots: []
+    snapshots: [],
+    categories: []
   };
 
   // ---------------------------------------------------------------- IndexedDB
@@ -116,24 +117,44 @@
 
   // ---------------------------------------------------------------- Fahrzeuge
 
-  function vehicles() {
+  /* opts.mitVersteckten — Langzeitmieten sind normalerweise ausgeblendet
+     opts.kategorie      — Kennung einer Kategorie, "" heisst alle */
+  function vehicles(opts) {
+    var o = opts || {};
     return state.vehicles
-      .filter(function (v) { return !v.deleted; })
+      .filter(function (v) {
+        if (v.deleted) return false;
+        if (v.hidden && !o.mitVersteckten) return false;
+        if (o.kategorie && (v.categoryId || "") !== o.kategorie) return false;
+        return true;
+      })
       .sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "de"); });
+  }
+
+  function versteckteAnzahl(kategorie) {
+    return state.vehicles.filter(function (v) {
+      if (v.deleted || !v.hidden) return false;
+      if (kategorie && (v.categoryId || "") !== kategorie) return false;
+      return true;
+    }).length;
   }
 
   function getVehicle(id) {
     return state.vehicles.find(function (v) { return v.id === id; }) || null;
   }
 
-  function damagesOf(vehicleId) {
+  function damagesOf(vehicleId, art) {
     var v = getVehicle(vehicleId);
     if (!v) return [];
     /* Sortiert nach Erfassungszeitpunkt — der ist immer vorhanden. Nach dem
        Schadensdatum zu sortieren würde alle Einträge ohne Datum ans Ende
        schieben, obwohl sie gerade erst erfasst wurden. */
     return v.damages
-      .filter(function (d) { return !d.deleted; })
+      .filter(function (d) {
+        if (d.deleted) return false;
+        if (art && (d.kind || "schaden") !== art) return false;
+        return true;
+      })
       .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
   }
 
@@ -142,6 +163,11 @@
       id: uid("veh"),
       name: data.name,
       plate: data.plate || "",
+      categoryId: data.categoryId || "",
+      hidden: !!data.hidden,
+      /* Zustandsaufnahmen sind der Sonderfall (Langzeitmiete), nicht die Regel —
+         deshalb je Fahrzeug einzeln einzuschalten. */
+      zustand: !!data.zustand,
       damages: [],
       updatedAt: now()
     };
@@ -152,8 +178,11 @@
   function updateVehicle(id, data) {
     var v = getVehicle(id);
     if (!v) return Promise.resolve();
-    v.name = data.name;
-    v.plate = data.plate || "";
+    if (typeof data.name === "string") v.name = data.name;
+    if (typeof data.plate === "string") v.plate = data.plate;
+    if ("categoryId" in data) v.categoryId = data.categoryId || "";
+    if ("hidden" in data) v.hidden = !!data.hidden;
+    if ("zustand" in data) v.zustand = !!data.zustand;
     v.updatedAt = now();
     return save();
   }
@@ -183,6 +212,9 @@
     }
     var n = parseInt(d.count, 10);
     d.count = (isNaN(n) || n < 1) ? 1 : n;
+    /* Zwei Arten von Eintrag: ein Schaden — oder eine Aufnahme vom Zustand,
+       die gerade KEINEN Schaden zeigt. Alte Datensätze sind immer Schäden. */
+    if (d.kind !== "zustand") d.kind = "schaden";
     delete d.image;
     delete d.note;
     return d;
@@ -273,7 +305,7 @@
   /* Ein Fahrzeug kann mehr Schäden haben als Einträge — ein Foto vom Heck mit
      drei Kratzern ist ein Eintrag mit Anzahl 3. */
   function damageCount(vehicleId) {
-    return damagesOf(vehicleId).reduce(function (summe, d) {
+    return damagesOf(vehicleId, "schaden").reduce(function (summe, d) {
       return summe + (parseInt(d.count, 10) || 1);
     }, 0);
   }
@@ -298,6 +330,7 @@
       date: damage.date || "",
       dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
+      kind: damage.kind === "zustand" ? "zustand" : "schaden",
       createdAt: now(),
       updatedAt: now()
     };
@@ -323,6 +356,106 @@
     return updateDamage(vehicleId, damageId, { deleted: true, images: [] });
   }
 
+  // ---------------------------------------------------------------- Kategorien
+
+  /* Frei pflegbar statt fest verdrahtet: der Fuhrpark ändert sich, und eine
+     Liste im Code zu ändern hiesse jedes Mal ein neuer Build. */
+  function categories() {
+    return state.categories
+      .filter(function (c) { return !c.deleted; })
+      .sort(function (a, b) {
+        var d = (a.sort || 0) - (b.sort || 0);
+        return d !== 0 ? d : (a.name || "").localeCompare(b.name || "", "de");
+      });
+  }
+
+  function getCategory(id) {
+    return state.categories.find(function (c) { return c.id === id; }) || null;
+  }
+
+  function categoryName(id) {
+    var c = getCategory(id);
+    return c && !c.deleted ? c.name : "";
+  }
+
+  function addCategory(name) {
+    var sauber = String(name || "").trim();
+    if (!sauber) return Promise.resolve(null);
+    var hoechste = state.categories.reduce(function (m, c) {
+      return Math.max(m, c.sort || 0);
+    }, 0);
+    var c = { id: uid("kat"), name: sauber, sort: hoechste + 10, updatedAt: now() };
+    state.categories.push(c);
+    return save().then(function () { return c; });
+  }
+
+  function updateCategory(id, name) {
+    var c = getCategory(id);
+    if (!c) return Promise.resolve();
+    c.name = String(name || "").trim() || c.name;
+    c.updatedAt = now();
+    return save();
+  }
+
+  function moveCategory(id, richtung) {
+    var liste = categories();
+    var i = liste.findIndex(function (c) { return c.id === id; });
+    var j = i + (richtung < 0 ? -1 : 1);
+    if (i === -1 || j < 0 || j >= liste.length) return Promise.resolve();
+    var a = getCategory(liste[i].id), b = getCategory(liste[j].id);
+    var merk = a.sort || 0;
+    a.sort = b.sort || 0;
+    b.sort = merk;
+    a.updatedAt = now();
+    b.updatedAt = now();
+    return save();
+  }
+
+  /* Fahrzeuge verlieren nur ihre Zuordnung — gelöscht wird nie ein Fahrzeug,
+     weil eine Kategorie verschwindet. */
+  function deleteCategory(id) {
+    var c = getCategory(id);
+    if (!c) return Promise.resolve();
+    c.deleted = true;
+    c.updatedAt = now();
+    state.vehicles.forEach(function (v) {
+      if (v.categoryId === id) {
+        v.categoryId = "";
+        v.updatedAt = now();
+      }
+    });
+    return save();
+  }
+
+  function categoryCount(id) {
+    return state.vehicles.filter(function (v) {
+      return !v.deleted && (v.categoryId || "") === id;
+    }).length;
+  }
+
+  function mergeCategories(incoming) {
+    var changed = false;
+    var byId = {};
+    state.categories.forEach(function (c) { byId[c.id] = c; });
+    (incoming || []).forEach(function (rc) {
+      var local = byId[rc.id];
+      if (!local) {
+        state.categories.push(rc);
+        byId[rc.id] = rc;
+        changed = true;
+        return;
+      }
+      if ((rc.updatedAt || 0) > (local.updatedAt || 0)) {
+        local.name = rc.name;
+        local.sort = rc.sort;
+        local.deleted = rc.deleted;
+        local.updatedAt = rc.updatedAt;
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
   // ------------------------------------------------------------ Schadensstände
 
   /* Friert den aktuellen Zustand eines Fahrzeugs ein. Das Ergebnis ist
@@ -341,7 +474,7 @@
       reference: (reference || "").trim(),
       createdAt: now(),
       updatedAt: now(),
-      damages: damagesOf(v.id).map(function (d) {
+      damages: damagesOf(v.id, "schaden").map(function (d) {
         return {
           id: d.id,
           images: (d.images || []).slice(),
@@ -391,7 +524,8 @@
   function save() {
     return Promise.all([
       idbSet("vehicles", state.vehicles),
-      idbSet("snapshots", state.snapshots)
+      idbSet("snapshots", state.snapshots),
+      idbSet("categories", state.categories)
     ]).then(function () {
       emitChange();
       if (App.Cloud && App.Cloud.schedulePush) App.Cloud.schedulePush();
@@ -402,7 +536,8 @@
   function persistOnly() {
     return Promise.all([
       idbSet("vehicles", state.vehicles),
-      idbSet("snapshots", state.snapshots)
+      idbSet("snapshots", state.snapshots),
+      idbSet("categories", state.categories)
     ]).then(emitChange);
   }
 
@@ -426,6 +561,9 @@
       if ((rv.updatedAt || 0) > (local.updatedAt || 0)) {
         local.name = rv.name;
         local.plate = rv.plate;
+        local.categoryId = rv.categoryId || "";
+        local.hidden = !!rv.hidden;
+        local.zustand = !!rv.zustand;
         local.deleted = rv.deleted;
         local.updatedAt = rv.updatedAt;
         changed = true;
@@ -473,7 +611,8 @@
   function mergeAll(payload) {
     var a = mergeVehicles(payload && payload.vehicles);
     var b = mergeSnapshots(payload && payload.snapshots);
-    var changed = a || b;
+    var c = mergeCategories(payload && payload.categories);
+    var changed = a || b || c;
     /* Von einem Gerät mit älterem Build können Datensätze im alten Format
        hereinkommen — die werden hier gleich überführt. */
     if (changed) {
@@ -492,12 +631,17 @@
         if ((v.updatedAt || 0) > ts) return true;
         return (v.damages || []).some(function (d) { return (d.updatedAt || 0) > ts; });
       }),
-      snapshots: state.snapshots.filter(function (s) { return (s.updatedAt || 0) > ts; })
+      snapshots: state.snapshots.filter(function (s) { return (s.updatedAt || 0) > ts; }),
+      categories: state.categories.filter(function (c) { return (c.updatedAt || 0) > ts; })
     };
   }
 
   function allData() {
-    return { vehicles: state.vehicles, snapshots: state.snapshots };
+    return {
+      vehicles: state.vehicles,
+      snapshots: state.snapshots,
+      categories: state.categories
+    };
   }
 
   // ------------------------------------------------- Sicherung als Datei
@@ -536,10 +680,11 @@
   function init() {
     return openDb().then(function (d) {
       db = d;
-      return Promise.all([idbGet("vehicles"), idbGet("snapshots")]);
+      return Promise.all([idbGet("vehicles"), idbGet("snapshots"), idbGet("categories")]);
     }).then(function (res) {
       if (Array.isArray(res[0])) state.vehicles = res[0];
       if (Array.isArray(res[1])) state.snapshots = res[1];
+      if (Array.isArray(res[2])) state.categories = res[2];
       normalisiereAlles();
       /* Einmal beim Start: gibt den Platz früher gelöschter Einträge frei. */
       if (entruempele()) return persistOnly();
@@ -556,7 +701,16 @@
     setStatus: setStatus,
 
     vehicles: vehicles,
+    versteckteAnzahl: versteckteAnzahl,
     getVehicle: getVehicle,
+    categories: categories,
+    getCategory: getCategory,
+    categoryName: categoryName,
+    categoryCount: categoryCount,
+    addCategory: addCategory,
+    updateCategory: updateCategory,
+    moveCategory: moveCategory,
+    deleteCategory: deleteCategory,
     damagesOf: damagesOf,
     damageCount: damageCount,
     normalisiereSchaden: normalisiereSchaden,

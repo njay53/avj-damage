@@ -174,6 +174,7 @@
     daten.vehicles.forEach(function (v) {
       vehicleRows.push({
         id: v.id, name: v.name, plate: v.plate || "",
+        category_id: v.categoryId || "", hidden: !!v.hidden, zustand: !!v.zustand,
         deleted: !!v.deleted, updated_at: v.updatedAt || 0
       });
       (v.damages || []).forEach(function (d) {
@@ -183,6 +184,7 @@
           description: d.description || "",
           date: d.date || "", date_mode: d.dateMode || "exact",
           created_at: d.createdAt || 0, area: d.area || "",
+          kind: d.kind === "zustand" ? "zustand" : "schaden",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -195,14 +197,24 @@
         damages: s.damages, deleted: !!s.deleted, updated_at: s.updatedAt || 0
       };
     });
-    return { vehicleRows: vehicleRows, damageRows: damageRows, snapshotRows: snapshotRows };
+    var categoryRows = (daten.categories || []).map(function (c) {
+      return {
+        id: c.id, name: c.name || "", sort: c.sort || 0,
+        deleted: !!c.deleted, updated_at: c.updatedAt || 0
+      };
+    });
+    return {
+      vehicleRows: vehicleRows, damageRows: damageRows,
+      snapshotRows: snapshotRows, categoryRows: categoryRows
+    };
   }
 
-  function fromRows(vehicleRows, damageRows, snapshotRows) {
+  function fromRows(vehicleRows, damageRows, snapshotRows, categoryRows) {
     var byId = {};
     var vehicles = (vehicleRows || []).map(function (r) {
       var v = {
         id: r.id, name: r.name, plate: r.plate || "",
+        categoryId: r.category_id || "", hidden: !!r.hidden, zustand: !!r.zustand,
         deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0, damages: []
       };
       byId[r.id] = v;
@@ -225,6 +237,7 @@
         dateMode: r.date_mode || "exact",
         createdAt: Number(r.created_at) || 0,
         area: r.area || "",
+        kind: r.kind === "zustand" ? "zustand" : "schaden",
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });
@@ -245,7 +258,14 @@
       };
     });
 
-    return { vehicles: vehicles, snapshots: snapshots };
+    var categories = (categoryRows || []).map(function (r) {
+      return {
+        id: r.id, name: r.name || "", sort: Number(r.sort) || 0,
+        deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0
+      };
+    });
+
+    return { vehicles: vehicles, snapshots: snapshots, categories: categories };
   }
 
   /* Fahrzeug-Fragmente ohne Namen dürfen ein vorhandenes Fahrzeug nicht
@@ -258,9 +278,10 @@
     return Promise.all([
       rest("vehicles?select=*&updated_at=gt." + seit),
       rest("damages?select=*&updated_at=gt." + seit),
-      rest("snapshots?select=*&updated_at=gt." + seit)
+      rest("snapshots?select=*&updated_at=gt." + seit),
+      rest("categories?select=*&updated_at=gt." + seit)
     ]).then(function (res) {
-      return App.Store.mergeAll(fromRows(res[0], res[1], res[2]));
+      return App.Store.mergeAll(fromRows(res[0], res[1], res[2], res[3]));
     });
   }
 
@@ -288,8 +309,12 @@
         }));
       }
     }
+    if (rows.categoryRows.length) {
+      aufgaben.push(rest("categories", { method: "POST", headers: kopf, body: rows.categoryRows }));
+    }
     return Promise.all(aufgaben).then(function () {
-      return rows.vehicleRows.length + rows.damageRows.length + rows.snapshotRows.length;
+      return rows.vehicleRows.length + rows.damageRows.length +
+        rows.snapshotRows.length + rows.categoryRows.length;
     });
   }
 
