@@ -175,6 +175,7 @@
       vehicleRows.push({
         id: v.id, name: v.name, plate: v.plate || "",
         category_id: v.categoryId || "", hidden: !!v.hidden, zustand: !!v.zustand,
+        vin: v.vin || "", photo: v.photo || "",
         deleted: !!v.deleted, updated_at: v.updatedAt || 0
       });
       (v.damages || []).forEach(function (d) {
@@ -185,6 +186,7 @@
           date: d.date || "", date_mode: d.dateMode || "exact",
           created_at: d.createdAt || 0, area: d.area || "",
           kind: d.kind === "zustand" ? "zustand" : "schaden",
+          km: d.km || "", anlass: d.anlass || "",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -215,6 +217,7 @@
       var v = {
         id: r.id, name: r.name, plate: r.plate || "",
         categoryId: r.category_id || "", hidden: !!r.hidden, zustand: !!r.zustand,
+        vin: r.vin || "", photo: r.photo || "",
         deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0, damages: []
       };
       byId[r.id] = v;
@@ -238,6 +241,7 @@
         createdAt: Number(r.created_at) || 0,
         area: r.area || "",
         kind: r.kind === "zustand" ? "zustand" : "schaden",
+        km: r.km || "", anlass: r.anlass || "",
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

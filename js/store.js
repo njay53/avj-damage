@@ -164,6 +164,8 @@
       name: data.name,
       plate: data.plate || "",
       categoryId: data.categoryId || "",
+      vin: data.vin || "",
+      photo: data.photo || "",
       hidden: !!data.hidden,
       /* Zustandsaufnahmen sind der Sonderfall (Langzeitmiete), nicht die Regel —
          deshalb je Fahrzeug einzeln einzuschalten. */
@@ -181,6 +183,8 @@
     if (typeof data.name === "string") v.name = data.name;
     if (typeof data.plate === "string") v.plate = data.plate;
     if ("categoryId" in data) v.categoryId = data.categoryId || "";
+    if ("vin" in data) v.vin = data.vin || "";
+    if ("photo" in data) v.photo = data.photo || "";
     if ("hidden" in data) v.hidden = !!data.hidden;
     if ("zustand" in data) v.zustand = !!data.zustand;
     v.updatedAt = now();
@@ -331,6 +335,10 @@
       dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
       kind: damage.kind === "zustand" ? "zustand" : "schaden",
+      /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
+         wer den Stand kennt, kann ihn eintragen. */
+      km: damage.km || "",
+      anlass: damage.anlass || "",
       createdAt: now(),
       updatedAt: now()
     };
@@ -483,7 +491,8 @@
           date: d.date || "",
           dateMode: d.dateMode || "exact",
           createdAt: d.createdAt || 0,
-          area: d.area || ""
+          area: d.area || "",
+          km: d.km || ""
         };
       })
     };
@@ -562,6 +571,8 @@
         local.name = rv.name;
         local.plate = rv.plate;
         local.categoryId = rv.categoryId || "";
+        local.vin = rv.vin || "";
+        local.photo = rv.photo || "";
         local.hidden = !!rv.hidden;
         local.zustand = !!rv.zustand;
         local.deleted = rv.deleted;

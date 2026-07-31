@@ -496,6 +496,79 @@ function kontrast(a, b) {
     App.Fleet.renderVehicle();
   }
 
+  console.log("\n--- Zustandsmaske ---");
+  {
+    App.Annotate.open({ title: "t", art: "zustand", onSave: () => {} });
+    check("keine Frage nach der Anzahl", q("count-row").classList.contains("hidden"));
+    check("keine Frage nach 'Datum unbekannt'", q("datemode-row").classList.contains("hidden"));
+    check("dafür der Anlass", !q("anlass-row").classList.contains("hidden"));
+    check("dafür der Kilometerstand", !q("km-row").classList.contains("hidden"));
+    check("Datum bleibt sichtbar", !q("date-row").classList.contains("hidden"));
+    check("Feld heisst Motiv", q("label-area").textContent === "Motiv (optional)",
+      q("label-area").textContent);
+    check("Knopf spricht von der Aufnahme",
+      q("btn-save-damage").textContent === "Aufnahme speichern", q("btn-save-damage").textContent);
+    App.Annotate.close();
+
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    check("beim Schaden wieder die Anzahl", !q("count-row").classList.contains("hidden"));
+    check("beim Schaden kein Kilometerstand", q("km-row").classList.contains("hidden"));
+    check("beim Schaden wieder 'Bereich'", q("label-area").textContent === "Bereich (optional)");
+    App.Annotate.close();
+
+    const za = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,ZK"], description: "alles dabei",
+      kind: "zustand", km: "84500", anlass: "uebergabe"
+    });
+    check("Kilometerstand gespeichert", za.km === "84500", za.km);
+    check("Anlass gespeichert", za.anlass === "uebergabe", za.anlass);
+
+    await App.Store.updateVehicle(v.id, { zustand: true });
+    App.Fleet.openVehicle(v.id);
+    const kachel = q("zustand-grid").querySelector(".damage-card .meta").textContent;
+    check("Kachel nennt den Anlass", /Übergabe an den Mieter/.test(kachel), kachel);
+    check("Kachel schreibt km mit Punkt", /84\.500 km/.test(kachel), kachel);
+
+    await App.Store.deleteDamage(v.id, za.id);
+    await App.Store.updateVehicle(v.id, { zustand: false });
+    App.Fleet.renderVehicle();
+  }
+
+  console.log("\n--- VIN und Fahrzeugbild ---");
+  {
+    const winz = "data:image/jpeg;base64,WINZBILD";
+    /* Über die Maske, damit auch die Grossschreibung geprüft wird */
+    App.Fleet.openVehicle(v.id);
+    q("btn-edit-vehicle").click();
+    q("input-vehicle-vin").value = "wf0axxttrahj12345";
+    q("form-vehicle").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+    await wait(40);
+    check("VIN wird gross gespeichert",
+      App.Store.getVehicle(v.id).vin === "WF0AXXTTRAHJ12345", App.Store.getVehicle(v.id).vin);
+    await App.Store.updateVehicle(v.id, { photo: winz });
+    check("Bild gespeichert", App.Store.getVehicle(v.id).photo === winz);
+
+    App.Fleet.renderFleet();
+    check("Kachel zeigt das Bild", q("fleet-grid").innerHTML.includes(winz));
+    check("Bild sitzt im Kopf der Kachel",
+      !!q("fleet-grid").querySelector(".fz-kopf .fz-bild"));
+    check("Zählmarken stehen abgesetzt darunter",
+      !!q("fleet-grid").querySelector(".fz-marken .chip"));
+
+    App.Fleet.openVehicle(v.id);
+    check("Fahrzeugansicht nennt die VIN",
+      q("vehicle-meta").textContent.includes("WF0AXXTTRAHJ12345"), q("vehicle-meta").textContent);
+
+    // Ohne Bild steht ein Platzhalter statt eines kaputten Bildes
+    const ohne = await App.Store.addVehicle({ name: "Ohne Bild", plate: "NOM-JA 1" });
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    check("Platzhalter statt leerem Bild",
+      !!q("fleet-grid").querySelector(".fz-bild.leer"));
+    await App.Store.deleteVehicle(ohne.id);
+    await App.Store.updateVehicle(v.id, { photo: "" });
+  }
+
   console.log("\n--- Kennung abschaltbar ---");
   {
     check("Kennung ist anfangs aus", App.Einstellungen.kennungAktiv() === false);
@@ -892,6 +965,10 @@ function kontrast(a, b) {
     check("Kategorie am Fahrzeug übertragen", zeile.category_id === kat.id, zeile.category_id);
     check("Ausgeblendet übertragen", zeile.hidden === true);
     check("Zustandsschalter übertragen", zeile.zustand === true);
+    check("VIN übertragen", zeile.vin !== undefined, JSON.stringify(Object.keys(zeile)));
+    check("Fahrzeugbild übertragen", "photo" in zeile);
+    check("Kilometerstand und Anlass übertragen",
+      server.zeilen("damages").some((z) => "km" in z && "anlass" in z));
     check("Art des Eintrags übertragen",
       server.zeilen("damages").some((z) => z.kind === "zustand"),
       JSON.stringify(server.zeilen("damages").map((z) => z.kind)));

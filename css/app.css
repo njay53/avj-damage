@@ -230,8 +230,37 @@ textarea{line-height:1.5;resize:vertical;}
 .vehicle-card h3{font-size:14px;font-weight:600;margin-bottom:3px;letter-spacing:-.01em;}
 .vehicle-card .plate{
   font-family:var(--mono);font-size:15px;font-weight:500;letter-spacing:.04em;
-  color:var(--ink);margin-bottom:12px;
+  color:var(--ink);
 }
+/* Bild, Name, Kennzeichen und Kategorie sind eine Einheit — sie sagen, WELCHES
+   Fahrzeug das ist. Die Zählmarken darunter sagen, wie es ihm geht. */
+.fz-kopf{display:flex;gap:12px;align-items:flex-start;}
+.fz-text{min-width:0;flex:1;}
+.fz-bild{
+  width:58px;height:58px;flex:none;border-radius:9px;object-fit:cover;
+  background:var(--result-bg);border:1px solid var(--line-soft);
+}
+.fz-bild.leer{
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted-light);font-size:19px;border-style:dashed;
+}
+.fz-kat{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.fz-marken{margin-top:12px;}
+.vehicle-card.versteckt{opacity:.72;}
+
+/* Kategorie und VIN in der Fahrzeugansicht */
+.fz-meta{font-size:12px;color:var(--muted);margin:-6px 0 4px;}
+.fz-meta .mono{font-family:var(--mono);letter-spacing:.03em;color:var(--ink-soft);}
+
+/* Bildwahl im Fahrzeugdialog */
+.bild-wahl{display:flex;gap:12px;align-items:center;}
+.bild-vorschau{
+  width:64px;height:64px;flex:none;border-radius:9px;overflow:hidden;
+  border:1px dashed var(--field-line);background:var(--field-bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;color:var(--muted-light);text-align:center;
+}
+.bild-vorschau img{width:100%;height:100%;object-fit:cover;}
 
 /* Kennzeichen in der Fahrzeugansicht — steht direkt unter dem Namen */
 .plate-big{

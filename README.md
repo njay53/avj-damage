@@ -184,11 +184,15 @@ Im Projekt → **SQL Editor** → **New query** → folgendes einfügen und ausf
 -- category_id = Kennung der Kategorie (leer = ohne Zuordnung)
 -- hidden      = aus der Übersicht ausgeblendet (Langzeitmieten)
 -- zustand     = führt dieses Fahrzeug Zustandsaufnahmen?
+-- vin         = Fahrgestellnummer, optional
+-- photo       = kleines Fahrzeugbild für die Übersicht (Base64, max. 640 px)
 create table public.vehicles (
   id          text primary key,
   name        text not null default '',
   plate       text not null default '',
   category_id text not null default '',
+  vin         text not null default '',
+  photo       text not null default '',
   hidden      boolean not null default false,
   zustand     boolean not null default false,
   deleted     boolean not null default false,
@@ -211,6 +215,8 @@ create table public.categories (
 -- date_mode  = exact | unknown | stock
 -- created_at = wann erfasst wurde (immer gesetzt, zählt als Nachweis)
 -- kind       = schaden | zustand (Zustandsaufnahmen zählen nicht als Schaden)
+-- km         = Kilometerstand bei einer Zustandsaufnahme, optional
+-- anlass     = uebergabe | rueckgabe | zwischen | uebernahme | sonstiges
 create table public.damages (
   id          text primary key,
   vehicle_id  text not null,
@@ -222,6 +228,8 @@ create table public.damages (
   created_at  bigint  not null default 0,
   area        text not null default '',
   kind        text not null default 'schaden',
+  km          text not null default '',
+  anlass      text not null default '',
   deleted     boolean not null default false,
   updated_at  bigint  not null default 0
 );
@@ -276,6 +284,10 @@ alter table public.damages  add column if not exists kind        text    not nul
 alter table public.vehicles add column if not exists category_id text    not null default '';
 alter table public.vehicles add column if not exists hidden      boolean not null default false;
 alter table public.vehicles add column if not exists zustand     boolean not null default false;
+alter table public.vehicles add column if not exists vin         text    not null default '';
+alter table public.vehicles add column if not exists photo       text    not null default '';
+alter table public.damages  add column if not exists km          text    not null default '';
+alter table public.damages  add column if not exists anlass      text    not null default '';
 ```
 
 Die alten Spalten `image` und `note` dürfen bleiben — die App liest sie noch,

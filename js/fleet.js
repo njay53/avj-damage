@@ -71,6 +71,25 @@
     q("btn-edit-damage").addEventListener("click", editCurrentDamage);
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
     q("btn-vehicle-doc").addEventListener("click", function () { druckeAkte(); });
+
+    q("btn-vehicle-photo").addEventListener("click", function () {
+      q("file-vehicle-photo").click();
+    });
+    q("file-vehicle-photo").addEventListener("change", function (e) {
+      var datei = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!datei) return;
+      verkleinere(datei).then(function (klein) {
+        bildEntwurf = klein;
+        zeigeFahrzeugbild();
+      }).catch(function (err) {
+        alert("Bild konnte nicht gelesen werden:\n\n" + (err.message || err));
+      });
+    });
+    q("btn-vehicle-photo-clear").addEventListener("click", function () {
+      bildEntwurf = "";
+      zeigeFahrzeugbild();
+    });
   }
 
   // -------------------------------------------------------------- Fuhrpark
@@ -143,16 +162,29 @@
       var kat = Store.categoryName(v.categoryId);
       var card = document.createElement("div");
       card.className = "vehicle-card" + (v.hidden ? " versteckt" : "");
+      /* Kopf der Kachel: Bild, Name, Kennzeichen und Kategorie gehören
+         zusammen — das ist die Identität des Fahrzeugs. Die Zählmarken
+         darunter sind Betriebszustand und stehen deshalb abgesetzt. */
       card.innerHTML =
-        '<h3>' + esc(v.name) + (v.hidden ? ' <span class="klappe-zahl">ausgeblendet</span>' : '') + '</h3>' +
-        '<div class="plate">' + esc(v.plate || "kein Kennzeichen hinterlegt") + '</div>' +
-        (kat ? '<span class="chip ghost">' + esc(kat) + '</span>' : '') +
-        '<span class="chip' + (anzahl === 0 ? " zero" : "") + '">' + anzahl +
-        (anzahl === 1 ? " Schaden" : " Schäden") + '</span>' +
-        (eintraege && eintraege !== anzahl
-          ? '<span class="chip ghost">' + eintraege + " Einträge</span>" : "") +
-        (App.Einstellungen.kennungAktiv() && staende
-          ? '<span class="chip ghost">' + staende + " Stände</span>" : "");
+        '<div class="fz-kopf">' +
+          (v.photo
+            ? '<img class="fz-bild" src="' + v.photo + '" alt="" loading="lazy">'
+            : '<div class="fz-bild leer" aria-hidden="true">▭</div>') +
+          '<div class="fz-text">' +
+            '<h3>' + esc(v.name) +
+              (v.hidden ? ' <span class="klappe-zahl">ausgeblendet</span>' : '') + '</h3>' +
+            '<div class="plate">' + esc(v.plate || "kein Kennzeichen") + '</div>' +
+            (kat ? '<div class="fz-kat">' + esc(kat) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="fz-marken">' +
+          '<span class="chip' + (anzahl === 0 ? " zero" : "") + '">' + anzahl +
+          (anzahl === 1 ? " Schaden" : " Schäden") + '</span>' +
+          (eintraege && eintraege !== anzahl
+            ? '<span class="chip ghost">' + eintraege + " Einträge</span>" : "") +
+          (App.Einstellungen.kennungAktiv() && staende
+            ? '<span class="chip ghost">' + staende + " Stände</span>" : "") +
+        '</div>';
       card.addEventListener("click", function () { openVehicle(v.id); });
       grid.appendChild(card);
     });
@@ -178,6 +210,13 @@
     q("vehicle-title").textContent = v.name;
     q("vehicle-plate").textContent = v.plate || "kein Kennzeichen hinterlegt";
     q("vehicle-plate").classList.toggle("leer", !v.plate);
+
+    var zeile = [];
+    var katName = Store.categoryName(v.categoryId);
+    if (katName) zeile.push(esc(katName));
+    if (v.vin) zeile.push('VIN <span class="mono">' + esc(v.vin) + "</span>");
+    q("vehicle-meta").innerHTML = zeile.join(" · ");
+    q("vehicle-meta").classList.toggle("hidden", !zeile.length);
 
     fuelleRaster(q("damage-grid"), v, "schaden");
 
@@ -213,7 +252,10 @@
           (bilder.length > 1 ? '<span class="dc-badge">' + bilder.length + ' Fotos</span>' : '') +
           (istSchaden && d.count > 1 ? '<span class="dc-badge count">' + d.count + ' Schäden</span>' : '') +
         '</div>' +
-        '<div class="meta">' + esc(fmtDamageDate(d)) + (d.area ? " · " + esc(d.area) : "") + '</div>' +
+        '<div class="meta">' + esc(fmtDamageDate(d)) +
+          (!istSchaden && d.anlass ? " · " + esc(anlassText(d.anlass)) : "") +
+          (d.km ? " · " + esc(kmText(d.km)) : "") +
+          (d.area ? " · " + esc(d.area) : "") + '</div>' +
         '<div class="note">' + esc(d.description || "(keine Beschreibung)") + '</div>';
       card.addEventListener("click", function () { openDetail(d.id); });
       grid.appendChild(card);
@@ -237,6 +279,46 @@
 
   // -------------------------------------------------------------- Fahrzeug-Dialog
 
+  /* Fahrzeugbild: klein halten. Es steht als Miniatur in der Übersicht, mehr
+     als 640 px sieht dort niemand — und jedes Kilobyte zählt gegen den
+     Speicherplatz. */
+  var BILD_MAX = 640;
+  var bildEntwurf = "";
+
+  function verkleinere(datei) {
+    return new Promise(function (fertig, fehler) {
+      var leser = new FileReader();
+      leser.onerror = function () { fehler(new Error("Datei nicht lesbar")); };
+      leser.onload = function () {
+        var bild = new Image();
+        bild.onerror = function () { fehler(new Error("Kein gültiges Bild")); };
+        bild.onload = function () {
+          var b = bild.width, h = bild.height;
+          if (b > BILD_MAX || h > BILD_MAX) {
+            var f = BILD_MAX / Math.max(b, h);
+            b = Math.round(b * f);
+            h = Math.round(h * f);
+          }
+          var flaeche = document.createElement("canvas");
+          flaeche.width = b;
+          flaeche.height = h;
+          flaeche.getContext("2d").drawImage(bild, 0, 0, b, h);
+          fertig(flaeche.toDataURL("image/jpeg", 0.75));
+        };
+        bild.src = leser.result;
+      };
+      leser.readAsDataURL(datei);
+    });
+  }
+
+  function zeigeFahrzeugbild() {
+    var box = q("vehicle-photo-preview");
+    box.innerHTML = bildEntwurf
+      ? '<img src="' + bildEntwurf + '" alt="Fahrzeugbild">'
+      : '<span>kein Bild</span>';
+    q("btn-vehicle-photo-clear").classList.toggle("hidden", !bildEntwurf);
+  }
+
   function fuelleKategorieAuswahl(gewaehlt) {
     var sel = q("input-vehicle-category");
     sel.innerHTML = '<option value="">— ohne Kategorie —</option>';
@@ -259,6 +341,8 @@
       nameInput.value = v.name;
       plateInput.value = v.plate || "";
       fuelleKategorieAuswahl(v.categoryId);
+      q("input-vehicle-vin").value = v.vin || "";
+      bildEntwurf = v.photo || "";
       q("input-vehicle-hidden").checked = !!v.hidden;
       q("input-vehicle-zustand").checked = !!v.zustand;
     } else {
@@ -268,9 +352,12 @@
       /* Steht ein Filter auf einer Kategorie, ist das neue Fahrzeug mit hoher
          Wahrscheinlichkeit auch eins davon. */
       fuelleKategorieAuswahl(filterKategorie);
+      q("input-vehicle-vin").value = "";
+      bildEntwurf = "";
       q("input-vehicle-hidden").checked = false;
       q("input-vehicle-zustand").checked = false;
     }
+    zeigeFahrzeugbild();
     q("modal-vehicle").classList.remove("hidden");
     nameInput.focus();
   }
@@ -284,6 +371,8 @@
     var daten = {
       name: name,
       plate: plate,
+      vin: q("input-vehicle-vin").value.trim().toUpperCase(),
+      photo: bildEntwurf,
       categoryId: q("input-vehicle-category").value,
       hidden: q("input-vehicle-hidden").checked,
       zustand: q("input-vehicle-zustand").checked
@@ -311,6 +400,25 @@
     });
   }
 
+  var ANLAESSE = {
+    uebergabe: "Übergabe an den Mieter",
+    rueckgabe: "Rückgabe",
+    zwischen: "Zwischenstand",
+    uebernahme: "Übernahme ins Vermietgeschäft",
+    sonstiges: "Sonstiges"
+  };
+
+  function anlassText(schluessel) {
+    return ANLAESSE[schluessel] || "Zustandsaufnahme";
+  }
+
+  /* Tausenderpunkte — 84500 liest sich schlechter als 84.500. */
+  function kmText(km) {
+    var zahl = parseInt(String(km).replace(/[^0-9]/g, ""), 10);
+    if (isNaN(zahl)) return "";
+    return zahl.toLocaleString("de-DE") + " km";
+  }
+
   // -------------------------------------------------------------- Detailansicht
 
   /* Ohne Art liefert damagesOf beide Sorten — die Detailansicht ist für
@@ -330,10 +438,13 @@
     q("detail-img").src = bilder[0] || "";
     zeigeMiniaturen(bilder);
 
+    var istZustand = d.kind === "zustand";
     var zusatz = [];
-    if (d.count > 1) zusatz.push(d.count + " Schäden auf diesem Eintrag");
+    if (istZustand) zusatz.push(anlassText(d.anlass));
+    if (!istZustand && d.count > 1) zusatz.push(d.count + " Schäden auf diesem Eintrag");
     if (bilder.length > 1) zusatz.push(bilder.length + " Fotos");
-    if (d.area) zusatz.push("Bereich: " + d.area);
+    if (d.km) zusatz.push(kmText(d.km));
+    if (d.area) zusatz.push((istZustand ? "Motiv: " : "Bereich: ") + d.area);
     q("detail-date").textContent = fmtDamageDateLong(d) +
       (zusatz.length ? " · " + zusatz.join(" · ") : "");
 

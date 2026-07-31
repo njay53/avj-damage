@@ -41,6 +41,9 @@
   var width = 12;
   var imageLoaded = false;
   var onSaveCb = null;
+  var kmInput, anlassSel;
+  /* Schaden oder Zustandsaufnahme — entscheidet, welche Felder gelten. */
+  var aktuelleArt = "schaden";
 
   // Ansicht: welcher Bildausschnitt ist zu sehen
   var view = { scale: 1, x: 0, y: 0 };
@@ -89,6 +92,8 @@
     widthValue = q("width-value");
     zoomLabel = q("zoom-label");
     countInput = q("input-count");
+    kmInput = q("input-km");
+    anlassSel = q("input-anlass");
     streifen = q("photo-strip");
 
     work = document.createElement("canvas");
@@ -176,14 +181,35 @@
     areaInput.value = (d && d.area) || "";
     countInput.value = String((d && d.count) || 1);
 
-    /* Eine Zustandsaufnahme zeigt gerade keinen Schaden — nach der Anzahl zu
-       fragen wäre sinnlos. */
+    /* Zwei Masken in einer. Eine Zustandsaufnahme hält fest, wie das Fahrzeug
+       insgesamt dasteht — Anzahl Schäden und "Datum unbekannt" ergeben dort
+       keinen Sinn, dafür Kilometerstand und Anlass. */
     var art = opts.art || (d && d.kind) || "schaden";
     var istZustand = art === "zustand";
+    aktuelleArt = art;
+
     document.getElementById("count-row").classList.toggle("hidden", istZustand);
-    if (istZustand) countInput.value = "1";
-    noteInput.parentNode.querySelector("label").textContent =
-      istZustand ? "Beschreibung" : "Beschreibung";
+    document.getElementById("datemode-row").classList.toggle("hidden", istZustand);
+    document.getElementById("anlass-row").classList.toggle("hidden", !istZustand);
+    document.getElementById("km-row").classList.toggle("hidden", !istZustand);
+    document.getElementById("label-area").textContent = istZustand
+      ? "Motiv (optional)"
+      : "Bereich (optional)";
+    areaInput.placeholder = istZustand
+      ? "z. B. Front, Innenraum, Zubehör"
+      : "z. B. Stossstange hinten links";
+    noteInput.placeholder = istZustand
+      ? "z. B. rundum unbeschädigt, Warnweste, Verbandkasten und 2. Schlüssel dabei"
+      : "z. B. Kratzer ca. 5 cm, nicht durchgerostet";
+
+    if (istZustand) {
+      countInput.value = "1";
+      dateModeSel.value = "exact";
+      dateRow.classList.remove("hidden");
+      kmInput.value = (d && d.km) || "";
+      anlassSel.value = (d && d.anlass) || "uebergabe";
+    }
+
     saveBtn.textContent = d
       ? "Änderungen speichern"
       : (istZustand ? "Aufnahme speichern" : "Schaden speichern");
@@ -770,13 +796,17 @@
 
     var modus = dateModeSel.value;
     var anzahl = parseInt(countInput.value, 10);
+    var istZustand = aktuelleArt === "zustand";
     var payload = {
       images: ausgabe,
-      count: (isNaN(anzahl) || anzahl < 1) ? 1 : anzahl,
+      count: istZustand ? 1 : ((isNaN(anzahl) || anzahl < 1) ? 1 : anzahl),
       description: noteInput.value.trim(),
-      dateMode: modus,
-      date: modus === "exact" ? (dateInput.value || todayStr()) : "",
-      area: areaInput.value.trim()
+      dateMode: istZustand ? "exact" : modus,
+      date: (istZustand || modus === "exact") ? (dateInput.value || todayStr()) : "",
+      area: areaInput.value.trim(),
+      kind: aktuelleArt,
+      km: istZustand ? kmInput.value.replace(/[^0-9]/g, "") : "",
+      anlass: istZustand ? anlassSel.value : ""
     };
     var cb = onSaveCb;
     var alt = bearbeitet;

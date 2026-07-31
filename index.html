@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=23" />
+<link rel="stylesheet" href="css/app.css?b=24" />
 </head>
 <body>
 
@@ -63,6 +63,7 @@
     </div>
   </div>
   <div class="plate-big" id="vehicle-plate"></div>
+  <div class="fz-meta hidden" id="vehicle-meta"></div>
 
   <div class="section-label">Dokumentierte Schäden</div>
   <div id="damage-grid" class="damage-grid"></div>
@@ -232,6 +233,22 @@
         <label for="input-vehicle-category">Kategorie</label>
         <select id="input-vehicle-category"></select>
       </div>
+      <div class="field">
+        <label for="input-vehicle-vin">VIN <em>(optional)</em></label>
+        <input type="text" id="input-vehicle-vin" placeholder="17 Zeichen"
+               autocapitalize="characters" spellcheck="false" maxlength="24" />
+      </div>
+      <div class="field">
+        <label>Fahrzeugbild <em>(optional)</em></label>
+        <div class="bild-wahl">
+          <div class="bild-vorschau" id="vehicle-photo-preview"></div>
+          <div class="btn-row">
+            <button type="button" class="secondary mini" id="btn-vehicle-photo">Bild wählen</button>
+            <button type="button" class="ghost-danger mini hidden" id="btn-vehicle-photo-clear">Entfernen</button>
+          </div>
+        </div>
+        <input type="file" id="file-vehicle-photo" accept="image/*" class="hidden" />
+      </div>
       <label class="schalter">
         <input type="checkbox" id="input-vehicle-hidden" />
         <span>
@@ -311,10 +328,10 @@
 
     <div class="two-col" style="margin-top:1.1rem">
       <div class="field">
-        <label for="input-area">Bereich (optional)</label>
+        <label for="input-area"><span id="label-area">Bereich (optional)</span></label>
         <input type="text" id="input-area" placeholder="z. B. Stossstange hinten links" />
       </div>
-      <div class="field">
+      <div class="field" id="datemode-row">
         <label for="input-date-mode">Wann ist der Schaden entstanden?</label>
         <select id="input-date-mode">
           <option value="exact">An diesem Datum</option>
@@ -322,11 +339,25 @@
           <option value="stock">Bestandsschaden bei Übernahme</option>
         </select>
       </div>
+      <div class="field hidden" id="anlass-row">
+        <label for="input-anlass">Anlass</label>
+        <select id="input-anlass">
+          <option value="uebergabe">Übergabe an den Mieter</option>
+          <option value="rueckgabe">Rückgabe</option>
+          <option value="zwischen">Zwischenstand</option>
+          <option value="uebernahme">Übernahme ins Vermietgeschäft</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+      </div>
     </div>
     <div class="two-col">
       <div class="field" id="date-row">
         <label for="input-date">Datum</label>
         <input type="date" id="input-date" />
+      </div>
+      <div class="field hidden" id="km-row">
+        <label for="input-km">Kilometerstand (optional)</label>
+        <input type="text" id="input-km" inputmode="numeric" placeholder="z. B. 84500" />
       </div>
       <div class="field" id="count-row">
         <label for="input-count">Anzahl Schäden auf diesen Fotos</label>
@@ -421,14 +452,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=23"></script>
-<script src="js/cloud.js?b=23"></script>
-<script src="js/logo.js?b=23"></script>
-<script src="js/pdf.js?b=23"></script>
-<script src="js/annotate.js?b=23"></script>
-<script src="js/fleet.js?b=23"></script>
-<script src="js/uebersicht.js?b=23"></script>
-<script src="js/snapshot.js?b=23"></script>
-<script src="js/app.js?b=23"></script>
+<script src="js/store.js?b=24"></script>
+<script src="js/cloud.js?b=24"></script>
+<script src="js/logo.js?b=24"></script>
+<script src="js/pdf.js?b=24"></script>
+<script src="js/annotate.js?b=24"></script>
+<script src="js/fleet.js?b=24"></script>
+<script src="js/uebersicht.js?b=24"></script>
+<script src="js/snapshot.js?b=24"></script>
+<script src="js/app.js?b=24"></script>
 </body>
 </html>
