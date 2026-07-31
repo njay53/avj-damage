@@ -166,40 +166,70 @@
       doc.text("SCHADENSFOTOS", RAND, y, { size: 8, bold: true, color: GRAU });
       y += 5;
 
-      var spaltenBreite = (INHALT - 10) / 2;   // 85 mm
-      var bildHoehe = 62;                      // etwas grösser als zuvor
-      var zeilenHoehe = bildHoehe + 17;        // Bild + zwei Zeilen Text + Luft
-      var spalte = 0;
+      /* Nicht in ein starres Zweierraster zwängen: Handyfotos vom Schaden sind
+         meist hochkant und würden dann nur die halbe Spalte füllen — halbe
+         Seite weiss, Bilder unnötig klein. Stattdessen bekommen alle Fotos
+         dieselbe Höhe, und es passt in eine Zeile, was nebeneinander passt.
+         Drei hochkant nebeneinander, zwei quer, oder gemischt. */
+      var ZIELHOEHE = 72;
+      var MAXBREITE = 87;      // damit ein Querformat nicht die ganze Zeile frisst
+      var ABSTAND = 6;
+      var TEXTHOEHE = 13;
+
+      var reihen = [];
+      var reihe = { fotos: [], breite: 0, hoehe: 0 };
 
       fotos.forEach(function (f) {
-        if (y + zeilenHoehe > UNTERKANTE) {
-          y = neueSeite();
-          spalte = 0;
+        var m = App.PDF.masse(f.src);
+        var breite, hoehe;
+        if (!m) {
+          breite = 60; hoehe = ZIELHOEHE;
+        } else {
+          hoehe = ZIELHOEHE;
+          breite = hoehe * m.verhaeltnis;
+          if (breite > MAXBREITE) { breite = MAXBREITE; hoehe = breite / m.verhaeltnis; }
         }
-        var x = RAND + spalte * (spaltenBreite + 10);
-
-        /* Linksbündig statt mittig: sonst rückt ein Hochformat-Foto nach
-           innen, während die Beschriftung am linken Rand steht — das sah
-           schief aus. Erst das Bild, dann der Rahmen exakt darum. */
-        var lage = doc.bild(f.src, x, y, spaltenBreite, bildHoehe, { zentriert: false });
-        var unterkante = y + bildHoehe;
-        if (lage && lage.breite) {
-          doc.rechteck(lage.x, lage.y, lage.breite, lage.hoehe,
-            { stroke: HELLGRAU, width: 0.2 });
-          unterkante = lage.y + lage.hoehe;   // Text klebt am Bild, nicht am Raster
+        var braucht = reihe.fotos.length ? ABSTAND + breite : breite;
+        if (reihe.fotos.length && reihe.breite + braucht > INHALT) {
+          reihen.push(reihe);
+          reihe = { fotos: [], breite: 0, hoehe: 0 };
+          braucht = breite;
         }
+        reihe.fotos.push({ f: f, breite: breite, hoehe: hoehe });
+        reihe.breite += braucht;
+        reihe.hoehe = Math.max(reihe.hoehe, hoehe);
+      });
+      if (reihe.fotos.length) reihen.push(reihe);
 
-        var kopf = "Schaden " + f.schaden + " · Bild " + f.schaden + "." + f.bild;
-        doc.text(kopf, x, unterkante + 4.5, { size: 8, bold: true });
+      reihen.forEach(function (r) {
+        var zeilenHoehe = r.hoehe + TEXTHOEHE + 5;
+        if (y + zeilenHoehe > UNTERKANTE) y = neueSeite();
 
-        var unten = (f.d.area ? f.d.area : "ohne Bereichsangabe");
-        if (f.d.description) unten += " — " + f.d.description;
-        if ((f.d.count || 1) > 1) unten += " (" + f.d.count + " Schäden)";
-        doc.textBlock(unten, x, unterkante + 8.6, spaltenBreite,
-          { size: 7.5, color: GRAU, maxZeilen: 2 });
+        var x = RAND;
+        r.fotos.forEach(function (eintrag) {
+          var f = eintrag.f;
+          // Linksbündig, damit Bild und Beschriftung an derselben Kante stehen
+          var lage = doc.bild(f.src, x, y, eintrag.breite, eintrag.hoehe, { zentriert: false });
+          var unterkante = y + eintrag.hoehe;
+          if (lage && lage.breite) {
+            doc.rechteck(lage.x, lage.y, lage.breite, lage.hoehe,
+              { stroke: HELLGRAU, width: 0.2 });
+            unterkante = lage.y + lage.hoehe;
+          }
 
-        spalte++;
-        if (spalte === 2) { spalte = 0; y += zeilenHoehe; }
+          var kopf = "Schaden " + f.schaden + " · Bild " + f.schaden + "." + f.bild;
+          doc.text(kopf, x, unterkante + 4.5, { size: 8, bold: true });
+
+          var unten = (f.d.area ? f.d.area : "ohne Bereichsangabe");
+          if (f.d.description) unten += " — " + f.d.description;
+          if ((f.d.count || 1) > 1) unten += " (" + f.d.count + " Schäden)";
+          doc.textBlock(unten, x, unterkante + 8.6, eintrag.breite,
+            { size: 7.5, color: GRAU, maxZeilen: 2 });
+
+          x += eintrag.breite + ABSTAND;
+        });
+
+        y += zeilenHoehe;
       });
     }
 

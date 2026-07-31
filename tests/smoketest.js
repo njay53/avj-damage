@@ -29,6 +29,18 @@ function check(name, cond, extra) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* Wartet, bis eine Bedingung zutrifft — hoechstens so lange wie angegeben.
+   Feste Pausen fuehren zu Tests, die mal durchlaufen und mal nicht; solchen
+   Tests glaubt man irgendwann nicht mehr. */
+async function bisWahr(bedingung, maxMs = 2000, schritt = 25) {
+  const ende = Date.now() + maxMs;
+  while (Date.now() < ende) {
+    if (bedingung()) return true;
+    await wait(schritt);
+  }
+  return bedingung();
+}
+
 const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
 
 /* Baut eine frische App-Instanz. Jede bekommt ihre eigene IndexedDB, damit
@@ -406,6 +418,13 @@ function macheApp(optionen) {
       JSON.stringify(info));
     check("Farbkanaele erkannt", info && info.kanaele === 3, String(info && info.kanaele));
 
+    // Abmessungen ohne Zeichnen — Grundlage fuer die Verteilung auf der Seite
+    const m = App.PDF.masse(MINI_JPEG);
+    check("Masse werden vorab ermittelt", m && m.breite === 48 && m.hoehe === 36,
+      JSON.stringify(m));
+    check("Seitenverhaeltnis berechnet", m && Math.abs(m.verhaeltnis - 48 / 36) < 0.001);
+    check("kein Bild liefert nichts", App.PDF.masse("data:text/plain,abc") === null);
+
     const doc = App.PDF.neu();
     doc.text("Prüfung äöüß ÄÖÜ", 20, 20, { size: 12, bold: true });
     doc.linie(20, 25, 190, 25);
@@ -459,6 +478,20 @@ function macheApp(optionen) {
       (roh.match(/\/DCTDecode/g) || []).length === 2,
       String((roh.match(/\/DCTDecode/g) || []).length));
     check("Seitenzahlen eingetragen", roh.includes("Seite 1 / "), "");
+
+    // Alle Fotos eines Schadens muessen ins Dokument, jedes einzeln benannt
+    const mehrfach = App.Uebersicht.erzeuge(fz, [{
+      area: "Tuer", description: "Delle", count: 1, dateMode: "exact",
+      date: "2026-07-01", createdAt: Date.now(),
+      images: [MINI_JPEG, MINI_JPEG, MINI_JPEG]
+    }], 1);
+    const rohM = Buffer.from(mehrfach.doc.bauen()).toString("latin1");
+    ["Bild 1.1", "Bild 1.2", "Bild 1.3"].forEach((b) => {
+      check("Bildnummer " + b + " im Dokument", rohM.includes(b));
+    });
+    check("dieselbe Schadensnummer bei allen Bildern",
+      (rohM.match(/Schaden 1 /g) || []).length === 3,
+      String((rohM.match(/Schaden 1 /g) || []).length));
     check("Logo im Kopf eingebettet", !!App.Logo && roh.includes("/DCTDecode"), "");
     check("Logo-Modul geladen", !!(App.Logo && App.Logo.jpeg && App.Logo.verhaeltnis > 4),
       String(App.Logo && App.Logo.verhaeltnis));
@@ -603,9 +636,10 @@ function macheApp(optionen) {
   await w4.App.Cloud.login("a@b.de", "pw");
   await w4.App.Store.addVehicle({ name: "Token-Test", plate: "" });
   await w4.App.Cloud.sync();
-  await wait(50);
-  check("trotz abgelaufenem Token erfolgreich",
-    server2.zeilen("vehicles").some((z) => z.name === "Token-Test"));
+  const angekommen = await bisWahr(
+    () => server2.zeilen("vehicles").some((z) => z.name === "Token-Test"));
+  check("trotz abgelaufenem Token erfolgreich", angekommen,
+    JSON.stringify(server2.zeilen("vehicles").map((z) => z.name)));
   check("Erneuerung wurde angefordert",
     server2.log.some((l) => l.url.includes("grant_type=refresh_token")));
 

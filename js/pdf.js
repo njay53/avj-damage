@@ -430,7 +430,28 @@
     return api;
   }
 
-  App.PDF = { neu: neu, _jpegInfo: jpegInfo, _breiteVon: breiteVon };
+  /* Abmessungen eines Fotos, ohne es zu zeichnen — nötig, um vorher zu
+     wissen, wie breit es wird. Ergebnisse werden gemerkt, sonst würde bei
+     zwanzig Fotos jedes mehrfach entschlüsselt. */
+  var masseSpeicher = {};
+
+  function masse(dataUrl) {
+    if (masseSpeicher[dataUrl]) return masseSpeicher[dataUrl];
+    var trenner = String(dataUrl).indexOf(",");
+    if (trenner < 0) return null;
+    if (String(dataUrl).slice(0, trenner).indexOf("image/jpeg") === -1) return null;
+    var info = jpegInfo(base64ZuBytes(String(dataUrl).slice(trenner + 1)));
+    if (!info || !info.breite || !info.hoehe) return null;
+    var wert = {
+      breite: info.breite,
+      hoehe: info.hoehe,
+      verhaeltnis: info.breite / info.hoehe
+    };
+    masseSpeicher[dataUrl] = wert;
+    return wert;
+  }
+
+  App.PDF = { neu: neu, masse: masse, _jpegInfo: jpegInfo, _breiteVon: breiteVon };
 
   if (typeof module !== "undefined" && module.exports) module.exports = App.PDF;
 
