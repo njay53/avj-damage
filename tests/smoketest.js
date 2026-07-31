@@ -14,7 +14,7 @@ const { createFakeServer } = require("./fake-server");
 require("fake-indexeddb/auto");
 
 const APP = path.join(__dirname, "..");
-const DATEIEN = ["js/store.js", "js/cloud.js", "js/pdf.js", "js/annotate.js",
+const DATEIEN = ["js/store.js", "js/cloud.js", "js/logo.js", "js/pdf.js", "js/annotate.js",
                  "js/fleet.js", "js/uebersicht.js", "js/snapshot.js", "js/app.js"];
 
 /* Ein winziges echtes JPEG (48x36) — gebraucht, um den PDF-Erzeuger
@@ -431,10 +431,15 @@ function macheApp(optionen) {
     const roh = Buffer.from(bytes).toString("latin1");
     check("gueltige PDF-Datei", roh.slice(0, 5) === "%PDF-" && /%%EOF\s*$/.test(roh));
     check("Fotos eingebettet", roh.includes("/DCTDecode"));
-    check("Bild nur einmal gespeichert",
-      (roh.match(/\/DCTDecode/g) || []).length === 1,
+    // Zwei Bilder insgesamt: das Logo und das mehrfach verwendete Foto —
+    // ein Foto, das oefter vorkommt, wird nur einmal gespeichert.
+    check("jedes Bild nur einmal gespeichert",
+      (roh.match(/\/DCTDecode/g) || []).length === 2,
       String((roh.match(/\/DCTDecode/g) || []).length));
     check("Seitenzahlen eingetragen", roh.includes("Seite 1 / "), "");
+    check("Logo im Kopf eingebettet", !!App.Logo && roh.includes("/DCTDecode"), "");
+    check("Logo-Modul geladen", !!(App.Logo && App.Logo.jpeg && App.Logo.verhaeltnis > 4),
+      String(App.Logo && App.Logo.verhaeltnis));
     check("keine Internetadresse im Dokument",
       !/rent-in-nom|github\.io|https?:/i.test(roh),
       (roh.match(/https?:[^\s)]{0,40}/) || [""])[0]);
