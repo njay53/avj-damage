@@ -324,14 +324,35 @@ function macheApp(optionen) {
     App.Annotate.open({ title: "t2", onSave: () => {} });
     check("Anzeige stimmt nach Neuöffnen", q("width-value").textContent === "7",
       q("width-value").textContent);
+    // Pfeilrichtung: Spitze bleibt am Aufsetzpunkt, der Schaft folgt dem Finger
+    const pf = { type: "arrow", x1: 100, y1: 100, x2: 100, y2: 100 };
+    App.Annotate._setzeZugpunkt(pf, { x: 300, y: 260 });
+    check("Pfeilspitze bleibt am Aufsetzpunkt",
+      pf.x2 === 100 && pf.y2 === 100, pf.x2 + "/" + pf.y2);
+    check("Pfeilschaft folgt dem Finger",
+      pf.x1 === 300 && pf.y1 === 260, pf.x1 + "/" + pf.y1);
+    const kr = { type: "circle", x1: 100, y1: 100, x2: 100, y2: 100 };
+    App.Annotate._setzeZugpunkt(kr, { x: 300, y: 260 });
+    check("Kreis zieht wie bisher auf",
+      kr.x1 === 100 && kr.x2 === 300 && kr.y2 === 260, JSON.stringify(kr));
+
     check("dunkle Farbe → heller Kasten", App.Annotate._istHell("#ff3b30") === false);
     check("helle Farbe → dunkler Kasten", App.Annotate._istHell("#f5ec22") === true);
 
     // Werkzeug abwählen
     const kreis = werkzeug.querySelector('[data-tool="circle"]');
     const pfeil = werkzeug.querySelector('[data-tool="arrow"]');
-    check("Kreis ist anfangs aktiv", App.Annotate._tool() === "circle", String(App.Annotate._tool()));
+    const leinwand = q("annotate-canvas");
+    check("kein Werkzeug beim Öffnen", App.Annotate._tool() === null, String(App.Annotate._tool()));
+    check("kein Werkzeug hervorgehoben beim Öffnen",
+      werkzeug.querySelectorAll("[data-tool].active").length === 0);
+    check("Bild lässt die Seite scrollen", leinwand.style.touchAction === "auto",
+      leinwand.style.touchAction);
+    check("Hinweis nennt das Scrollen",
+      /normal scrollen/.test(q("zoom-hint").textContent), q("zoom-hint").textContent);
     pfeil.click();
+    check("mit Werkzeug fängt das Bild die Geste ab", leinwand.style.touchAction === "none",
+      leinwand.style.touchAction);
     check("Umschalten auf Pfeil", App.Annotate._tool() === "arrow", String(App.Annotate._tool()));
     check("nur ein Werkzeug hervorgehoben",
       werkzeug.querySelectorAll("[data-tool].active").length === 1);
@@ -339,8 +360,10 @@ function macheApp(optionen) {
     check("nochmal antippen wählt ab", App.Annotate._tool() === null, String(App.Annotate._tool()));
     check("kein Werkzeug hervorgehoben",
       werkzeug.querySelectorAll("[data-tool].active").length === 0);
-    check("Hinweis erklärt den Zustand",
-      /ein Finger verschiebt/.test(q("zoom-hint").textContent), q("zoom-hint").textContent);
+    check("Hinweis erklärt den Zustand ohne Werkzeug",
+      /normal scrollen/.test(q("zoom-hint").textContent), q("zoom-hint").textContent);
+    check("abgewählt gibt das Bild die Geste wieder frei", leinwand.style.touchAction === "auto",
+      leinwand.style.touchAction);
     kreis.click();
     check("wieder anwählbar", App.Annotate._tool() === "circle");
     App.Annotate.close();

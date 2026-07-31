@@ -32,7 +32,11 @@
   var work, workCtx;        // volle Auflösung
   var img = null;           // Originalbild
   var ops = [];             // bestätigte Markierungen
-  var tool = "circle";
+  /* Bewusst KEIN Werkzeug beim Öffnen: sonst wird jeder Wisch über das Bild
+     zum Kreis, während man eigentlich nur die Seite scrollen wollte. Auf dem
+     Handy nimmt das Bild fast den ganzen Schirm ein — man kommt kaum daran
+     vorbei. Erst wenn ein Werkzeug gewählt ist, fängt die Fläche Gesten ab. */
+  var tool = null;
   var color = "#ff3b30";
   var width = 12;
   var imageLoaded = false;
@@ -106,7 +110,7 @@
           tool = gewaehlt;
           btn.classList.add("active");
         }
-        canvas.style.cursor = tool ? "crosshair" : "grab";
+        aktualisiereBeruehrung();
         zeigeWerkzeugHinweis();
       });
     });
@@ -154,6 +158,12 @@
     onSaveCb = opts.onSave;
     titleEl.textContent = opts.title || "Schaden erfassen";
     reset();
+    tool = null;
+    document.querySelectorAll(".tool-btn[data-tool]").forEach(function (b) {
+      b.classList.remove("active");
+    });
+    aktualisiereBeruehrung();
+    zeigeWerkzeugHinweis();
     uebernehmeStaerke();
 
     var d = opts.damage || null;
@@ -506,6 +516,8 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(work, v.sx, v.sy, v.sw, v.sh, 0, 0, canvas.width, canvas.height);
     zoomLabel.textContent = Math.round(view.scale * 100) + " %";
+    aktualisiereBeruehrung();
+    zeigeWerkzeugHinweis();
   }
 
   function zoomBy(faktor, mx, my) {
@@ -538,19 +550,42 @@
     };
   }
 
+  /* Entscheidet, ob die Zeichenfläche Berührungen abfängt.
+       Werkzeug aktiv        → abfangen, sonst kann man nicht zeichnen
+       hineingezoomt         → abfangen, damit ein Finger den Ausschnitt schiebt
+       weder noch            → durchlassen, damit die Seite normal scrollt
+     Ohne diese Unterscheidung bleibt der Finger am Bild kleben, sobald man
+     nur weiterblättern will. */
+  function aktualisiereBeruehrung() {
+    if (!canvas) return;
+    var faengt = !!tool || view.scale > 1;
+    canvas.style.touchAction = faengt ? "none" : "auto";
+    canvas.style.cursor = tool ? "crosshair" : (view.scale > 1 ? "grab" : "default");
+  }
+
   /* Hinweistext in der Zoomleiste — sagt, was ein Finger gerade tut. */
   function zeigeWerkzeugHinweis() {
     var el = document.getElementById("zoom-hint");
     if (!el) return;
-    el.textContent = tool
-      ? "Zwei Finger zum Zoomen · Werkzeug nochmal antippen zum Abwählen"
-      : "Kein Werkzeug aktiv — ein Finger verschiebt, zwei zoomen";
+    if (tool) {
+      el.textContent = "Zeichnet · nochmal antippen zum Abwählen · zwei Finger zum Zoomen";
+    } else if (view.scale > 1) {
+      el.textContent = "Kein Werkzeug — ein Finger verschiebt den Ausschnitt";
+    } else {
+      el.textContent = "Kein Werkzeug — die Seite lässt sich normal scrollen. " +
+        "Zum Markieren oben ein Werkzeug wählen.";
+    }
   }
 
   // ---------------------------------------------------------------- Eingabe
 
   function onDown(e) {
     if (!imageLoaded) return;
+
+    /* Kein Werkzeug und nicht gezoomt: gar nichts tun, damit der Browser
+       ganz normal scrollen kann. */
+    if (!tool && view.scale === 1) return;
+
     if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, e);
 
@@ -634,15 +669,25 @@
     if (!drawing || !current) return;
     var p = toImage(e);
 
-    if (current.type === "freehand") {
-      current.punkte.push(p);
-    } else {
-      current.x2 = p.x;
-      current.y2 = p.y;
-    }
+    if (current.type === "freehand") current.punkte.push(p);
+    else setzeZugpunkt(current, p);
     renderWork(current);
     renderView();
     if (e.preventDefault) e.preventDefault();
+  }
+
+  /* Wohin der mitgezogene Finger die Form schiebt.
+
+     Beim Pfeil zeigt die Spitze dorthin, wo der Finger aufgesetzt hat: man
+     tippt den Schaden an und zieht den Finger weg, der Schaft waechst hinter
+     dem Finger her. Das ist beim Halten des Telefons deutlich intuitiver, weil
+     die Hand die Stelle nicht verdeckt, die man gerade markiert.
+     Intern bleibt x1 der Schaftanfang und x2 die Spitze — deshalb wandert beim
+     Pfeil x1 mit, nicht x2. So sehen bereits gespeicherte Pfeile unveraendert
+     aus, wenn ein alter Schaden nochmal geoeffnet wird. */
+  function setzeZugpunkt(op, p) {
+    if (op.type === "arrow") { op.x1 = p.x; op.y1 = p.y; }
+    else { op.x2 = p.x; op.y2 = p.y; }
   }
 
   function onUp(e) {
@@ -739,7 +784,8 @@
     _tool: function () { return tool; },
     _bilder: function () { return bilder; },
     _zoomBy: zoomBy,
-    _istHell: istHell
+    _istHell: istHell,
+    _setzeZugpunkt: setzeZugpunkt
   };
 
 })(window.App = window.App || {});

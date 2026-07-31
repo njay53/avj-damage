@@ -365,7 +365,9 @@ input[type=range]{width:104px;height:36px;}
   display:flex;align-items:center;justify-content:center;min-height:120px;
   position:relative;
 }
-.canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;}
+/* touch-action wird vom Skript gesetzt: ohne aktives Werkzeug soll die Seite
+   ueber dem Bild normal scrollen, sonst klebt der Finger am Bild fest. */
+.canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:auto;}
 .placeholder-note{color:#8a8a82;font-size:12.5px;padding:44px 12px;text-align:center;}
 
 .detail-img-wrap{
