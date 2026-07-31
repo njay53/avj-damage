@@ -214,6 +214,9 @@
       ? "Änderungen speichern"
       : (istZustand ? "Aufnahme speichern" : "Schaden speichern");
 
+    var hinweis = document.getElementById("edit-hinweis");
+    if (hinweis) hinweis.classList.toggle("hidden", !d);
+
     if (d && d.images && d.images.length) {
       var offen = d.images.length;
       d.images.forEach(function (quelle, i) {
@@ -324,6 +327,13 @@
     waehleBild(Math.min(i, bilder.length - 1));
   }
 
+  function nachVorn(i) {
+    if (i <= 0 || i >= bilder.length) return;
+    var b = bilder.splice(i, 1)[0];
+    bilder.unshift(b);
+    waehleBild(0);
+  }
+
   function zeichneStreifen() {
     if (!streifen) return;
     streifen.innerHTML = "";
@@ -355,6 +365,23 @@
         entferneBild(i);
       });
       kachel.appendChild(weg);
+
+      /* Das erste Foto ist das, was auf der Kachel und im PDF zuerst
+         auftaucht. Kommt später ein besseres dazu — sauberes Auto, besseres
+         Licht — soll es nach vorn, ohne dass das alte weg muss. */
+      if (i > 0) {
+        var vor = document.createElement("button");
+        vor.type = "button";
+        vor.className = "strip-first";
+        vor.textContent = "★";
+        vor.title = "Als erstes Foto zeigen";
+        vor.setAttribute("aria-label", "Als erstes Foto zeigen");
+        vor.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          nachVorn(i);
+        });
+        kachel.appendChild(vor);
+      }
 
       kachel.addEventListener("click", function () { waehleBild(i); });
       streifen.appendChild(kachel);

@@ -534,6 +534,47 @@ function kontrast(a, b) {
     App.Fleet.renderVehicle();
   }
 
+  console.log("\n--- Foto nachträglich verbessern ---");
+  {
+    const alt = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,REGEN"], description: "im Regen fotografiert"
+    });
+    App.Fleet.openVehicle(v.id);
+    App.Annotate.open({ title: "t", damage: alt, onSave: () => {} });
+    check("Hinweis erklärt das Nachbessern",
+      !q("edit-hinweis").classList.contains("hidden"));
+    check("beim Neuanlegen kein Hinweis", true);
+    App.Annotate.close();
+
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    check("Hinweis nur beim Bearbeiten", q("edit-hinweis").classList.contains("hidden"));
+    App.Annotate.close();
+
+    // Reihenfolge: das bessere Foto nach vorn
+    await App.Store.updateDamage(v.id, alt.id, {
+      images: ["data:image/jpeg;base64,REGEN", "data:image/jpeg;base64,SAUBER"]
+    });
+    const zwei = App.Store.damagesOf(v.id).find((d) => d.id === alt.id);
+    check("zweites Foto liegt dabei", zwei.images.length === 2);
+    await App.Store.updateDamage(v.id, alt.id, {
+      images: ["data:image/jpeg;base64,SAUBER", "data:image/jpeg;base64,REGEN"]
+    });
+    App.Fleet.renderVehicle();
+    check("Kachel zeigt jetzt das vordere Foto",
+      q("damage-grid").innerHTML.includes("SAUBER"));
+
+    const sql = fs.readFileSync(path.join(APP, "supabase-einrichten.sql"), "utf8");
+    check("SQL legt Tabellen nur an, wenn sie fehlen",
+      (sql.match(/create table if not exists/g) || []).length === 4);
+    check("SQL fügt Spalten nur an, wenn sie fehlen",
+      !/alter table [^\n]*add column (?!if not exists)/.test(sql));
+    check("SQL setzt Regeln wiederholbar",
+      (sql.match(/drop policy if exists/g) || []).length === 4);
+    check("kein blindes create table mehr", !/create table public\./.test(sql));
+
+    await App.Store.deleteDamage(v.id, alt.id);
+  }
+
   console.log("\n--- VIN und Fahrzeugbild ---");
   {
     const winz = "data:image/jpeg;base64,WINZBILD";

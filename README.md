@@ -177,125 +177,19 @@ Deutschland. Passwort der Datenbank notieren.
 
 ### 2. Tabellen anlegen
 
-Im Projekt → **SQL Editor** → **New query** → folgendes einfügen und ausführen:
+Im Projekt → **SQL Editor** → **New query** → den kompletten Inhalt von
+`supabase-einrichten.sql` einfügen und **Run** drücken.
 
-```sql
--- Fahrzeuge
--- category_id = Kennung der Kategorie (leer = ohne Zuordnung)
--- hidden      = aus der Übersicht ausgeblendet (Langzeitmieten)
--- zustand     = führt dieses Fahrzeug Zustandsaufnahmen?
--- vin         = Fahrgestellnummer, optional
--- photo       = kleines Fahrzeugbild für die Übersicht (Base64, max. 640 px)
-create table public.vehicles (
-  id          text primary key,
-  name        text not null default '',
-  plate       text not null default '',
-  category_id text not null default '',
-  vin         text not null default '',
-  photo       text not null default '',
-  hidden      boolean not null default false,
-  zustand     boolean not null default false,
-  deleted     boolean not null default false,
-  updated_at  bigint  not null default 0
-);
+Die Datei ist bewusst so geschrieben, dass sie **beliebig oft** ausgeführt
+werden darf: jede Anweisung prüft vorher, ob es das schon gibt. Kommen später
+neue Felder dazu, ändert sich nur diese Datei — du fügst sie erneut komplett
+ein, und alles Bestehende samt Daten bleibt unangetastet. Deshalb gibt es hier
+keine Liste einzelner Nachrüst-Befehle mehr.
 
--- Kategorien des Fuhrparks, frei pflegbar in den Einstellungen
-create table public.categories (
-  id          text primary key,
-  name        text not null default '',
-  sort        integer not null default 0,
-  deleted     boolean not null default false,
-  updated_at  bigint  not null default 0
-);
-
--- Schäden (ein Datensatz je Schadenseintrag, mit einer Bilderliste)
--- images     = Liste der Fotos, ein Eintrag kann mehrere haben
--- count      = wie viele Schäden dieser Eintrag umfasst (ein Foto, drei Kratzer)
--- date       = wann der Schaden entstanden ist (kann leer sein)
--- date_mode  = exact | unknown | stock
--- created_at = wann erfasst wurde (immer gesetzt, zählt als Nachweis)
--- kind       = schaden | zustand (Zustandsaufnahmen zählen nicht als Schaden)
--- km         = Kilometerstand bei einer Zustandsaufnahme, optional
--- anlass     = uebergabe | rueckgabe | zwischen | uebernahme | sonstiges
-create table public.damages (
-  id          text primary key,
-  vehicle_id  text not null,
-  images      jsonb   not null default '[]'::jsonb,
-  count       integer not null default 1,
-  description text not null default '',
-  date        text not null default '',
-  date_mode   text not null default 'exact',
-  created_at  bigint  not null default 0,
-  area        text not null default '',
-  kind        text not null default 'schaden',
-  km          text not null default '',
-  anlass      text not null default '',
-  deleted     boolean not null default false,
-  updated_at  bigint  not null default 0
-);
-
--- Eingefrorene Schadensstände
-create table public.snapshots (
-  id            text primary key,
-  code          text not null,
-  vehicle_id    text not null,
-  vehicle_name  text not null default '',
-  vehicle_plate text not null default '',
-  reference     text not null default '',
-  created_at    bigint not null default 0,
-  damages       jsonb  not null default '[]'::jsonb,
-  deleted       boolean not null default false,
-  updated_at    bigint  not null default 0
-);
-
--- Schneller Abgleich: es wird immer nach "neuer als" gefiltert
-create index on public.vehicles  (updated_at);
-create index on public.damages   (updated_at);
-create index on public.snapshots (updated_at);
-create index on public.categories (updated_at);
-create index on public.damages   (vehicle_id);
-
--- Zugriffsschutz: ohne Anmeldung geht gar nichts
-alter table public.vehicles  enable row level security;
-alter table public.damages   enable row level security;
-alter table public.snapshots enable row level security;
-alter table public.categories enable row level security;
-
-create policy "angemeldete duerfen alles" on public.vehicles
-  for all to authenticated using (true) with check (true);
-create policy "angemeldete duerfen alles" on public.damages
-  for all to authenticated using (true) with check (true);
-create policy "angemeldete duerfen alles" on public.snapshots
-  for all to authenticated using (true) with check (true);
-create policy "angemeldete duerfen alles" on public.categories
-  for all to authenticated using (true) with check (true);
-```
-
-Falls du die Tabellen schon vor dieser Version angelegt hattest, fehlen zwei
-Spalten. Dann zusätzlich einmal ausführen:
-
-```sql
-alter table public.damages add column if not exists date_mode   text    not null default 'exact';
-alter table public.damages add column if not exists created_at  bigint  not null default 0;
-alter table public.damages add column if not exists images      jsonb   not null default '[]'::jsonb;
-alter table public.damages add column if not exists count       integer not null default 1;
-alter table public.damages add column if not exists description text    not null default '';
-alter table public.damages  add column if not exists kind        text    not null default 'schaden';
-alter table public.vehicles add column if not exists category_id text    not null default '';
-alter table public.vehicles add column if not exists hidden      boolean not null default false;
-alter table public.vehicles add column if not exists zustand     boolean not null default false;
-alter table public.vehicles add column if not exists vin         text    not null default '';
-alter table public.vehicles add column if not exists photo       text    not null default '';
-alter table public.damages  add column if not exists km          text    not null default '';
-alter table public.damages  add column if not exists anlass      text    not null default '';
-```
-
-Die alten Spalten `image` und `note` dürfen bleiben — die App liest sie noch,
-wenn ein Datensatz sie hat, und schreibt künftig in `images` und `description`.
-
-Der letzte Block ist der wichtige: **Row Level Security**. Ohne sie könnte
-jeder, der die Adresse der App kennt, die Daten lesen — der öffentliche
-Schlüssel steht ja im Browser. Mit ihr kommt nur durch, wer angemeldet ist.
+Der wichtigste Teil darin ist der Zugriffsschutz (**Row Level Security**). Ohne
+ihn könnte jeder, der die Adresse der App kennt, die Daten lesen — der
+öffentliche Schlüssel steht ja im Browser. Mit ihm kommt nur durch, wer
+angemeldet ist.
 
 ### 3. Benutzer anlegen
 
