@@ -133,6 +133,18 @@ function macheApp(optionen) {
       gezeigt === "Build " + swVersion, gezeigt + " vs v" + swVersion);
   }
 
+  // Name der App — im Kundendokument hat er nichts zu suchen, dort steht "Schadenübersicht"
+  {
+    const kopf = w.document.querySelector(".header-title").textContent;
+    check("Kopfzeile heisst Schadenmanager", kopf === "Schadenmanager", kopf);
+    check("Fenstertitel nennt den Betrieb",
+      /Schadenmanager/.test(w.document.title) && /Jansen/.test(w.document.title), w.document.title);
+    const mani = JSON.parse(fs.readFileSync(path.join(APP, "manifest.webmanifest"), "utf8"));
+    check("Homescreen-Name ist Schadenmanager", mani.short_name === "Schadenmanager", mani.short_name);
+    const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
+    check("kein alter Name mehr im HTML", !/AVJ Schäden|– damage/.test(html));
+  }
+
   console.log("\n--- Fotoauswahl: Kamera und Album getrennt ---");
   {
     const cam = q("input-photo-camera");
@@ -408,6 +420,59 @@ function macheApp(optionen) {
   check("gelöschter Schaden bleibt im Stand", nachher.damages.length === 2);
   check("Register ist jetzt bei 1", App.Store.damagesOf(v.id).length === 1);
   check("Tombstone gesetzt", App.Store.getVehicle(v.id).damages.some((d) => d.deleted === true));
+
+  console.log("\n--- Löschen gibt Platz frei ---");
+  {
+    const geloescht = App.Store.getVehicle(v.id).damages.find((d) => d.deleted === true);
+    check("gelöschter Schaden behält keine Fotos", geloescht.images.length === 0,
+      String(geloescht.images.length));
+    check("Löschmarke bleibt stehen", geloescht.deleted === true);
+    check("Stand hat seine Kopien behalten",
+      App.Store.getSnapshot(stand.id).damages.some((d) => (d.images || []).length > 0));
+
+    // Altbestand: unter früheren Ständen wurden die Fotos am Tombstone gelassen
+    const dick = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
+      description: "wird gleich gelöscht"
+    });
+    await App.Store.updateDamage(v.id, dick.id, { deleted: true });   // ohne Aufräumen
+    check("Altbestand hat noch Fotos am Tombstone",
+      App.Store.getVehicle(v.id).damages.find((d) => d.id === dick.id).images.length === 2);
+    check("Aufräumen meldet, dass es etwas gab", App.Store.entruempele() === true);
+    check("Altbestand ist danach leer",
+      App.Store.getVehicle(v.id).damages.find((d) => d.id === dick.id).images.length === 0);
+    check("nichts mehr zu tun beim zweiten Lauf", App.Store.entruempele() === false);
+
+    // Ein gelöschtes Fahrzeug gibt alles her
+    const weg = await App.Store.addVehicle({ name: "Leasing läuft aus", plate: "NOM-JA 999" });
+    await App.Store.addDamage(weg.id, { images: ["data:image/jpeg;base64,CCCC"], description: "x" });
+    await App.Store.deleteVehicle(weg.id);
+    check("gelöschtes Fahrzeug behält keine Schäden",
+      App.Store.getVehicle(weg.id).damages.length === 0);
+    check("Fahrzeug bleibt als Löschmarke bestehen",
+      App.Store.getVehicle(weg.id).deleted === true);
+  }
+
+  console.log("\n--- Speicheranzeige ---");
+  {
+    const b = App.Store.speicherbedarf();
+    check("zählt Fotos", b.anzahlFotos > 0, String(b.anzahlFotos));
+    /* Im echten Betrieb ist "fotos" der Löwenanteil; hier sind die Testbilder
+       nur ein paar Zeichen lang, deshalb wird nur die Trennung geprüft. */
+    check("trennt Fotos vom übrigen Inhalt", b.fotos > 0 && b.rest > 0, b.fotos + " / " + b.rest);
+    check("Summe stimmt", b.gesamt === b.fotos + b.rest);
+    check("zählt nur sichtbare Fahrzeuge", b.fahrzeuge === App.Store.vehicles().length);
+
+    w.document.querySelector('[data-tab="settings"]').click();
+    check("Anzeige nennt die Fotoanzahl",
+      q("speicher-zahlen").textContent.includes(String(b.anzahlFotos) + " Fotos"),
+      q("speicher-zahlen").textContent);
+    check("Anzeige nennt die Grenze",
+      q("speicher-text").textContent.includes("500 MB"), q("speicher-text").textContent);
+    check("Balken hat eine Breite", /%/.test(q("speicher-balken").style.width),
+      q("speicher-balken").style.width);
+    w.document.querySelector('[data-tab="fleet"]').click();
+  }
 
   console.log("\n--- Kennung nachschlagen ---");
   check("Suche findet Kennung", !!App.Store.findSnapshotByCode(stand.code));

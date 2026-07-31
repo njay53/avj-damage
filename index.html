@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="AVJ Schäden" />
+<meta name="apple-mobile-web-app-title" content="Schadenmanager" />
 <meta name="theme-color" content="#1a1a18" />
-<title>AVJ Schäden</title>
+<title>Schadenmanager — Autovermietung Jansen</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=19" />
+<link rel="stylesheet" href="css/app.css?b=20" />
 </head>
 <body>
 
 <div class="header">
   <img src="icons/logo.png" alt="AVJ Logo" />
-  <span class="header-title">Autovermietung Jansen – damage</span>
+  <span class="header-title">Schadenmanager</span>
 </div>
 
 <div class="nav">
@@ -139,6 +139,15 @@
         <button class="secondary" id="btn-cloud-logout">Abmelden</button>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">Belegter Platz</div>
+    <div id="speicher-zahlen" class="result-box"></div>
+    <div id="speicher-balken-wrap" class="speicher-balken">
+      <div id="speicher-balken" class="speicher-balken-fuellung"></div>
+    </div>
+    <div id="speicher-text" class="hint"></div>
   </div>
 
   <div class="card">
@@ -349,14 +358,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=19"></script>
-<script src="js/cloud.js?b=19"></script>
-<script src="js/logo.js?b=19"></script>
-<script src="js/pdf.js?b=19"></script>
-<script src="js/annotate.js?b=19"></script>
-<script src="js/fleet.js?b=19"></script>
-<script src="js/uebersicht.js?b=19"></script>
-<script src="js/snapshot.js?b=19"></script>
-<script src="js/app.js?b=19"></script>
+<script src="js/store.js?b=20"></script>
+<script src="js/cloud.js?b=20"></script>
+<script src="js/logo.js?b=20"></script>
+<script src="js/pdf.js?b=20"></script>
+<script src="js/annotate.js?b=20"></script>
+<script src="js/fleet.js?b=20"></script>
+<script src="js/uebersicht.js?b=20"></script>
+<script src="js/snapshot.js?b=20"></script>
+<script src="js/app.js?b=20"></script>
 </body>
 </html>

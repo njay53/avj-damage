@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v19";
+  var APP_VERSION = "v20";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -195,6 +195,58 @@
     });
   }
 
+  // ---------------------------------------------------------------- Speicherplatz
+
+  /* Grenze des kostenlosen Supabase-Tarifs. Die Fotos liegen dort als Text in
+     der Datenbank und zählen gegen diese 500 MB. Wird die Zahl eng, wandern
+     sie in den Dateispeicher daneben — der hat sein eigenes Kontingent. */
+  var GRENZE = 500 * 1024 * 1024;
+
+  function mb(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + " KB";
+    return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  }
+
+  function zeigeSpeicher() {
+    var kasten = document.getElementById("speicher-zahlen");
+    if (!kasten || !App.Store.speicherbedarf) return;
+    var b = App.Store.speicherbedarf();
+    var anteil = Math.min(100, (b.gesamt / GRENZE) * 100);
+
+    kasten.innerHTML =
+      zeile(b.anzahlFotos + " Fotos", mb(b.fotos)) +
+      zeile(b.fahrzeuge + " Fahrzeuge, " + b.staende + " Stände", mb(b.rest)) +
+      zeile("Belegt", mb(b.gesamt), true);
+
+    var balken = document.getElementById("speicher-balken");
+    if (balken) {
+      /* Untergrenze, damit ein belegter Speicher auch dann sichtbar ist,
+         wenn er noch weit unter einem Prozent liegt. */
+      balken.style.width = Math.max(anteil, anteil > 0 ? 1.5 : 0) + "%";
+      balken.className = "speicher-balken-fuellung" +
+        (anteil >= 90 ? " voll" : (anteil >= 70 ? " warn" : ""));
+    }
+
+    var text = document.getElementById("speicher-text");
+    if (!text) return;
+    if (anteil < 70) {
+      text.textContent = anteil.toFixed(1) + " % von 500 MB — dem Platz im kostenlosen Tarif. " +
+        "Ein Foto kostet je nach Motiv 200 bis 500 KB.";
+    } else if (anteil < 90) {
+      text.textContent = anteil.toFixed(1) + " % von 500 MB. Zeit, die Fotos in den " +
+        "Dateispeicher umzuziehen — dort liegen sie unverändert, zählen aber gegen " +
+        "ein eigenes Kontingent von 1 GB.";
+    } else {
+      text.textContent = anteil.toFixed(1) + " % von 500 MB. Der Platz reicht nicht mehr lange; " +
+        "die Fotos sollten jetzt in den Dateispeicher umziehen.";
+    }
+  }
+
+  function zeile(links, rechts, summe) {
+    return '<div class="speicher-zeile' + (summe ? " summe" : "") + '">' +
+      "<span>" + links + "</span><span>" + rechts + "</span></div>";
+  }
+
   // ---------------------------------------------------------------- Dialoge, Reiter
 
   function bindModals() {
@@ -222,6 +274,7 @@
         if (btn.getAttribute("data-tab") === "settings") {
           Nav.go("settings");
           refreshCloudUi();
+          zeigeSpeicher();
         } else {
           Nav.go("fleet");
           App.Fleet.renderFleet();
@@ -252,6 +305,9 @@
     App.Store.onStatus(setStatus);
     App.Cloud.onStatus(function () {
       if (Nav.current() === "settings") refreshCloudUi();
+    });
+    App.Store.onChange(function () {
+      if (Nav.current() === "settings") zeigeSpeicher();
     });
 
     /* Schritt 1: Datenbank. Nur hier ist "Daten nicht ladbar" die richtige Diagnose. */

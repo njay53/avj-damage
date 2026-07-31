@@ -163,6 +163,7 @@
     if (!v) return Promise.resolve();
     v.deleted = true;
     v.updatedAt = now();
+    entruempele();
     return save();
   }
 
@@ -194,6 +195,79 @@
     state.snapshots.forEach(function (s) {
       (s.damages || []).forEach(normalisiereSchaden);
     });
+  }
+
+  /* Ein gelöschter Datensatz braucht seine Fotos nicht mehr.
+
+     Die Löschmarke selbst muss bleiben, sonst käme der Eintrag beim nächsten
+     Abgleich vom anderen Gerät zurück. Die Bilder daran braucht dafür aber
+     niemand — und die machen praktisch den gesamten Platz aus. Ein gelöschtes
+     Leasingfahrzeug gibt so seinen Speicher wieder her.
+
+     Läuft bewusst über den gesamten Bestand statt nur über den eben
+     gelöschten Eintrag: dann räumt es beim ersten Start auch alles ab, was
+     unter älteren Ständen der App gelöscht wurde und bis heute mitgeschleppt
+     wird. */
+  function entruempele() {
+    var geaendert = false;
+    state.vehicles.forEach(function (v) {
+      if (v.deleted && v.damages && v.damages.length) {
+        v.damages = [];
+        geaendert = true;
+        return;
+      }
+      (v.damages || []).forEach(function (d) {
+        if (d.deleted && d.images && d.images.length) {
+          d.images = [];
+          geaendert = true;
+        }
+      });
+    });
+    state.snapshots.forEach(function (s) {
+      if (s.deleted && s.damages && s.damages.length) {
+        s.damages = [];
+        geaendert = true;
+      }
+    });
+    return geaendert;
+  }
+
+  /* Belegter Platz in Byte, getrennt nach Fotos und übrigem Inhalt.
+
+     Gezählt wird die Länge der Zeichenketten, denn genau so liegen die Daten
+     auch auf dem Server: ein Foto ist dort eine Base64-Zeichenkette. Damit
+     entspricht die Zahl dem, was gegen das Speicherlimit zählt — anders als
+     die Grösse der ursprünglichen JPEG-Datei. */
+  function speicherbedarf() {
+    var fotos = 0, anzahlFotos = 0;
+
+    function zaehleBilder(d) {
+      (d.images || []).forEach(function (b) {
+        fotos += (b || "").length;
+        anzahlFotos++;
+      });
+    }
+    state.vehicles.forEach(function (v) { (v.damages || []).forEach(zaehleBilder); });
+    state.snapshots.forEach(function (s) { (s.damages || []).forEach(zaehleBilder); });
+
+    /* Der Rest ist im Vergleich winzig, wird aber ehrlich mitgezählt: einmal
+       alles serialisieren und die Fotos wieder abziehen. */
+    var gesamt = 0;
+    try {
+      gesamt = JSON.stringify({ vehicles: state.vehicles, snapshots: state.snapshots }).length;
+    } catch (e) {
+      gesamt = fotos;
+    }
+    var rest = Math.max(0, gesamt - fotos);
+
+    return {
+      fotos: fotos,
+      anzahlFotos: anzahlFotos,
+      rest: rest,
+      gesamt: fotos + rest,
+      fahrzeuge: vehicles().length,
+      staende: snapshots().length
+    };
   }
 
   /* Ein Fahrzeug kann mehr Schäden haben als Einträge — ein Foto vom Heck mit
@@ -244,7 +318,9 @@
   }
 
   function deleteDamage(vehicleId, damageId) {
-    return updateDamage(vehicleId, damageId, { deleted: true });
+    /* images gleich mit leeren, damit schon der nächste Abgleich die schlanke
+       Fassung überträgt statt die Fotos ein letztes Mal hochzuladen. */
+    return updateDamage(vehicleId, damageId, { deleted: true, images: [] });
   }
 
   // ------------------------------------------------------------ Schadensstände
@@ -306,6 +382,7 @@
     if (!s) return Promise.resolve();
     s.deleted = true;
     s.updatedAt = now();
+    entruempele();
     return save();
   }
 
@@ -399,7 +476,12 @@
     var changed = a || b;
     /* Von einem Gerät mit älterem Build können Datensätze im alten Format
        hereinkommen — die werden hier gleich überführt. */
-    if (changed) normalisiereAlles();
+    if (changed) {
+      normalisiereAlles();
+      /* Das andere Gerät kann eine Löschung schicken, die hiesigen Fotos dazu
+         liegen aber noch lokal. */
+      entruempele();
+    }
     return (changed ? persistOnly() : Promise.resolve()).then(function () { return changed; });
   }
 
@@ -459,6 +541,8 @@
       if (Array.isArray(res[0])) state.vehicles = res[0];
       if (Array.isArray(res[1])) state.snapshots = res[1];
       normalisiereAlles();
+      /* Einmal beim Start: gibt den Platz früher gelöschter Einträge frei. */
+      if (entruempele()) return persistOnly();
     });
   }
 
@@ -476,6 +560,8 @@
     damagesOf: damagesOf,
     damageCount: damageCount,
     normalisiereSchaden: normalisiereSchaden,
+    entruempele: entruempele,
+    speicherbedarf: speicherbedarf,
     addVehicle: addVehicle,
     updateVehicle: updateVehicle,
     deleteVehicle: deleteVehicle,

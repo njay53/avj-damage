@@ -1,6 +1,6 @@
 {
-  "name": "AVJ Schäden — Autovermietung Jansen",
-  "short_name": "AVJ Schäden",
+  "name": "Schadenmanager — Autovermietung Jansen",
+  "short_name": "Schadenmanager",
   "description": "Schadensregister pro Fahrzeug mit markierten Fotos und eingefrorenen Schadensständen.",
   "start_url": "./index.html",
   "scope": "./",

@@ -1,6 +1,9 @@
-# Fahrzeugschäden — Autovermietung Jansen
+# Schadenmanager — Autovermietung Jansen
 
 Interne Web-App als Ersatz für die fehlende Bildfunktion in rentsoft V1.
+Heisst in der App und auf dem Homescreen **Schadenmanager**; das Kundendokument
+trägt weiterhin die Überschrift „Schadenübersicht" — der Name der Software
+gehört nicht auf ein Papier, das der Kunde in die Hand bekommt.
 
 Sie führt pro Fahrzeug ein **Schadensregister** mit markierten Fotos und erlaubt,
 den aktuellen Zustand als **Schadensstand** einzufrieren. Jeder Stand bekommt
@@ -73,8 +76,15 @@ damit auf Papier nichts verwechselt wird.
 
 ### Nach Code-Änderungen
 
-In `sw.js` die Zeile `const CACHE_VERSION = "v4";` hochzählen. Ohne das laden
-bereits installierte Geräte weiter die alte Version aus dem Cache.
+Drei Stellen müssen dieselbe Nummer tragen, sonst laden installierte Geräte
+weiter die alte Fassung:
+
+- `sw.js` → `CACHE_VERSION`
+- `js/app.js` → `APP_VERSION` (steht in der Fusszeile, daran erkennt man am
+  Gerät, was wirklich geladen ist)
+- `index.html` → das `?b=` an jeder eigenen Datei
+
+Der Testlauf prüft das mit, ein Vergessen fällt also sofort auf.
 
 ---
 
@@ -287,17 +297,74 @@ lokalen Server auf Port 8080 — nötig, weil Service Worker und Kamerazugriff
 
 ---
 
-## Offene Punkte für die nächste Runde
+## Textbausteine für rentsoft
 
-1. **Design an die übrigen Werkzeuge angleichen.** Diese App hat ihr eigenes
-   Aussehen bekommen. Beim nächsten Umbau soll sie die Gestaltung vom
-   Tarifrechner und den anderen internen Werkzeugen übernehmen, damit alles
-   aus einem Guss wirkt. Dafür wird die CSS-Datei eines der bestehenden
-   Werkzeuge als Vorlage gebraucht.
-2. **Textbaustein für rentsoft.** Formulierung für das Ankreuzfeld
-   („Schäden wurden anhand der Bilddokumentation gemeinsam durchgegangen …")
-   und eine Vorlage fürs Notizfeld mit Platzhalter für die Kennung.
-3. Optional: QR-Code für die Kennung, falls das Abtippen nervt.
+Der Kunde unterschreibt weiter das Protokoll in rentsoft. Diese Zeilen stellen
+die Verbindung zur Bilddokumentation her. Sie behaupten bewusst nur, was auch
+eingehalten wird — was nicht dasteht, kann später auch nicht dagegen verwendet
+werden.
+
+**Für das Protokoll, ohne Schadensstände** (der Normalfall):
+
+> Vorhandene Schäden wurden anhand der Fotodokumentation gemeinsam am Fahrzeug
+> durchgegangen. Die Dokumentation wird bei der Autovermietung Jansen geführt
+> und ist auf Wunsch jederzeit einsehbar.
+
+**Für das Protokoll, mit Schadensstand:**
+
+> Der Fahrzeugzustand bei Übergabe ist unter der Kennung ________ mit Fotos
+> festgehalten und wurde gemeinsam durchgegangen. Ausdruck oder Einsicht auf
+> Wunsch.
+
+**Fürs Notizfeld in rentsoft** (intern, gehört keinem Kunden in die Hand):
+
+> Schadenmanager · Stand ________ · ____ Schäden · eingefroren am __.__.____
+> Rückgabe: Stand ________
+
+Was bewusst nicht dasteht:
+
+- Keine Bestätigung, dass das Fahrzeug *ausser* den dokumentierten Schäden
+  mängelfrei sei. Das lässt sich bei einer Übergabe auf dem Hof nicht seriös
+  feststellen und würde einem Streit nicht standhalten.
+- Kein Wort von „unveränderlich" oder „revisionssicher", solange ohne
+  Schadensstände gearbeitet wird. Ohne eingefrorenen Stand läuft die Datenbank
+  weiter, und damit lässt sich nicht belegen, welchen Stand der Kunde gesehen
+  hat.
+- Kein Verweis auf die Adresse der App. Der Kunde braucht sie nicht, und
+  intern erreichbare Werkzeuge gehören nicht auf ein Kundendokument.
+
+Rechtlich verbindlich ist das nicht geprüft — für eine Formulierung, die in den
+Mietvertrag selbst wandert, wäre ein Blick vom Anwalt sinnvoll.
+
+---
+
+## Als Nächstes dran (Stand Build 20)
+
+1. **Supabase einrichten.** Entschieden: es wird Supabase, kostenloser Tarif.
+   SQL und Schritte stehen weiter unten im Abschnitt zur Einrichtung.
+   Rechnung dahinter: ohne Schadensstände wächst nur der Fahrzeugbestand,
+   grob 250–300 MB über Jahre. Zwei Dinge im Blick behalten:
+   - Die Fotos liegen als Base64 in der Datenbank, das bläht um rund ein
+     Drittel auf. Bei etwa 400 MB von 500 MB ist der Punkt gekommen, sie in
+     den Supabase-Dateispeicher zu verschieben (dort binär, 1 GB frei).
+     Die Einstellungen zeigen den belegten Platz an, es muss also nicht
+     geschätzt werden.
+   - Auf dem kostenlosen Tarif gibt es keine Backups. Die Exportdatei in
+     einen iCloud-Ordner bleibt das Sicherungsnetz.
+2. **Fotos entdoppeln** (angeboten, noch nicht beauftragt). Jedes Foto einmal
+   speichern, Schäden und Stände verweisen über eine Prüfsumme darauf. Ein
+   eingefrorener Stand kostet dann Kilobyte statt Megabyte — damit muss gar
+   nicht entschieden werden, ob Stände genutzt werden oder nicht. Beweiskraft
+   bleibt, weil ein Foto nie verändert wird: Nachbearbeiten erzeugt ein neues,
+   das alte bleibt liegen, solange ein Stand darauf zeigt.
+3. **Schadensstand-Ausdruck** geht noch über den Druckdialog des Browsers,
+   also mit Kopf- und Fusszeile samt interner Adresse. Umstellen auf die
+   selbst erzeugte PDF wie beim Fahrzeug-PDF — zurückgestellt.
+4. Optional: QR-Code für die Kennung, falls das Abtippen nervt.
+
+Offen gelassen, bewusst: ob Schadensstände im Alltag überhaupt genutzt werden.
+Einschätzung aus dem Betrieb — der Effekt kommt daher, dass der Kunde die
+Dokumentation *sieht*, nicht daher, dass sie beweisbar eingefroren ist.
 
 ---
 
