@@ -262,12 +262,23 @@ kein Weltuntergang mehr.
 
 ## HU-Termine
 
-Je Fahrzeug lässt sich die nächste Hauptuntersuchung eintragen. Im Fuhrpark
-erscheint dann acht Wochen vorher eine gelbe Marke, nach dem Termin eine rote.
+Je Fahrzeug lässt sich die nächste Hauptuntersuchung eintragen — als **Monat**,
+nicht als Tag. Auf der Plakette steht Monat und Jahr, fällig ist das Fahrzeug
+bis zum letzten Tag dieses Monats; ein Tagesdatum wäre erfunden. Ältere
+Einträge mit Tag werden beim Start automatisch auf den Monat gekürzt.
+
+Im Fuhrpark erscheint acht Wochen vor Monatsende eine gelbe Marke, danach eine
+rote. Der Kalendereintrag liegt auf dem Monatsletzten.
+
+Bewusst **ohne Automatik**: die App rechnet keinen Rhythmus hoch. Mietwagen
+müssen jährlich vorgeführt werden, aber wer im abgelaufenen Monat hinfährt,
+verschiebt damit die nächste Fälligkeit — ein automatisches „plus zwölf Monate"
+wäre also regelmässig falsch. Den neuen Monat trägst du nach der Vorführung
+selbst ein.
 
 Erinnern lässt die App den **Kalender des Geräts** — der Knopf „HU in Kalender"
-erzeugt einen Termin mit zwei Weckern: einer am Ersten des Fälligkeitsmonats,
-einer zwei Wochen vorher. Danach meldet sich iOS von selbst, auch wenn die App
+erzeugt einen Termin am Monatsletzten mit zwei Weckern: einer am Ersten des
+Fälligkeitsmonats, einer zwei Wochen vor Ablauf. Danach meldet sich iOS von selbst, auch wenn die App
 monatelang nicht geöffnet wird.
 
 Bewusst **keine** Push-Nachrichten: die könnte eine Web-App auf dem iPhone zwar

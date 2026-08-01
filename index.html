@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=37" />
+<link rel="stylesheet" href="css/app.css?b=39" />
 </head>
 <body>
 
@@ -281,15 +281,26 @@
       </div>
       <div class="field">
         <label for="input-vehicle-plate">Kennzeichen</label>
-        <input type="text" id="input-vehicle-plate" placeholder="z. B. NOM-JA 123" />
+        <div class="kfz-kuerzel" id="kfz-kuerzel"></div>
+        <input type="text" id="input-vehicle-plate" placeholder="NOM-NJ 56"
+               autocapitalize="characters" spellcheck="false" autocomplete="off" />
+        <p class="hint">
+          Kürzel antippen, dann nur noch Buchstaben und Zahl tippen — die Schreibweise
+          setzt sich beim Verlassen des Feldes von allein: <strong>NOM-NJ 56</strong>.
+          Überschreiben geht jederzeit.
+        </p>
       </div>
       <div class="field">
         <label for="input-vehicle-category">Kategorie</label>
         <select id="input-vehicle-category"></select>
       </div>
       <div class="field">
-        <label for="input-vehicle-hu">Nächste HU <em>(optional)</em></label>
-        <input type="date" id="input-vehicle-hu" />
+        <label for="input-vehicle-hu">Nächste HU <em>(Monat, optional)</em></label>
+        <input type="month" id="input-vehicle-hu" placeholder="2027-01" />
+        <p class="hint">
+          Die Plakette nennt Monat und Jahr — fällig ist das Fahrzeug bis zum
+          letzten Tag dieses Monats.
+        </p>
       </div>
       <div class="field">
         <label for="input-vehicle-vin">VIN <em>(optional)</em></label>
@@ -581,15 +592,15 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=37"></script>
-<script src="js/modelle.js?b=37"></script>
-<script src="js/cloud.js?b=37"></script>
-<script src="js/logo.js?b=37"></script>
-<script src="js/pdf.js?b=37"></script>
-<script src="js/annotate.js?b=37"></script>
-<script src="js/fleet.js?b=37"></script>
-<script src="js/uebersicht.js?b=37"></script>
-<script src="js/snapshot.js?b=37"></script>
-<script src="js/app.js?b=37"></script>
+<script src="js/store.js?b=39"></script>
+<script src="js/modelle.js?b=39"></script>
+<script src="js/cloud.js?b=39"></script>
+<script src="js/logo.js?b=39"></script>
+<script src="js/pdf.js?b=39"></script>
+<script src="js/annotate.js?b=39"></script>
+<script src="js/fleet.js?b=39"></script>
+<script src="js/uebersicht.js?b=39"></script>
+<script src="js/snapshot.js?b=39"></script>
+<script src="js/app.js?b=39"></script>
 </body>
 </html>

@@ -78,6 +78,13 @@
       if (v) huKalender(v);
     });
 
+    q("input-vehicle-plate").addEventListener("blur", function () {
+      var feld = q("input-vehicle-plate");
+      feld.value = formatiereKennzeichen(feld.value);
+      markiereKuerzel();
+    });
+    q("input-vehicle-plate").addEventListener("input", markiereKuerzel);
+
     q("input-marke").addEventListener("change", function () {
       fuelleModelle(q("input-marke").value);
       uebernehmeAuswahl();
@@ -357,6 +364,70 @@
 
   // -------------------------------------------------------------- Fahrzeug-Dialog
 
+  /* Die Kürzel, die im Betrieb vorkommen. Northeim ist der Regelfall, EU sind
+     die eigenen, RÜD kommt über DirectCar herein. Alles andere tippt man. */
+  var KUERZEL = ["NOM", "EU", "RÜD"];
+
+  /* Schreibweise vereinheitlichen: Ort, Bindestrich, Buchstaben, Leerzeichen,
+     Zahl — "nomnj56" wird zu "NOM-NJ 56". Passt der Text nicht in dieses
+     Muster, bleibt er unangetastet: lieber eine ungewöhnliche Schreibweise
+     als ein zerpflücktes Kennzeichen. */
+  function formatiereKennzeichen(roh) {
+    var text = String(roh || "").trim().toUpperCase();
+    if (!text) return "";
+
+    /* Steht schon ein Trenner drin, sagt er, wo der Ort aufhört. "EU-JA 1"
+       und "EUJ-A 1" sind sonst nicht auseinanderzuhalten. */
+    var getrennt = text.match(/^([A-ZÄÖÜ]{1,3})[\s\-]+([A-Z]{1,2})[\s\-]*(\d{1,4})([EH]?)$/);
+    if (getrennt) {
+      return getrennt[1] + "-" + getrennt[2] + " " + getrennt[3] + getrennt[4];
+    }
+
+    var kern = text.replace(/[\s\-]/g, "");
+
+    /* Ohne Trenner: erst nachsehen, ob eins der gewohnten Kürzel vorn steht.
+       Sonst bleibt nur raten, und dabei gewinnt der längere Ort. */
+    var bekannt = KUERZEL.slice().sort(function (a, b) { return b.length - a.length; });
+    for (var i = 0; i < bekannt.length; i++) {
+      var k = bekannt[i];
+      if (kern.indexOf(k) !== 0) continue;
+      var rest = kern.slice(k.length).match(/^([A-Z]{1,2})(\d{1,4})([EH]?)$/);
+      if (rest) return k + "-" + rest[1] + " " + rest[2] + rest[3];
+    }
+
+    var m = kern.match(/^([A-ZÄÖÜ]{1,3})([A-Z]{1,2})(\d{1,4})([EH]?)$/);
+    if (!m) return text;
+    return m[1] + "-" + m[2] + " " + m[3] + m[4];
+  }
+
+  function baueKuerzel() {
+    var leiste = q("kfz-kuerzel");
+    leiste.innerHTML = "";
+    KUERZEL.forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = k;
+      b.addEventListener("click", function () {
+        var feld = q("input-vehicle-plate");
+        var rest = feld.value.replace(/^[A-ZÄÖÜ]{1,3}\s*-?\s*/i, "");
+        feld.value = k + "-" + rest;
+        markiereKuerzel();
+        feld.focus();
+        /* Hinter den Bindestrich setzen, damit man direkt weitertippt. */
+        var pos = feld.value.length;
+        try { feld.setSelectionRange(pos, pos); } catch (e) { /* egal */ }
+      });
+      leiste.appendChild(b);
+    });
+  }
+
+  function markiereKuerzel() {
+    var wert = q("input-vehicle-plate").value.toUpperCase();
+    q("kfz-kuerzel").querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("aktiv", wert.indexOf(b.textContent + "-") === 0);
+    });
+  }
+
   /* Fahrzeugbild: klein halten. Es steht als Miniatur in der Übersicht, mehr
      als 640 px sieht dort niemand — und jedes Kilobyte zählt gegen den
      Speicherplatz. */
@@ -409,9 +480,16 @@
         "Trag ihn über den Stift neben dem Namen ein.");
       return;
     }
-    var tag = v.hu.replace(/-/g, "");
-    var monatsErster = v.hu.slice(0, 8) + "01";
-    var zweiWochen = new Date(new Date(v.hu + "T09:00:00").getTime() - 14 * 86400000);
+    var ende = huLetzterTag(v.hu);
+    if (!ende) {
+      alert("Der HU-Eintrag ist unvollständig. Bitte Monat und Jahr eintragen.");
+      return;
+    }
+    /* Termin auf den letzten Tag des Monats — das ist der Stichtag. */
+    var tag = ende.getFullYear() +
+      String(ende.getMonth() + 1).padStart(2, "0") +
+      String(ende.getDate()).padStart(2, "0");
+    var tageBisErster = ende.getDate() - 1;
 
     function stempel(d) {
       return d.getUTCFullYear() +
@@ -421,12 +499,10 @@
         String(d.getUTCMinutes()).padStart(2, "0") + "00Z";
     }
 
-    /* Wecker relativ zum Termin, damit der Kalender sie selbst ausrechnet:
-       einer am Ersten des Fälligkeitsmonats, einer zwei Wochen davor. */
-    var tageBisErster = Math.round(
-      (new Date(v.hu + "T12:00:00") - new Date(monatsErster + "T12:00:00")) / 86400000);
-
-    var titel = "HU fällig — " + v.name + (v.plate ? " (" + v.plate + ")" : "");
+    /* Zwei Wecker, relativ zum Termin — die rechnet der Kalender selbst aus:
+       einer am Ersten des Fälligkeitsmonats, einer zwei Wochen vorher. */
+    var titel = "HU fällig " + huMonatText(v.hu) + " — " + v.name +
+      (v.plate ? " (" + v.plate + ")" : "");
     var zeilen = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
@@ -439,8 +515,10 @@
       "DTSTART;VALUE=DATE:" + tag,
       "DTEND;VALUE=DATE:" + tag,
       "SUMMARY:" + titel,
-      "DESCRIPTION:Hauptuntersuchung " + (v.plate || v.name) +
-        (v.vin ? "\\nVIN " + v.vin : "") + "\\nEingetragen aus dem Schadenmanager.",
+      "DESCRIPTION:Hauptuntersuchung faellig im " + huMonatText(v.hu) +
+        ", spaetestens am " + ende.toLocaleDateString("de-DE") + ".\\n" +
+        (v.plate || v.name) + (v.vin ? "\\nVIN " + v.vin : "") +
+        "\\nEingetragen aus dem Schadenmanager.",
       "BEGIN:VALARM",
       "TRIGGER:-P" + tageBisErster + "D",
       "ACTION:DISPLAY",
@@ -464,7 +542,6 @@
     a.click();
     document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-    void zweiWochen;
   }
 
   function fuelleMarken() {
@@ -570,6 +647,8 @@
     /* Beim Bearbeiten steht die Bezeichnung schon — die Schnellauswahl fängt
        dann leer an und mischt sich nicht ein. */
     letzterVorschlag = "";
+    baueKuerzel();
+    markiereKuerzel();
     fuelleMarken();
     q("input-marke").value = "";
     fuelleModelle("");
@@ -581,7 +660,7 @@
   function submitVehicle(e) {
     e.preventDefault();
     var name = q("input-vehicle-name").value.trim();
-    var plate = q("input-vehicle-plate").value.trim();
+    var plate = formatiereKennzeichen(q("input-vehicle-plate").value);
     if (!name) return;
 
     var daten = {
@@ -671,17 +750,34 @@
 
   /* Wie weit ist die HU noch weg? Ab acht Wochen wird es gelb, ab dem
      Fälligkeitstag rot. */
+  /* Die HU gilt bis zum Monatsende — das ist der Stichtag, nicht irgendein
+     Tag mittendrin. */
+  function huLetzterTag(hu) {
+    var m = String(hu || "").match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    /* Tag 0 des Folgemonats ist der letzte Tag des gesuchten. */
+    return new Date(Number(m[1]), Number(m[2]), 0, 23, 59, 59);
+  }
+
+  function huMonatText(hu) {
+    var m = String(hu || "").match(/^(\d{4})-(\d{2})$/);
+    return m ? m[2] + "/" + m[1] : "";
+  }
+
   function huStand(v) {
-    if (!v.hu) return null;
-    var ziel = new Date(v.hu + "T12:00:00");
-    if (isNaN(ziel.getTime())) return null;
-    var tage = Math.round((ziel - new Date()) / 86400000);
+    var ende = huLetzterTag(v.hu);
+    if (!ende) return null;
+    var tage = Math.ceil((ende - new Date()) / 86400000);
     return {
       tage: tage,
+      monat: huMonatText(v.hu),
+      ende: ende,
       klasse: tage < 0 ? "faellig" : (tage <= 56 ? "bald" : ""),
       text: tage < 0
-        ? "HU überfällig seit " + Math.abs(tage) + " Tagen"
-        : (tage === 0 ? "HU heute fällig" : "HU in " + tage + " Tagen")
+        ? "HU " + huMonatText(v.hu) + " überfällig"
+        : (tage <= 56
+          ? "HU " + huMonatText(v.hu) + " · noch " + tage + (tage === 1 ? " Tag" : " Tage")
+          : "HU " + huMonatText(v.hu))
     };
   }
 
@@ -919,7 +1015,9 @@
       return { kategorie: filterKategorie, versteckte: zeigeVersteckte, archiv: zeigeArchiv };
     },
     _huKalender: huKalender,
+    _formatiereKennzeichen: formatiereKennzeichen,
     _huStand: huStand,
+    _huLetzterTag: huLetzterTag,
     loescheFahrzeugEndgueltig: loescheFahrzeugEndgueltig,
     renderVehicle: renderVehicle,
     openVehicle: openVehicle,

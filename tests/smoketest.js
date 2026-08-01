@@ -431,6 +431,41 @@ function kontrast(a, b) {
     App.Nav.go("fleet");
   }
 
+  console.log("\n--- Kennzeichen ---");
+  {
+    const f = App.Fleet._formatiereKennzeichen;
+    check("nomnj56 wird NOM-NJ 56", f("nomnj56") === "NOM-NJ 56", f("nomnj56"));
+    check("schon richtig bleibt richtig", f("NOM-NJ 56") === "NOM-NJ 56");
+    check("Leerzeichen statt Bindestrich geht auch", f("NOM NJ 56") === "NOM-NJ 56");
+    check("kurzes Kürzel", f("euja1") === "EU-JA 1", f("euja1"));
+    check("Umlaut im Kürzel", f("rüdab12") === "RÜD-AB 12", f("rüdab12"));
+    check("Oldtimer-H bleibt dran", f("nomab12h") === "NOM-AB 12H", f("nomab12h"));
+    check("Unpassendes bleibt unangetastet",
+      f("Anhänger ohne Schild") === "ANHÄNGER OHNE SCHILD");
+    check("leer bleibt leer", f("  ") === "");
+
+    q("btn-add-vehicle").click();
+    const kuerzel = [...q("kfz-kuerzel").querySelectorAll("button")].map((b) => b.textContent);
+    check("Kürzel stehen bereit", kuerzel.join(",") === "NOM,EU,RÜD", kuerzel.join(","));
+
+    const feld = q("input-vehicle-plate");
+    q("kfz-kuerzel").querySelector("button").click();
+    check("Kürzel setzt den Anfang mit Bindestrich", feld.value === "NOM-", feld.value);
+    check("Kürzel wird hervorgehoben",
+      q("kfz-kuerzel").querySelector("button").classList.contains("aktiv"));
+
+    feld.value = "NOM-nj56";
+    feld.dispatchEvent(new w.Event("blur", { bubbles: true }));
+    check("Verlassen räumt auf", feld.value === "NOM-NJ 56", feld.value);
+
+    // Wechsel des Kürzels tauscht nur den Ort
+    q("kfz-kuerzel").querySelectorAll("button")[2].click();
+    check("Kürzel tauschen lässt den Rest stehen",
+      feld.value === "RÜD-NJ 56", feld.value);
+
+    q("modal-vehicle").classList.add("hidden");
+  }
+
   console.log("\n--- Nummern ---");
   {
     const fz = App.Store.getVehicle(v.id);
@@ -514,20 +549,45 @@ function kontrast(a, b) {
 
   console.log("\n--- HU-Termin ---");
   {
-    const inZehnTagen = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
-    await App.Store.updateVehicle(v.id, { hu: inZehnTagen });
-    const stand = App.Fleet._huStand(App.Store.getVehicle(v.id));
-    check("Frist wird gerechnet", stand.tage === 10, String(stand.tage));
-    check("wird als bald markiert", stand.klasse === "bald", stand.klasse);
+    /* Die HU gilt für einen Monat, nicht für einen Tag — Stichtag ist das
+       Monatsende. */
+    check("Tagesangaben werden auf den Monat gekürzt",
+      App.Store.huMonat("2027-01-15") === "2027-01", App.Store.huMonat("2027-01-15"));
+    check("Monat bleibt Monat", App.Store.huMonat("2027-01") === "2027-01");
+    check("Unsinn wird verworfen", App.Store.huMonat("bald") === "");
 
-    const vorbei = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
-    await App.Store.updateVehicle(v.id, { hu: vorbei });
+    const jetzt = new Date();
+    /* Der laufende Monat: Stichtag ist sein letzter Tag, also immer innerhalb
+       der Warnfrist von acht Wochen. */
+    const naechster = new Date(jetzt.getFullYear(), jetzt.getMonth(), 1);
+    const monatText = naechster.getFullYear() + "-" +
+      String(naechster.getMonth() + 1).padStart(2, "0");
+
+    await App.Store.updateVehicle(v.id, { hu: monatText });
+    const stand = App.Fleet._huStand(App.Store.getVehicle(v.id));
+    const letzter = App.Fleet._huLetzterTag(monatText);
+    check("Stichtag ist der Monatsletzte",
+      letzter.getMonth() === naechster.getMonth() &&
+      letzter.getDate() === new Date(naechster.getFullYear(), naechster.getMonth() + 1, 0).getDate(),
+      letzter.toDateString());
+    check("Frist zählt bis Monatsende", stand.tage >= 0 && stand.tage <= 31,
+      String(stand.tage));
+    check("wird als bald markiert", stand.klasse === "bald", stand.klasse);
+    check("Anzeige nennt Monat und Jahr",
+      stand.text.includes(String(naechster.getMonth() + 1).padStart(2, "0") + "/" +
+        naechster.getFullYear()), stand.text);
+    check("kein erfundener Tag in der Anzeige", !/\d{1,2}\.\d{1,2}\.\d{4}/.test(stand.text));
+
+    const vorbei = new Date(jetzt.getFullYear(), jetzt.getMonth() - 2, 1);
+    const vorbeiText = vorbei.getFullYear() + "-" +
+      String(vorbei.getMonth() + 1).padStart(2, "0");
+    await App.Store.updateVehicle(v.id, { hu: vorbeiText });
     check("überfällig wird erkannt",
       App.Fleet._huStand(App.Store.getVehicle(v.id)).klasse === "faellig");
 
     App.Fleet.renderFleet();
     check("Fuhrpark zeigt die Fälligkeit",
-      /überfällig/.test(q("fleet-grid").textContent), q("fleet-grid").textContent.slice(0, 120));
+      /überfällig/.test(q("fleet-grid").textContent), q("fleet-grid").textContent.slice(0, 140));
 
     // Kalenderdatei
     let ics = "";
@@ -537,11 +597,21 @@ function kontrast(a, b) {
     w.URL.revokeObjectURL = () => {};
     App.Fleet._huKalender(App.Store.getVehicle(v.id));
     w.Blob = alterBlob;
+
+    const ende2 = App.Fleet._huLetzterTag(vorbeiText);
+    const tagText = ende2.getFullYear() +
+      String(ende2.getMonth() + 1).padStart(2, "0") +
+      String(ende2.getDate()).padStart(2, "0");
     check("Kalenderdatei erzeugt", /BEGIN:VCALENDAR/.test(ics));
-    check("Termin trägt das HU-Datum", ics.includes(vorbei.replace(/-/g, "")));
+    check("Termin liegt auf dem Monatsletzten", ics.includes("DTSTART;VALUE=DATE:" + tagText),
+      (ics.match(/DTSTART[^\r\n]*/) || [""])[0]);
     check("zwei Wecker dran", (ics.match(/BEGIN:VALARM/g) || []).length === 2);
     check("einer zwei Wochen vorher", /TRIGGER:-P14D/.test(ics));
-    check("Titel nennt das Fahrzeug", /SUMMARY:HU fällig/.test(ics));
+    check("einer am Monatsersten",
+      ics.includes("TRIGGER:-P" + (ende2.getDate() - 1) + "D"),
+      (ics.match(/TRIGGER[^\r\n]*/g) || []).join(" "));
+    check("Titel nennt Monat und Fahrzeug", /SUMMARY:HU fällig \d{2}\/\d{4}/.test(ics),
+      (ics.match(/SUMMARY[^\r\n]*/) || [""])[0]);
 
     await App.Store.updateVehicle(v.id, { hu: "" });
   }

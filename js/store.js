@@ -119,6 +119,15 @@
 
   /* opts.mitVersteckten — Langzeitmieten sind normalerweise ausgeblendet
      opts.kategorie      — Kennung einer Kategorie, "" heisst alle */
+  /* Die HU gilt für einen Monat, nicht für einen Tag — auf der Plakette steht
+     nur Monat und Jahr. Alles, was wie ein Datum aussieht, wird deshalb auf
+     "JJJJ-MM" gekürzt. Ältere Einträge mit Tag kommen so automatisch mit. */
+  function huMonat(wert) {
+    var t = String(wert || "").trim();
+    var m = t.match(/^(\d{4})-(\d{2})/);
+    return m ? m[1] + "-" + m[2] : "";
+  }
+
   function naechsteFahrzeugNr() {
     return state.vehicles.reduce(function (m, v) {
       return Math.max(m, parseInt(v.nr, 10) || 0);
@@ -142,6 +151,16 @@
         v.nr = naechsteFahrzeugNr();
         geaendert = true;
       });
+
+    /* Bestehende HU-Angaben mit Tag auf den Monat kürzen. */
+    state.vehicles.forEach(function (v) {
+      var kurz = huMonat(v.hu);
+      if (v.hu && v.hu !== kurz) {
+        v.hu = kurz;
+        v.updatedAt = now();
+        geaendert = true;
+      }
+    });
 
     state.vehicles.forEach(function (v) {
       var fehlend = (v.damages || []).filter(function (d) { return !parseInt(d.nr, 10); });
@@ -227,7 +246,7 @@
       nr: naechsteFahrzeugNr(),
       categoryId: data.categoryId || "",
       vin: data.vin || "",
-      hu: data.hu || "",
+      hu: huMonat(data.hu),
       archived: false,
       photo: data.photo || "",
       hidden: !!data.hidden,
@@ -248,7 +267,7 @@
     if (typeof data.plate === "string") v.plate = data.plate;
     if ("categoryId" in data) v.categoryId = data.categoryId || "";
     if ("vin" in data) v.vin = data.vin || "";
-    if ("hu" in data) v.hu = data.hu || "";
+    if ("hu" in data) v.hu = huMonat(data.hu);
     if ("photo" in data) v.photo = data.photo || "";
     if ("hidden" in data) v.hidden = !!data.hidden;
     if ("zustand" in data) v.zustand = !!data.zustand;
@@ -807,7 +826,7 @@
         local.plate = rv.plate;
         local.categoryId = rv.categoryId || "";
         local.vin = rv.vin || "";
-        local.hu = rv.hu || "";
+        local.hu = huMonat(rv.hu);
         local.nr = rv.nr || local.nr;
         local.archived = !!rv.archived;
         local.photo = rv.photo || "";
@@ -960,6 +979,7 @@
     archivAnzahl: archivAnzahl,
     archiviere: archiviere,
     schadenNummer: schadenNummer,
+    huMonat: huMonat,
     restoreDamage: restoreDamage,
     papierkorb: papierkorb,
     leerePapierkorb: leerePapierkorb,
