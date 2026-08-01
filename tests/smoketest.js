@@ -547,6 +547,26 @@ function kontrast(a, b) {
     await App.Store.deleteVehicle(leasing.id);
   }
 
+  console.log("\n--- HU-Kalender abonnieren ---");
+  {
+    const fn = fs.readFileSync(path.join(APP, "supabase-hu-kalender.ts"), "utf8");
+    check("Funktion prüft das Kalenderwort", /KALENDER_TOKEN/.test(fn));
+    check("kurze Wörter werden abgewiesen", /erwartet\.length < 16/.test(fn));
+    check("Vergleich bricht nicht früh ab", /function gleich/.test(fn));
+    check("liefert Kalenderformat aus", /text\/calendar/.test(fn));
+    check("nur Lesezugriffe", /ERLAUBT = \["GET", "HEAD", "OPTIONS"\]/.test(fn));
+    check("archivierte Fahrzeuge bleiben draussen", /!v\.archived/.test(fn));
+    check("zwei Wecker wie in der App", (fn.match(/BEGIN:VALARM/g) || []).length === 2);
+    check("Anleitung liegt bei",
+      fs.existsSync(path.join(APP, "ANLEITUNG-KALENDER.md")));
+    const anleitung = fs.readFileSync(path.join(APP, "ANLEITUNG-KALENDER.md"), "utf8");
+    check("Anleitung warnt vor Verify JWT", /Verify JWT/.test(anleitung));
+    check("Anleitung nennt beide Geheimnisse",
+      /KALENDER_TOKEN/.test(anleitung) && /SB_SECRET_KEY/.test(anleitung));
+    check("Anleitung warnt vor dem geheimen Schlüssel",
+      /sb_secret_/.test(anleitung) && /nicht.*sb_publishable/i.test(anleitung));
+  }
+
   console.log("\n--- HU-Termin ---");
   {
     /* Die HU gilt für einen Monat, nicht für einen Tag — Stichtag ist das

@@ -101,7 +101,7 @@ alter table public.damages add column if not exists vertragsnr  text    not null
 
 -- nr          = durchlaufende Nummer je Fahrzeug bzw. je Schaden ("1.3")
 -- archived    = Fahrzeug ist raus aus dem Bestand, Daten bleiben
--- hu          = naechste Hauptuntersuchung, Datum als Text (JJJJ-MM-TT)
+-- hu          = naechste Hauptuntersuchung als Monat (JJJJ-MM), faellig zum Monatsende
 -- deleted_at  = Zeitpunkt der Loeschung, steuert den Papierkorb
 alter table public.vehicles add column if not exists nr          integer not null default 0;
 alter table public.vehicles add column if not exists archived    boolean not null default false;

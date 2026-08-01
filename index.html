@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=39" />
+<link rel="stylesheet" href="css/app.css?b=40" />
 </head>
 <body>
 
@@ -226,6 +226,24 @@
       <div id="speicher-balken" class="speicher-balken-fuellung"></div>
     </div>
     <div id="speicher-text" class="hint"></div>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">HU-Kalender abonnieren</div>
+    <p class="hint no-top">
+      Statt einzelner Termine ein Kalender, der sich von allein aktualisiert.
+      Einrichtung einmalig — die Schritte stehen in ANLEITUNG-KALENDER.md.
+    </p>
+    <div class="field">
+      <label for="input-kalender-token">Kalenderwort</label>
+      <input type="text" id="input-kalender-token" placeholder="das Wort aus KALENDER_TOKEN"
+             autocapitalize="off" spellcheck="false" />
+    </div>
+    <div class="btn-row">
+      <button id="btn-kalender-abo">Kalender abonnieren</button>
+      <button class="secondary" id="btn-kalender-kopieren">Adresse kopieren</button>
+    </div>
+    <div class="note-box hidden" id="kalender-hinweis"></div>
   </div>
 
   <div class="card">
@@ -592,15 +610,15 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=39"></script>
-<script src="js/modelle.js?b=39"></script>
-<script src="js/cloud.js?b=39"></script>
-<script src="js/logo.js?b=39"></script>
-<script src="js/pdf.js?b=39"></script>
-<script src="js/annotate.js?b=39"></script>
-<script src="js/fleet.js?b=39"></script>
-<script src="js/uebersicht.js?b=39"></script>
-<script src="js/snapshot.js?b=39"></script>
-<script src="js/app.js?b=39"></script>
+<script src="js/store.js?b=40"></script>
+<script src="js/modelle.js?b=40"></script>
+<script src="js/cloud.js?b=40"></script>
+<script src="js/logo.js?b=40"></script>
+<script src="js/pdf.js?b=40"></script>
+<script src="js/annotate.js?b=40"></script>
+<script src="js/fleet.js?b=40"></script>
+<script src="js/uebersicht.js?b=40"></script>
+<script src="js/snapshot.js?b=40"></script>
+<script src="js/app.js?b=40"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v39";
+  var APP_VERSION = "v40";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -375,6 +375,67 @@
     zeigeSuche();
   }
 
+  // ---------------------------------------------------------------- HU-Kalender
+
+  /* Die Adresse baut sich aus der Projekt-URL und dem Wort zusammen. Das Wort
+     liegt nur auf diesem Gerät — es ist ein Schlüssel und hat im Abgleich
+     nichts verloren. */
+  function kalenderAdresse(schema) {
+    var cfg = App.Cloud.config();
+    var wort = q("input-kalender-token").value.trim();
+    if (!cfg || !wort) return "";
+    var ohneSchema = cfg.url.replace(/^https?:\/\//, "");
+    return schema + "://" + ohneSchema + "/functions/v1/hu-kalender?token=" +
+      encodeURIComponent(wort);
+  }
+
+  function kalenderHinweis(text, art) {
+    var kasten = q("kalender-hinweis");
+    kasten.classList.remove("hidden");
+    kasten.className = "note-box " + (art || "");
+    kasten.textContent = text;
+  }
+
+  function bindKalender() {
+    App.Store.idbGet("kalenderToken").then(function (wert) {
+      if (wert) q("input-kalender-token").value = wert;
+    });
+
+    q("input-kalender-token").addEventListener("change", function () {
+      App.Store.idbSet("kalenderToken", q("input-kalender-token").value.trim());
+    });
+
+    q("btn-kalender-abo").addEventListener("click", function () {
+      var adresse = kalenderAdresse("webcal");
+      if (!adresse) {
+        kalenderHinweis("Erst Supabase einrichten und das Kalenderwort eintragen.", "warn");
+        return;
+      }
+      App.Store.idbSet("kalenderToken", q("input-kalender-token").value.trim());
+      /* webcal:// öffnet auf iOS direkt die Abo-Frage des Kalenders. */
+      window.location.href = adresse;
+    });
+
+    q("btn-kalender-kopieren").addEventListener("click", function () {
+      var adresse = kalenderAdresse("https");
+      if (!adresse) {
+        kalenderHinweis("Erst Supabase einrichten und das Kalenderwort eintragen.", "warn");
+        return;
+      }
+      App.Store.idbSet("kalenderToken", q("input-kalender-token").value.trim());
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(adresse).then(function () {
+          kalenderHinweis("Adresse kopiert. Nicht weitergeben — wer sie hat, " +
+            "sieht die HU-Termine.", "ok");
+        }).catch(function () {
+          kalenderHinweis(adresse);
+        });
+      } else {
+        kalenderHinweis(adresse);
+      }
+    });
+  }
+
   // ---------------------------------------------------------------- Papierkorb
 
   function zeigePapierkorb() {
@@ -661,6 +722,7 @@
         ["fleet.js", App.Fleet.bind],
         ["snapshot.js", App.Snapshot.bind],
         ["app.js — Einstellungen", bindSettings],
+        ["app.js — Kalender", bindKalender],
         ["app.js — Dialoge", bindModals],
         ["app.js — Reiter", bindTabs]
       ];
