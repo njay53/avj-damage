@@ -1,0 +1,3 @@
+# Internes Werkzeug — gehoert in keinen Suchindex.
+User-agent: *
+Disallow: /

@@ -162,6 +162,9 @@ function kontrast(a, b) {
     check("Homescreen-Name ist Schadenmanager", mani.short_name === "Schadenmanager", mani.short_name);
     const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
     check("kein alter Name mehr im HTML", !/AVJ Schäden|– damage/.test(html));
+    check("nicht für Suchmaschinen", /name="robots"[^>]*noindex/.test(html));
+    check("robots.txt sperrt alles",
+      /Disallow: \//.test(fs.readFileSync(path.join(APP, "robots.txt"), "utf8")));
   }
 
   console.log("\n--- Dunkelmodus ---");
