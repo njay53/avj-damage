@@ -123,6 +123,20 @@ Paar unter 4,5:1 fällt.
 
 ## Fuhrpark ordnen
 
+**Beim Anlegen** gibt es über der Bezeichnung eine Schnellauswahl: Hersteller
+antippen, das Modellfeld füllt sich, beides zusammen landet als Text in der
+Bezeichnung. Danach ist das Feld ganz normal — ein „#3" hinten dran bleibt
+auch erhalten, wenn du das Modell nochmal wechselst. Steht ein Fahrzeug nicht
+in der Liste, wählst du „Anderer Hersteller" oder tippst direkt ins Textfeld.
+
+Gespeichert wird ausschliesslich die **Bezeichnung**, nicht Hersteller und
+Modell getrennt. Sonst gäbe es zwei Wahrheiten nebeneinander, und beim ersten
+Fahrzeug, das nicht in die Liste passt, finge das Aufräumen an. Die Liste steht
+in `js/modelle.js` und lässt sich dort jederzeit ergänzen — sie umfasst die
+gängigen Marken samt Transportern und Kleinbussen, dazu die üblichen
+Anhängerhersteller.
+
+
 **Kategorien** legst du selbst an (Einstellungen → Kategorien): anlegen,
 umbenennen, in der Reihenfolge schieben, löschen. Über der Übersicht stehen sie
 als Chips — antippen filtert, nochmal antippen hebt auf. Eine gelöschte

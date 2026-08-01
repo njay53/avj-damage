@@ -14,7 +14,7 @@ const { createFakeServer } = require("./fake-server");
 require("fake-indexeddb/auto");
 
 const APP = path.join(__dirname, "..");
-const DATEIEN = ["js/store.js", "js/cloud.js", "js/logo.js", "js/pdf.js", "js/annotate.js",
+const DATEIEN = ["js/store.js", "js/modelle.js", "js/cloud.js", "js/logo.js", "js/pdf.js", "js/annotate.js",
                  "js/fleet.js", "js/uebersicht.js", "js/snapshot.js", "js/app.js"];
 
 /* Ein winziges echtes JPEG (48x36) — gebraucht, um den PDF-Erzeuger
@@ -372,6 +372,59 @@ function kontrast(a, b) {
 
     await App.Store.deleteDamage(v.id, ohne.id);
     await App.Store.deleteDamage(v.id, unbek.id);
+  }
+
+  console.log("\n--- Schnellauswahl Hersteller und Modell ---");
+  {
+    q("btn-add-vehicle").click();
+    const marke = q("input-marke");
+    const modell = q("input-modell");
+    const name = q("input-vehicle-name");
+
+    check("Hersteller stehen zur Auswahl", marke.options.length > 20,
+      String(marke.options.length));
+    check("Modellfeld ist anfangs gesperrt", modell.disabled === true);
+    check("VW ist dabei", [...marke.options].some((o) => o.value === "Volkswagen"));
+    check("Anhängerhersteller sind dabei",
+      [...marke.options].some((o) => o.value === "Humbaur"));
+    check("freie Eingabe wird angeboten",
+      [...marke.options].some((o) => o.value === "__frei"));
+
+    marke.value = "Volkswagen";
+    marke.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("Modelle sind aufgegangen", modell.disabled === false);
+    check("Crafter ist dabei", [...modell.options].some((o) => o.value === "Crafter"));
+    check("Bezeichnung schon gesetzt", name.value === "Volkswagen", name.value);
+
+    modell.value = "Crafter";
+    modell.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("Bezeichnung vollständig", name.value === "Volkswagen Crafter", name.value);
+
+    // Handgeschriebener Zusatz überlebt einen Wechsel
+    name.value = "Volkswagen Crafter #2";
+    modell.value = "Caddy";
+    modell.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("eigener Zusatz bleibt", name.value === "Volkswagen Caddy #2", name.value);
+
+    // Kein Vorschlag bei "Anderer Hersteller"
+    name.value = "Selbstgebauter Anhänger";
+    marke.value = "__frei";
+    marke.dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("freie Eingabe wird nicht überschrieben",
+      name.value === "Selbstgebauter Anhänger", name.value);
+    check("Modellfeld dann wieder gesperrt", modell.disabled === true);
+
+    q("modal-vehicle").classList.add("hidden");
+
+    // Beim Bearbeiten mischt sich die Hilfe nicht ein
+    App.Fleet.openVehicle(v.id);
+    const alterName = App.Store.getVehicle(v.id).name;
+    q("btn-edit-vehicle").click();
+    check("Bezeichnung bleibt beim Bearbeiten stehen",
+      q("input-vehicle-name").value === alterName, q("input-vehicle-name").value);
+    check("Schnellauswahl startet leer", q("input-marke").value === "");
+    q("modal-vehicle").classList.add("hidden");
+    App.Nav.go("fleet");
   }
 
   console.log("\n--- Kategorien ---");

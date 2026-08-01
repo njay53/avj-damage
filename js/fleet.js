@@ -73,6 +73,12 @@
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
     q("btn-vehicle-doc").addEventListener("click", function () { druckeAkte(); });
 
+    q("input-marke").addEventListener("change", function () {
+      fuelleModelle(q("input-marke").value);
+      uebernehmeAuswahl();
+    });
+    q("input-modell").addEventListener("change", uebernehmeAuswahl);
+
     q("btn-vehicle-photo").addEventListener("click", function () {
       q("file-vehicle-photo").click();
     });
@@ -361,6 +367,67 @@
     q("btn-vehicle-photo-clear").classList.toggle("hidden", !bildEntwurf);
   }
 
+  /* Schnellauswahl Hersteller → Modell. Sie schreibt nur in die Bezeichnung;
+     gespeichert wird weiterhin ausschliesslich dieser eine Text. */
+  function fuelleMarken() {
+    var sel = q("input-marke");
+    sel.innerHTML = '<option value="">— wählen —</option>';
+    App.Modelle.hersteller().forEach(function (m) {
+      var o = document.createElement("option");
+      o.value = m;
+      o.textContent = m;
+      sel.appendChild(o);
+    });
+    var andere = document.createElement("option");
+    andere.value = "__frei";
+    andere.textContent = "Anderer Hersteller …";
+    sel.appendChild(andere);
+  }
+
+  function fuelleModelle(marke) {
+    var sel = q("input-modell");
+    sel.innerHTML = "";
+    var liste = App.Modelle.modelle(marke);
+
+    if (!marke || marke === "__frei" || !liste.length) {
+      sel.innerHTML = '<option value="">—</option>';
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">— wählen —</option>';
+    liste.forEach(function (m) {
+      var o = document.createElement("option");
+      o.value = m;
+      o.textContent = m;
+      sel.appendChild(o);
+    });
+    var anderes = document.createElement("option");
+    anderes.value = "__frei";
+    anderes.textContent = "Anderes Modell …";
+    sel.appendChild(anderes);
+  }
+
+  /* Bezeichnung aus der Auswahl zusammensetzen. Ein bereits eingetippter Zusatz
+     wie "#3" bleibt erhalten — sonst wäre die Hilfe eine Belästigung. */
+  function uebernehmeAuswahl() {
+    var marke = q("input-marke").value;
+    var modell = q("input-modell").value;
+    if (!marke || marke === "__frei") return;
+
+    var feld = q("input-vehicle-name");
+    var zusatz = "";
+    /* Was hinter dem bisher erzeugten Namen steht, ist von Hand ergänzt. */
+    if (letzterVorschlag && feld.value.indexOf(letzterVorschlag) === 0) {
+      zusatz = feld.value.slice(letzterVorschlag.length);
+    }
+    var neu = marke + (modell && modell !== "__frei" ? " " + modell : "");
+    letzterVorschlag = neu;
+    feld.value = neu + zusatz;
+  }
+
+  var letzterVorschlag = "";
+
   function fuelleKategorieAuswahl(gewaehlt) {
     var sel = q("input-vehicle-category");
     sel.innerHTML = '<option value="">— ohne Kategorie —</option>';
@@ -400,6 +467,13 @@
       q("input-vehicle-zustand").checked = false;
     }
     zeigeFahrzeugbild();
+    /* Beim Bearbeiten steht die Bezeichnung schon — die Schnellauswahl fängt
+       dann leer an und mischt sich nicht ein. */
+    letzterVorschlag = "";
+    fuelleMarken();
+    q("input-marke").value = "";
+    fuelleModelle("");
+
     q("modal-vehicle").classList.remove("hidden");
     nameInput.focus();
   }

@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=34" />
+<link rel="stylesheet" href="css/app.css?b=35" />
 </head>
 <body>
 
@@ -244,9 +244,24 @@
     <button class="modal-close" data-close="modal-vehicle">✕</button>
     <h3 id="vehicle-modal-title">Fahrzeug hinzufügen</h3>
     <form id="form-vehicle">
+      <div class="two-col">
+        <div class="field">
+          <label for="input-marke">Hersteller <em>(Schnellauswahl)</em></label>
+          <select id="input-marke"></select>
+        </div>
+        <div class="field">
+          <label for="input-modell">Modell</label>
+          <select id="input-modell" disabled></select>
+        </div>
+      </div>
       <div class="field">
         <label for="input-vehicle-name">Bezeichnung</label>
         <input type="text" id="input-vehicle-name" placeholder="z. B. Toyota Yaris #3" required />
+        <p class="hint">
+          Die Auswahl oben trägt hier ein — danach kannst du frei ergänzen, etwa
+          eine Nummer, wenn du dasselbe Modell mehrfach hast. Steht dein Fahrzeug
+          nicht in der Liste, tipp es einfach direkt hier ein.
+        </p>
       </div>
       <div class="field">
         <label for="input-vehicle-plate">Kennzeichen</label>
@@ -546,14 +561,15 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=34"></script>
-<script src="js/cloud.js?b=34"></script>
-<script src="js/logo.js?b=34"></script>
-<script src="js/pdf.js?b=34"></script>
-<script src="js/annotate.js?b=34"></script>
-<script src="js/fleet.js?b=34"></script>
-<script src="js/uebersicht.js?b=34"></script>
-<script src="js/snapshot.js?b=34"></script>
-<script src="js/app.js?b=34"></script>
+<script src="js/store.js?b=35"></script>
+<script src="js/modelle.js?b=35"></script>
+<script src="js/cloud.js?b=35"></script>
+<script src="js/logo.js?b=35"></script>
+<script src="js/pdf.js?b=35"></script>
+<script src="js/annotate.js?b=35"></script>
+<script src="js/fleet.js?b=35"></script>
+<script src="js/uebersicht.js?b=35"></script>
+<script src="js/snapshot.js?b=35"></script>
+<script src="js/app.js?b=35"></script>
 </body>
 </html>
