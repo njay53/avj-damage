@@ -387,6 +387,10 @@ function kontrast(a, b) {
     check("VW ist dabei", [...marke.options].some((o) => o.value === "Volkswagen"));
     check("Anhängerhersteller sind dabei",
       [...marke.options].some((o) => o.value === "Humbaur"));
+    check("Neunsitzer heisst Tourer, nicht Kombi",
+      App.Modelle.modelle("Mercedes-Benz").includes("Sprinter Tourer") &&
+      !App.Modelle.modelle("Mercedes-Benz").includes("Sprinter Kombi"),
+      App.Modelle.modelle("Mercedes-Benz").join(", "));
     check("freie Eingabe wird angeboten",
       [...marke.options].some((o) => o.value === "__frei"));
 

@@ -9,15 +9,26 @@
  * Die Liste ist auf den Fuhrpark einer Vermietung zugeschnitten — Kleinwagen,
  * Transporter, Kleinbusse, dazu die gängigen Anhängerhersteller. Sie muss
  * nicht vollständig sein, dafür gibt es "Andere/Anderes".
+ *
+ * HERKUNFT: von Hand zusammengetragen, keine offizielle Quelle. Es gibt keine
+ * brauchbare Liste dieser Art zum Einbinden — das amtliche Verzeichnis des
+ * Kraftfahrt-Bundesamts (HSN/TSN) kennt zwar jede Variante, aber eben auch
+ * jede: mehrere zehntausend Zeilen mit Typschlüsseln statt der Namen, die man
+ * im Betrieb benutzt. Deshalb hier eine gepflegte Handauswahl.
+ *
+ * Fehler bitte einfach hier korrigieren. Es hängt nichts daran: gespeichert
+ * wird nur der Text, den die Auswahl ins Bezeichnungsfeld schreibt.
  */
 (function (App) {
   "use strict";
 
   var MODELLE = {
     "Volkswagen": ["up!", "Polo", "Golf", "Golf Variant", "Passat", "Passat Variant",
-      "T-Cross", "T-Roc", "Tiguan", "Touran", "Sharan", "Caddy", "Caddy Maxi",
-      "Transporter T6", "Transporter T6.1", "Transporter T7", "Caravelle",
-      "Multivan", "Crafter", "Amarok"],
+      "T-Cross", "T-Roc", "Tiguan", "Touran", "Sharan",
+      "Caddy", "Caddy Maxi", "Caddy Cargo",
+      "Transporter T5", "Transporter T6", "Transporter T6.1", "Transporter T7",
+      "Caravelle", "Multivan", "California", "ID. Buzz", "ID. Buzz Cargo",
+      "Crafter", "Grand California", "Amarok"],
     "Toyota": ["Aygo", "Yaris", "Yaris Cross", "Corolla", "Corolla Touring Sports",
       "C-HR", "RAV4", "Auris", "Avensis", "Proace", "Proace City", "Proace Verso",
       "Hilux", "Land Cruiser"],
@@ -25,9 +36,11 @@
       "C-Max", "S-Max", "Galaxy", "Tourneo Connect", "Tourneo Custom",
       "Transit Connect", "Transit Custom", "Transit", "Ranger"],
     "Opel": ["Karl", "Corsa", "Astra", "Astra Sports Tourer", "Crossland", "Grandland",
-      "Mokka", "Insignia", "Zafira", "Combo", "Combo Life", "Vivaro", "Movano"],
+      "Mokka", "Insignia", "Zafira", "Combo Cargo", "Combo Life", "Vivaro",
+      "Vivaro Combi", "Zafira Life", "Movano"],
     "Renault": ["Twingo", "Clio", "Captur", "Megane", "Megane Grandtour", "Scenic",
-      "Kadjar", "Kangoo", "Trafic", "Master"],
+      "Kadjar", "Kangoo", "Kangoo Rapid", "Express", "Trafic", "Trafic Combi",
+      "Master"],
     "Dacia": ["Sandero", "Sandero Stepway", "Logan MCV", "Duster", "Jogger", "Dokker",
       "Lodgy"],
     "Peugeot": ["108", "208", "2008", "308", "308 SW", "3008", "5008", "Rifter",
@@ -36,8 +49,11 @@
       "SpaceTourer", "Jumpy", "Jumper"],
     "Fiat": ["500", "Panda", "Tipo", "500X", "Doblò", "Talento", "Scudo", "Ducato"],
     "Mercedes-Benz": ["A-Klasse", "B-Klasse", "C-Klasse", "C-Klasse T-Modell",
-      "E-Klasse", "GLA", "GLC", "Citan", "Vito", "Vito Tourer", "V-Klasse",
-      "Sprinter", "Sprinter Kombi"],
+      "E-Klasse", "E-Klasse T-Modell", "GLA", "GLB", "GLC",
+      "Citan Kastenwagen", "Citan Tourer",
+      "Vito Kastenwagen", "Vito Mixto", "Vito Tourer", "eVito Tourer", "V-Klasse",
+      "Sprinter Kastenwagen", "Sprinter Tourer", "Sprinter Pritsche",
+      "Sprinter Fahrgestell", "eSprinter Kastenwagen"],
     "BMW": ["1er", "2er Active Tourer", "3er", "3er Touring", "5er", "X1", "X3"],
     "Audi": ["A1", "A3", "A3 Sportback", "A4", "A4 Avant", "A6", "Q2", "Q3", "Q5"],
     "Škoda": ["Citigo", "Fabia", "Fabia Combi", "Scala", "Octavia", "Octavia Combi",
@@ -49,7 +65,7 @@
     "Kia": ["Picanto", "Rio", "Ceed", "Ceed SW", "Stonic", "XCeed", "Sportage",
       "Carens", "Carnival"],
     "Nissan": ["Micra", "Juke", "Qashqai", "X-Trail", "NV200", "NV300", "NV400",
-      "Primastar", "Interstar"],
+      "Townstar", "Primastar", "Interstar"],
     "Mazda": ["2", "3", "CX-3", "CX-30", "CX-5", "6", "6 Kombi"],
     "Honda": ["Jazz", "Civic", "HR-V", "CR-V"],
     "Suzuki": ["Swift", "Ignis", "Vitara", "S-Cross", "Jimny"],
