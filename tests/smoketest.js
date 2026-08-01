@@ -539,7 +539,16 @@ function kontrast(a, b) {
     check("Schätzung fliesst nicht in die Einnahmen", b2.zahlungen === 500);
 
     App.Fleet.openVehicle(v.id);
-    check("Bilanz erscheint", !q("vehicle-bilanz").classList.contains("hidden"));
+    check("Bilanz erscheint", !q("bilanz-block").classList.contains("hidden"));
+    check("Bilanz steht unter den Schäden",
+      w.document.getElementById("damage-grid").compareDocumentPosition(
+        w.document.getElementById("bilanz-block")) & 4);
+    check("Bilanz steht unter den Zustandsaufnahmen",
+      w.document.getElementById("zustand-block").compareDocumentPosition(
+        w.document.getElementById("bilanz-block")) & 4);
+    check("Bilanz ist zugeklappt", q("bilanz-block").open === false);
+    check("Kopfzeile fasst zusammen", q("bilanz-kurz").textContent.length > 0,
+      q("bilanz-kurz").textContent);
     check("Stand steht auf der Kachel", /repariert/i.test(q("damage-grid").innerHTML));
 
     await App.Store.deleteDamage(v.id, zweit.id);
@@ -595,6 +604,29 @@ function kontrast(a, b) {
     check("Standard ist der Mieter",
       App.Store.damagesOf(v.id, "schaden").every((d) => d.regulierung !== undefined));
 
+    // Glasschaden: Werkstatt rechnet direkt ab, nur die eigene SB bleibt
+    const vorGlas = App.Store.bilanz(v.id);
+    const glas = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,GLAS"], description: "Steinschlag Frontscheibe, Austausch",
+      regulierung: "teilkasko", kosten: "150"
+    });
+    const bg = App.Store.bilanz(v.id);
+    check("Teilkasko wird angenommen", glas.regulierung === "teilkasko", glas.regulierung);
+    check("nur die eigene Selbstbeteiligung schlägt durch",
+      bg.differenz - vorGlas.differenz === -150, String(bg.differenz - vorGlas.differenz));
+
+    App.Fleet._openDetail(glas.id);
+    check("Erstattungsfeld auch bei Teilkasko",
+      !q("detail-erstattung-row").classList.contains("hidden"));
+    check("Hinweis erklärt die Direktabrechnung",
+      !q("hinweis-erstattung").classList.contains("hidden"));
+    check("Saldo spricht von hängenbleiben",
+      /Bleibt an mir/.test(q("detail-saldo").textContent), q("detail-saldo").textContent);
+    check("kein Wort von Gewinn",
+      !/Übrig/.test(q("detail-saldo").textContent), q("detail-saldo").textContent);
+    q("modal-detail").classList.add("hidden");
+
+    await App.Store.deleteDamage(v.id, glas.id);
     await App.Store.deleteDamage(v.id, gross.id);
   }
 
@@ -602,6 +634,8 @@ function kontrast(a, b) {
   {
     check("standardmässig verdeckt", App.Einstellungen.betraegeSichtbar() === false);
     App.Fleet.renderVehicle();
+    check("Zusammenfassung verdeckt", /••••|gedeckt/.test(q("bilanz-kurz").textContent),
+      q("bilanz-kurz").textContent);
     check("Bilanz zeigt Punkte statt Zahlen",
       q("vehicle-bilanz").textContent.includes("••••"), q("vehicle-bilanz").textContent);
     check("keine Zahl zu sehen", !/\d{3}/.test(q("vehicle-bilanz").textContent));
@@ -1309,8 +1343,11 @@ function kontrast(a, b) {
   await w4.App.Cloud.login("a@b.de", "pw");
   await w4.App.Store.addVehicle({ name: "Token-Test", plate: "" });
   await w4.App.Cloud.sync();
+  /* Grosszügig warten: läuft gerade noch ein Abgleich, greift stattdessen der
+     nachgelagerte Push nach zwei Sekunden. Mit knapp bemessenem Zeitfenster
+     schlägt die Prüfung ab und zu grundlos fehl. */
   const angekommen = await bisWahr(
-    () => server2.zeilen("vehicles").some((z) => z.name === "Token-Test"));
+    () => server2.zeilen("vehicles").some((z) => z.name === "Token-Test"), 6000);
   check("trotz abgelaufenem Token erfolgreich", angekommen,
     JSON.stringify(server2.zeilen("vehicles").map((z) => z.name)));
   check("Erneuerung wurde angefordert",

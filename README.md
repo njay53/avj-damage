@@ -154,9 +154,15 @@ repariert, bleibt so), **geschätzter Schaden**, **vom Mieter erhalten**,
 draussen beim Erfassen, sondern später am Schreibtisch — Schaden antippen, im
 Detail den Block „Intern" aufklappen.
 
-In der Fahrzeugansicht steht darüber die Bilanz: Einnahmen, Reparaturkosten,
-Differenz. Offene Schätzungen werden getrennt ausgewiesen — eine Schätzung ist
-eine Erwartung, kein Geld, und hat in derselben Summe nichts zu suchen.
+In der Fahrzeugansicht steht darüber die Bilanz: was Mieter gezahlt haben, was
+Versicherungen erstattet haben, was Reparaturen gekostet haben, und was unter
+dem Strich **an mir hängenbleibt**. Offene Schätzungen werden getrennt
+ausgewiesen — eine Schätzung ist eine Erwartung, kein Geld, und hat in
+derselben Summe nichts zu suchen.
+
+Die Beschriftung ist bewusst so gewählt: es geht hier nicht um Ertrag, sondern
+darum, wie viel ein Schaden am Ende gekostet hat. Dass mal etwas übrig bleibt,
+kommt vor — der Normalfall über den ganzen Fuhrpark ist es nicht.
 
 **Beträge sind standardmässig verdeckt** und erscheinen als `••••`. Ein Tipp
 auf das Auge in der Kopfzeile zeigt sie, ein zweiter versteckt sie wieder. Der
@@ -171,13 +177,21 @@ Tages doch ein Betrag ins Kundendokument rutscht, schlägt er an.
 
 ### Wenn eine Versicherung zahlt
 
-Ein Auswahlfeld **Reguliert über** mit vier Möglichkeiten: *Mieter zahlt
-selbst* (der Regelfall und die Voreinstellung), *Kasko — eigene Versicherung*,
-*Haftpflicht — Gegner zahlt*, *Trage ich selbst*.
+Ein Auswahlfeld **Reguliert über**: *Mieter zahlt selbst* (der Regelfall und
+die Voreinstellung), *Vollkasko — eigene Versicherung*, *Teilkasko — Glas,
+Wild, Diebstahl*, *Haftpflicht — Gegner zahlt*, *Trage ich selbst*.
 
-Nur bei den beiden mittleren erscheint ein zusätzliches Feld **Versicherung
+Nur bei den drei Versicherungsfällen erscheint das Feld **Versicherung
 erstattet**. Im Regelfall ist es nicht da — die grossen Schäden sind selten und
 dürfen die Maske nicht bestimmen.
+
+Massgeblich ist immer, **was tatsächlich über das Konto gelaufen ist**. Rechnet
+die Werkstatt direkt mit der Versicherung ab, steht bei „Reparatur gekostet"
+nur die eigene Selbstbeteiligung und die Erstattung bleibt leer. Unter dem
+Strich kommt dasselbe heraus wie beim Weg über die volle Rechnung.
+
+Glasschaden als Beispiel: Frontscheibe wird getauscht, Teilkasko, eigene SB
+150 €. Eintrag: Reparatur gekostet 150 €, sonst nichts → bleibt an mir 150 €.
 
 Beispiel Transporter XL, Schaden 3.500 €, Selbstbeteiligung 2.000 €:
 
@@ -186,7 +200,7 @@ Beispiel Transporter XL, Schaden 3.500 €, Selbstbeteiligung 2.000 €:
 | Vom Mieter erhalten | 2.000 € |
 | Versicherung erstattet | 1.500 € |
 | Reparatur gekostet | 3.500 € |
-| **Unter dem Strich** | **0 €** |
+| **Unter dem Strich** | **gedeckt** |
 
 Beim Haftpflichtschaden bleibt „Vom Mieter erhalten" leer und die volle Summe
 steht bei der Erstattung. Die Fahrzeugbilanz weist Mieterzahlungen und

@@ -219,13 +219,14 @@
     q("vehicle-meta").innerHTML = zeile.join(" · ");
     q("vehicle-meta").classList.toggle("hidden", !zeile.length);
 
-    zeigeBilanz(v);
     fuelleRaster(q("damage-grid"), v, "schaden");
 
     /* Zustandsaufnahmen nur, wenn sie für dieses Fahrzeug eingeschaltet sind —
        bei einem Bestandsfahrzeug mit lauter Altschäden wären sie nur im Weg. */
     q("zustand-block").classList.toggle("hidden", !v.zustand);
     if (v.zustand) fuelleRaster(q("zustand-grid"), v, "zustand");
+
+    zeigeBilanz(v);
 
     /* Schadensstände hängen am Kennungsschalter: aus heisst zugeklappt und
        ohne Aufforderung, nicht verschwunden. */
@@ -244,10 +245,17 @@
      hilft niemandem. */
   function zeigeBilanz(v) {
     var kasten = q("vehicle-bilanz");
+    var block = q("bilanz-block");
     var b = Store.bilanz(v.id);
     var etwasDa = b.zahlungen || b.erstattungen || b.kosten || b.offeneSchaetzung;
-    kasten.classList.toggle("hidden", !etwasDa);
+    block.classList.toggle("hidden", !etwasDa);
     if (!etwasDa) return;
+
+    /* In der Kopfzeile der Klappe die eine Zahl, um die es geht — verdeckt,
+       solange das Auge zu ist. */
+    q("bilanz-kurz").textContent = b.differenz < 0
+      ? "bleibt an mir " + euro(Math.abs(b.differenz))
+      : "gedeckt";
 
     kasten.innerHTML =
       '<div class="bilanz-zeile"><span>Von Mietern erhalten</span>' +
@@ -258,9 +266,10 @@
         : "") +
       '<div class="bilanz-zeile"><span>Reparaturen bezahlt</span>' +
         '<span class="bilanz-wert aus">' + euro(b.kosten) + '</span></div>' +
-      '<div class="bilanz-zeile summe"><span>Differenz</span>' +
+      '<div class="bilanz-zeile summe"><span>' +
+        (b.differenz < 0 ? "Bleibt an mir hängen" : "Gedeckt") + '</span>' +
         '<span class="bilanz-wert ' + (b.differenz < 0 ? "aus" : "ein") + '">' +
-        euro(b.differenz) + '</span></div>' +
+        euro(Math.abs(b.differenz)) + '</span></div>' +
       (b.offeneSchaetzung
         ? '<div class="bilanz-zeile klein"><span>' + b.offen +
           (b.offen === 1 ? " offener Schaden, geschätzt" : " offene Schäden, geschätzt") +
@@ -526,7 +535,9 @@
      Spiel ist. Im Regelfall — Mieter zahlt — ist es nur im Weg. */
   function zeigeErstattungsfeld() {
     var art = q("detail-regulierung").value;
-    q("detail-erstattung-row").classList.toggle("hidden", art === "mieter" || art === "selbst");
+    var mitVersicherung = art === "kasko" || art === "teilkasko" || art === "haftpflicht";
+    q("detail-erstattung-row").classList.toggle("hidden", !mitVersicherung);
+    q("hinweis-erstattung").classList.toggle("hidden", !mitVersicherung);
   }
 
   /* Was unter dem Strich bei diesem einen Schaden herauskommt. */
@@ -547,7 +558,9 @@
     var teile = ["Mieter " + euro(d.zahlung)];
     if (typeof d.erstattung === "number") teile.push("Versicherung " + euro(d.erstattung));
     teile.push("Reparatur " + euro(d.kosten));
-    teile.push((saldo < 0 ? "Draufgezahlt " : "Übrig ") + euro(Math.abs(saldo)));
+    teile.push(saldo < 0
+      ? "Bleibt an mir " + euro(Math.abs(saldo))
+      : (saldo === 0 ? "Gedeckt" : "Gedeckt, " + euro(saldo) + " darüber"));
 
     kasten.className = "note-box " + (saldo < 0 ? "warn" : "ok");
     kasten.textContent = teile.join(" · ");

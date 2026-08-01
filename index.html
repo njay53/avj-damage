@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=31" />
+<link rel="stylesheet" href="css/app.css?b=33" />
 </head>
 <body>
 
@@ -70,8 +70,6 @@
   <div class="plate-big" id="vehicle-plate"></div>
   <div class="fz-meta hidden" id="vehicle-meta"></div>
 
-  <div class="bilanz hidden" id="vehicle-bilanz"></div>
-
   <div class="section-label">Dokumentierte Schäden</div>
   <div id="damage-grid" class="damage-grid"></div>
 
@@ -83,6 +81,16 @@
     </p>
     <div id="zustand-grid" class="damage-grid"></div>
   </section>
+
+  <details id="bilanz-block" class="klappe hidden">
+    <summary>
+      <span>Kosten und Zahlungen</span>
+      <span class="klappe-zahl" id="bilanz-kurz"></span>
+    </summary>
+    <div class="klappe-inhalt">
+      <div class="bilanz" id="vehicle-bilanz"></div>
+    </div>
+  </details>
 
   <details id="snapshot-block" class="klappe">
     <summary>
@@ -461,7 +469,8 @@
             <label for="detail-regulierung">Reguliert über</label>
             <select id="detail-regulierung">
               <option value="mieter">Mieter zahlt selbst</option>
-              <option value="kasko">Kasko — eigene Versicherung</option>
+              <option value="kasko">Vollkasko — eigene Versicherung</option>
+              <option value="teilkasko">Teilkasko — Glas, Wild, Diebstahl</option>
               <option value="haftpflicht">Haftpflicht — Gegner zahlt</option>
               <option value="selbst">Trage ich selbst</option>
             </select>
@@ -471,6 +480,12 @@
             <input type="text" id="detail-erstattung" inputmode="decimal" placeholder="1500" />
           </div>
         </div>
+        <p class="hint no-top hidden" id="hinweis-erstattung">
+          Trag ein, was tatsächlich über dein Konto gelaufen ist. Rechnet die Werkstatt
+          direkt mit der Versicherung ab, steht bei „Reparatur gekostet" nur deine
+          Selbstbeteiligung und die Erstattung bleibt leer — unter dem Strich kommt
+          dasselbe heraus.
+        </p>
         <div class="note-box" id="detail-saldo"></div>
         <p class="hint no-top">
           Nur die Vertragsnummer, keine Namen. Wer dahintersteckt, steht in rentsoft.
@@ -529,14 +544,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=31"></script>
-<script src="js/cloud.js?b=31"></script>
-<script src="js/logo.js?b=31"></script>
-<script src="js/pdf.js?b=31"></script>
-<script src="js/annotate.js?b=31"></script>
-<script src="js/fleet.js?b=31"></script>
-<script src="js/uebersicht.js?b=31"></script>
-<script src="js/snapshot.js?b=31"></script>
-<script src="js/app.js?b=31"></script>
+<script src="js/store.js?b=33"></script>
+<script src="js/cloud.js?b=33"></script>
+<script src="js/logo.js?b=33"></script>
+<script src="js/pdf.js?b=33"></script>
+<script src="js/annotate.js?b=33"></script>
+<script src="js/fleet.js?b=33"></script>
+<script src="js/uebersicht.js?b=33"></script>
+<script src="js/snapshot.js?b=33"></script>
+<script src="js/app.js?b=33"></script>
 </body>
 </html>

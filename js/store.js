@@ -227,9 +227,10 @@
   /* Wer am Ende zahlt. Der Regelfall ist "mieter" — die anderen drei kommen
      ein paarmal im Jahr vor und dürfen die Maske deshalb nicht bestimmen.
        kasko       — über die eigene Vollkasko, der Mieter zahlt die SB
+       teilkasko   — Glas, Wild, Diebstahl; hier bleibt die eigene SB an mir
        haftpflicht — Gegner war schuld, dessen Versicherung zahlt
        selbst      — Kulanz oder zu klein für eine Meldung */
-  var REGULIERUNGEN = ["mieter", "kasko", "haftpflicht", "selbst"];
+  var REGULIERUNGEN = ["mieter", "kasko", "teilkasko", "haftpflicht", "selbst"];
 
   function normalisiereSchaden(d) {
     if (!d) return d;
