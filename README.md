@@ -169,6 +169,30 @@ Vertragsnummer oder Bearbeitungsstand. Ein eingefrorener Stand kopiert diese
 Felder gar nicht erst mit. Der Testlauf prüft das an vier Stellen — wenn eines
 Tages doch ein Betrag ins Kundendokument rutscht, schlägt er an.
 
+### Wenn eine Versicherung zahlt
+
+Ein Auswahlfeld **Reguliert über** mit vier Möglichkeiten: *Mieter zahlt
+selbst* (der Regelfall und die Voreinstellung), *Kasko — eigene Versicherung*,
+*Haftpflicht — Gegner zahlt*, *Trage ich selbst*.
+
+Nur bei den beiden mittleren erscheint ein zusätzliches Feld **Versicherung
+erstattet**. Im Regelfall ist es nicht da — die grossen Schäden sind selten und
+dürfen die Maske nicht bestimmen.
+
+Beispiel Transporter XL, Schaden 3.500 €, Selbstbeteiligung 2.000 €:
+
+| Feld | Wert |
+|---|---|
+| Vom Mieter erhalten | 2.000 € |
+| Versicherung erstattet | 1.500 € |
+| Reparatur gekostet | 3.500 € |
+| **Unter dem Strich** | **0 €** |
+
+Beim Haftpflichtschaden bleibt „Vom Mieter erhalten" leer und die volle Summe
+steht bei der Erstattung. Die Fahrzeugbilanz weist Mieterzahlungen und
+Erstattungen getrennt aus — sonst sähe ein Fahrzeug ertragreich aus, das in
+Wirklichkeit nur einmal gut versichert war.
+
 ### Zur Mietvertragsnummer
 
 Sie ist der einzige Kundenbezug in der App, und sie ist einer: über rentsoft

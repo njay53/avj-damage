@@ -197,6 +197,8 @@
           zahlung: typeof d.zahlung === "number" ? d.zahlung : null,
           kosten: typeof d.kosten === "number" ? d.kosten : null,
           vertragsnr: d.vertragsnr || "",
+          regulierung: d.regulierung || "mieter",
+          erstattung: typeof d.erstattung === "number" ? d.erstattung : null,
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -257,6 +259,8 @@
         zahlung: r.zahlung,
         kosten: r.kosten,
         vertragsnr: r.vertragsnr || "",
+        regulierung: r.regulierung || "mieter",
+        erstattung: r.erstattung,
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

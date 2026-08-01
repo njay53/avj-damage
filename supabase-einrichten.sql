@@ -99,6 +99,11 @@ alter table public.damages add column if not exists zahlung     numeric;
 alter table public.damages add column if not exists kosten      numeric;
 alter table public.damages add column if not exists vertragsnr  text    not null default '';
 
+-- regulierung = mieter | kasko | haftpflicht | selbst
+-- erstattung  = was die Versicherung bzw. der Gegner gezahlt hat
+alter table public.damages add column if not exists regulierung text    not null default 'mieter';
+alter table public.damages add column if not exists erstattung  numeric;
+
 -- ------------------------------------------------------------- Indizes
 -- Der Abgleich fragt immer "was ist neuer als ...", das laeuft darueber.
 

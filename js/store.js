@@ -224,6 +224,13 @@
 
   var STAENDE = ["offen", "ausgebessert", "repariert", "bleibt"];
 
+  /* Wer am Ende zahlt. Der Regelfall ist "mieter" — die anderen drei kommen
+     ein paarmal im Jahr vor und dürfen die Maske deshalb nicht bestimmen.
+       kasko       — über die eigene Vollkasko, der Mieter zahlt die SB
+       haftpflicht — Gegner war schuld, dessen Versicherung zahlt
+       selbst      — Kulanz oder zu klein für eine Meldung */
+  var REGULIERUNGEN = ["mieter", "kasko", "haftpflicht", "selbst"];
+
   function normalisiereSchaden(d) {
     if (!d) return d;
     if (!Array.isArray(d.images)) {
@@ -244,6 +251,8 @@
     d.zahlung = zuBetrag(d.zahlung);
     d.kosten = zuBetrag(d.kosten);
     if (typeof d.vertragsnr !== "string") d.vertragsnr = "";
+    if (REGULIERUNGEN.indexOf(d.regulierung) === -1) d.regulierung = "mieter";
+    d.erstattung = zuBetrag(d.erstattung);
 
     delete d.image;
     delete d.note;
@@ -366,6 +375,8 @@
       zahlung: zuBetrag(damage.zahlung),
       kosten: zuBetrag(damage.kosten),
       vertragsnr: damage.vertragsnr || "",
+      regulierung: REGULIERUNGEN.indexOf(damage.regulierung) === -1 ? "mieter" : damage.regulierung,
+      erstattung: zuBetrag(damage.erstattung),
       /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
          wer den Stand kennt, kann ihn eintragen. */
       km: damage.km || "",
@@ -503,11 +514,12 @@
      Geld, und gehören deshalb nicht in dieselbe Summe wie das, was wirklich
      geflossen ist. */
   function bilanz(vehicleId) {
-    var zahlungen = 0, kosten = 0, offeneSchaetzung = 0;
+    var zahlungen = 0, erstattungen = 0, kosten = 0, offeneSchaetzung = 0;
     var offen = 0, erledigt = 0;
 
     damagesOf(vehicleId, "schaden").forEach(function (d) {
       if (typeof d.zahlung === "number") zahlungen += d.zahlung;
+      if (typeof d.erstattung === "number") erstattungen += d.erstattung;
       if (typeof d.kosten === "number") kosten += d.kosten;
       if (d.status === "offen") {
         offen++;
@@ -519,8 +531,9 @@
 
     return {
       zahlungen: zahlungen,
+      erstattungen: erstattungen,
       kosten: kosten,
-      differenz: zahlungen - kosten,
+      differenz: zahlungen + erstattungen - kosten,
       offeneSchaetzung: offeneSchaetzung,
       offen: offen,
       erledigt: erledigt

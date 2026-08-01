@@ -545,6 +545,59 @@ function kontrast(a, b) {
     await App.Store.deleteDamage(v.id, zweit.id);
   }
 
+  console.log("\n--- Grosser Schaden über die Versicherung ---");
+  {
+    /* Der Fall aus dem Betrieb: Transporter XL, Schaden 3.500, SB 2.000.
+       Der Mieter zahlt die Selbstbeteiligung, die Kasko den Rest. Unter dem
+       Strich muss null herauskommen. */
+    /* Es liegen schon andere Schäden am Fahrzeug — deshalb wird die
+       Veränderung geprüft, nicht der absolute Stand. */
+    const vorher = App.Store.bilanz(v.id);
+    const gross = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,GROSS"], description: "Seitenwand eingedrückt",
+      schaetzung: "3500", zahlung: "2000", kosten: "3500",
+      regulierung: "kasko", erstattung: "1500"
+    });
+    check("Regulierungsart gespeichert", gross.regulierung === "kasko", gross.regulierung);
+    check("Erstattung gespeichert", gross.erstattung === 1500, String(gross.erstattung));
+
+    const b = App.Store.bilanz(v.id);
+    check("Erstattung zählt als Einnahme",
+      b.erstattungen - vorher.erstattungen === 1500, String(b.erstattungen));
+    check("Mieteranteil bleibt getrennt",
+      b.zahlungen - vorher.zahlungen === 2000, String(b.zahlungen));
+    check("unter dem Strich null", b.differenz === vorher.differenz,
+      b.differenz + " statt " + vorher.differenz);
+
+    // Haftpflicht: der Gegner zahlt alles
+    await App.Store.updateDamage(v.id, gross.id, {
+      regulierung: "haftpflicht", zahlung: "", erstattung: "3500"
+    });
+    const b2 = App.Store.bilanz(v.id);
+    check("Gegner zahlt alles",
+      b2.erstattungen - vorher.erstattungen === 3500 &&
+      b2.zahlungen - vorher.zahlungen === 0,
+      b2.erstattungen + " / " + b2.zahlungen);
+    check("auch hier null", b2.differenz === vorher.differenz,
+      b2.differenz + " statt " + vorher.differenz);
+
+    // Der Regelfall darf die Maske nicht aufblähen
+    App.Fleet.openVehicle(v.id);
+    App.Fleet._openDetail(gross.id);
+    check("Erstattungsfeld ist da, wenn Versicherung zahlt",
+      !q("detail-erstattung-row").classList.contains("hidden"));
+    q("detail-regulierung").value = "mieter";
+    q("detail-regulierung").dispatchEvent(new w.Event("change", { bubbles: true }));
+    check("und weg, wenn der Mieter selbst zahlt",
+      q("detail-erstattung-row").classList.contains("hidden"));
+    q("modal-detail").classList.add("hidden");
+
+    check("Standard ist der Mieter",
+      App.Store.damagesOf(v.id, "schaden").every((d) => d.regulierung !== undefined));
+
+    await App.Store.deleteDamage(v.id, gross.id);
+  }
+
   console.log("\n--- Beträge verdecken ---");
   {
     check("standardmässig verdeckt", App.Einstellungen.betraegeSichtbar() === false);

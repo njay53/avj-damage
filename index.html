@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=30" />
+<link rel="stylesheet" href="css/app.css?b=31" />
 </head>
 <body>
 
@@ -456,6 +456,21 @@
                    autocapitalize="characters" spellcheck="false" />
           </div>
         </div>
+        <div class="two-col">
+          <div class="field">
+            <label for="detail-regulierung">Reguliert über</label>
+            <select id="detail-regulierung">
+              <option value="mieter">Mieter zahlt selbst</option>
+              <option value="kasko">Kasko — eigene Versicherung</option>
+              <option value="haftpflicht">Haftpflicht — Gegner zahlt</option>
+              <option value="selbst">Trage ich selbst</option>
+            </select>
+          </div>
+          <div class="field hidden" id="detail-erstattung-row">
+            <label for="detail-erstattung">Versicherung erstattet <em>(€)</em></label>
+            <input type="text" id="detail-erstattung" inputmode="decimal" placeholder="1500" />
+          </div>
+        </div>
         <div class="note-box" id="detail-saldo"></div>
         <p class="hint no-top">
           Nur die Vertragsnummer, keine Namen. Wer dahintersteckt, steht in rentsoft.
@@ -514,14 +529,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=30"></script>
-<script src="js/cloud.js?b=30"></script>
-<script src="js/logo.js?b=30"></script>
-<script src="js/pdf.js?b=30"></script>
-<script src="js/annotate.js?b=30"></script>
-<script src="js/fleet.js?b=30"></script>
-<script src="js/uebersicht.js?b=30"></script>
-<script src="js/snapshot.js?b=30"></script>
-<script src="js/app.js?b=30"></script>
+<script src="js/store.js?b=31"></script>
+<script src="js/cloud.js?b=31"></script>
+<script src="js/logo.js?b=31"></script>
+<script src="js/pdf.js?b=31"></script>
+<script src="js/annotate.js?b=31"></script>
+<script src="js/fleet.js?b=31"></script>
+<script src="js/uebersicht.js?b=31"></script>
+<script src="js/snapshot.js?b=31"></script>
+<script src="js/app.js?b=31"></script>
 </body>
 </html>

@@ -67,6 +67,7 @@
     q("btn-delete-vehicle").addEventListener("click", deleteCurrentVehicle);
     q("form-vehicle").addEventListener("submit", submitVehicle);
     q("btn-save-note").addEventListener("click", saveDetailNote);
+    q("detail-regulierung").addEventListener("change", zeigeErstattungsfeld);
     q("btn-delete-damage").addEventListener("click", deleteCurrentDamage);
     q("btn-edit-damage").addEventListener("click", editCurrentDamage);
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
@@ -244,13 +245,17 @@
   function zeigeBilanz(v) {
     var kasten = q("vehicle-bilanz");
     var b = Store.bilanz(v.id);
-    var etwasDa = b.zahlungen || b.kosten || b.offeneSchaetzung;
+    var etwasDa = b.zahlungen || b.erstattungen || b.kosten || b.offeneSchaetzung;
     kasten.classList.toggle("hidden", !etwasDa);
     if (!etwasDa) return;
 
     kasten.innerHTML =
       '<div class="bilanz-zeile"><span>Von Mietern erhalten</span>' +
         '<span class="bilanz-wert ein">' + euro(b.zahlungen) + '</span></div>' +
+      (b.erstattungen
+        ? '<div class="bilanz-zeile"><span>Von Versicherungen erstattet</span>' +
+          '<span class="bilanz-wert ein">' + euro(b.erstattungen) + '</span></div>'
+        : "") +
       '<div class="bilanz-zeile"><span>Reparaturen bezahlt</span>' +
         '<span class="bilanz-wert aus">' + euro(b.kosten) + '</span></div>' +
       '<div class="bilanz-zeile summe"><span>Differenz</span>' +
@@ -505,6 +510,9 @@
       q("detail-zahlung").value = d.zahlung === null ? "" : String(d.zahlung);
       q("detail-kosten").value = d.kosten === null ? "" : String(d.kosten);
       q("detail-vertrag").value = d.vertragsnr || "";
+      q("detail-regulierung").value = d.regulierung || "mieter";
+      q("detail-erstattung").value = d.erstattung === null ? "" : String(d.erstattung);
+      zeigeErstattungsfeld();
       zeigeSaldo(d);
     }
     q("btn-save-note").classList.remove("hidden");
@@ -514,21 +522,35 @@
   }
 
   /* Bei mehreren Fotos: Streifen unter dem grossen Bild zum Umschalten. */
+  /* Das Erstattungsfeld erscheint nur, wenn überhaupt eine Versicherung im
+     Spiel ist. Im Regelfall — Mieter zahlt — ist es nur im Weg. */
+  function zeigeErstattungsfeld() {
+    var art = q("detail-regulierung").value;
+    q("detail-erstattung-row").classList.toggle("hidden", art === "mieter" || art === "selbst");
+  }
+
   /* Was unter dem Strich bei diesem einen Schaden herauskommt. */
   function zeigeSaldo(d) {
     var kasten = q("detail-saldo");
-    var hatZahlen = typeof d.zahlung === "number" || typeof d.kosten === "number";
+    var hatZahlen = typeof d.zahlung === "number" ||
+      typeof d.kosten === "number" || typeof d.erstattung === "number";
     if (!hatZahlen) {
       kasten.className = "note-box";
       kasten.textContent = "Noch nichts eingetragen.";
       return;
     }
-    var ein = typeof d.zahlung === "number" ? d.zahlung : 0;
+    var ein = (typeof d.zahlung === "number" ? d.zahlung : 0) +
+      (typeof d.erstattung === "number" ? d.erstattung : 0);
     var aus = typeof d.kosten === "number" ? d.kosten : 0;
     var saldo = ein - aus;
+
+    var teile = ["Mieter " + euro(d.zahlung)];
+    if (typeof d.erstattung === "number") teile.push("Versicherung " + euro(d.erstattung));
+    teile.push("Reparatur " + euro(d.kosten));
+    teile.push((saldo < 0 ? "Draufgezahlt " : "Übrig ") + euro(Math.abs(saldo)));
+
     kasten.className = "note-box " + (saldo < 0 ? "warn" : "ok");
-    kasten.textContent = "Erhalten " + euro(d.zahlung) + " · Reparatur " + euro(d.kosten) +
-      " · " + (saldo < 0 ? "Draufgezahlt " : "Übrig ") + euro(Math.abs(saldo));
+    kasten.textContent = teile.join(" · ");
   }
 
   function speichereIntern() {
@@ -602,6 +624,8 @@
       patch.zahlung = q("detail-zahlung").value;
       patch.kosten = q("detail-kosten").value;
       patch.vertragsnr = q("detail-vertrag").value.trim();
+      patch.regulierung = q("detail-regulierung").value;
+      patch.erstattung = q("detail-erstattung").value;
     }
     Store.updateDamage(currentVehicleId, currentDamageId, patch).then(function () {
       q("modal-detail").classList.add("hidden");
@@ -656,6 +680,7 @@
     _filter: function () { return { kategorie: filterKategorie, versteckte: zeigeVersteckte }; },
     renderVehicle: renderVehicle,
     openVehicle: openVehicle,
+    _openDetail: openDetail,
     currentVehicleId: function () { return currentVehicleId; },
     esc: esc,
     fmtDate: fmtDate,
