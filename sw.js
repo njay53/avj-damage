@@ -16,7 +16,7 @@
  */
 /* Muss mit APP_VERSION in js/app.js übereinstimmen — die Nummer steht in der
    Fusszeile der App, damit man sieht, welche Fassung ein Gerät geladen hat. */
-const CACHE_VERSION = "v33";
+const CACHE_VERSION = "v34";
 const CACHE_NAME = "fahrzeugschaeden-" + CACHE_VERSION;
 const NETZ_TIMEOUT = 3000;
 

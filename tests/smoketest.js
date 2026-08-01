@@ -827,6 +827,15 @@ function kontrast(a, b) {
     w.document.getElementById("btn-settings").click();
     check("nochmal antippen führt zurück", App.Nav.current() === "fleet");
 
+    // Logo und Name führen zurück zum Fuhrpark
+    App.Fleet.openVehicle(v.id);
+    check("erst im Fahrzeug", App.Nav.current() === "vehicle");
+    w.document.getElementById("btn-heim").click();
+    check("Logo führt in den Fuhrpark", App.Nav.current() === "fleet");
+    w.document.getElementById("btn-settings").click();
+    w.document.getElementById("btn-heim").click();
+    check("auch aus den Einstellungen", App.Nav.current() === "fleet");
+
     const css = fs.readFileSync(path.join(APP, "css/app.css"), "utf8");
     check("eigener Fokusring statt Safaris", /:focus-visible\{/.test(css));
     check("Safaris Ring abgeschaltet", /:focus\{outline:none;\}/.test(css));

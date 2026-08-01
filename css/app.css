@@ -78,6 +78,14 @@ body{
   position:sticky;top:0;z-index:100;
 }
 .header img{width:36px;height:36px;border-radius:50%;object-fit:contain;background:#fff;padding:2px;}
+/* Logo und Name sind der Weg zurück in den Fuhrpark — wie bei jeder Webseite. */
+.header-heim{
+  display:flex;align-items:center;gap:12px;flex:1;min-width:0;
+  background:none;border:none;padding:0;margin:0;text-align:left;
+  border-radius:var(--radius-sm);
+}
+.header-heim:hover{opacity:.75;}
+.header-heim:active{opacity:.55;}
 .header-title{font-size:16px;font-weight:500;color:var(--header-fg);letter-spacing:-.01em;flex:1;}
 /* Einstellungen sind selten dran — ein Zahnrad in der Ecke reicht. */
 .header-btn{

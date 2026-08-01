@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v33";
+  var APP_VERSION = "v34";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -436,6 +436,10 @@
       refreshCloudUi();
       renderKategorien();
       zeigeSpeicher();
+    });
+    q("btn-heim").addEventListener("click", function () {
+      Nav.go("fleet");
+      App.Fleet.renderFleet();
     });
     q("btn-augen").addEventListener("click", function () {
       Einstellungen.setzeBetraege(!Einstellungen.betraegeSichtbar());
