@@ -499,6 +499,105 @@ function kontrast(a, b) {
     App.Fleet.renderVehicle();
   }
 
+  console.log("\n--- Interne Beträge ---");
+  {
+    const sch = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,GELD"], description: "Delle Fahrertür",
+      schaetzung: "700", zahlung: "500", vertragsnr: "MV 2026-0500"
+    });
+    check("Schätzung als Zahl", sch.schaetzung === 700, String(sch.schaetzung));
+    check("Zahlung als Zahl", sch.zahlung === 500, String(sch.zahlung));
+    check("Reparatur noch leer", sch.kosten === null, String(sch.kosten));
+    check("Stand ist offen", sch.status === "offen", sch.status);
+    check("Vertragsnummer gespeichert", sch.vertragsnr === "MV 2026-0500");
+
+    // Deutsche Schreibweise muss durchkommen
+    check("1.234,50 wird verstanden", App.Store.zuBetrag("1.234,50") === 1234.5,
+      String(App.Store.zuBetrag("1.234,50")));
+    check("1234.50 auch", App.Store.zuBetrag("1234.50") === 1234.5);
+    check("890 € auch", App.Store.zuBetrag("890 €") === 890);
+    check("leer bleibt leer", App.Store.zuBetrag("  ") === null);
+    check("leer ist nicht null Euro", App.Store.zuBetrag("") !== 0);
+
+    await App.Store.updateDamage(v.id, sch.id, { kosten: "380", status: "repariert" });
+    const nach = App.Store.damagesOf(v.id).find((d) => d.id === sch.id);
+    check("Reparaturkosten übernommen", nach.kosten === 380);
+    check("Stand umgestellt", nach.status === "repariert");
+
+    const b = App.Store.bilanz(v.id);
+    check("Einnahmen summiert", b.zahlungen === 500, String(b.zahlungen));
+    check("Kosten summiert", b.kosten === 380, String(b.kosten));
+    check("Differenz stimmt", b.differenz === 120, String(b.differenz));
+    check("erledigt gezählt", b.erledigt === 1, String(b.erledigt));
+
+    // Offene Schätzung getrennt von echtem Geld
+    const zweit = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,GELD2"], description: "Kratzer", schaetzung: "250"
+    });
+    const b2 = App.Store.bilanz(v.id);
+    check("offene Schätzung getrennt", b2.offeneSchaetzung === 250, String(b2.offeneSchaetzung));
+    check("Schätzung fliesst nicht in die Einnahmen", b2.zahlungen === 500);
+
+    App.Fleet.openVehicle(v.id);
+    check("Bilanz erscheint", !q("vehicle-bilanz").classList.contains("hidden"));
+    check("Stand steht auf der Kachel", /repariert/i.test(q("damage-grid").innerHTML));
+
+    await App.Store.deleteDamage(v.id, zweit.id);
+  }
+
+  console.log("\n--- Beträge verdecken ---");
+  {
+    check("standardmässig verdeckt", App.Einstellungen.betraegeSichtbar() === false);
+    App.Fleet.renderVehicle();
+    check("Bilanz zeigt Punkte statt Zahlen",
+      q("vehicle-bilanz").textContent.includes("••••"), q("vehicle-bilanz").textContent);
+    check("keine Zahl zu sehen", !/\d{3}/.test(q("vehicle-bilanz").textContent));
+
+    w.document.getElementById("btn-augen").click();
+    await wait(30);
+    check("Auge schaltet ein", App.Einstellungen.betraegeSichtbar() === true);
+    check("jetzt stehen Beträge da",
+      /500/.test(q("vehicle-bilanz").textContent), q("vehicle-bilanz").textContent);
+
+    w.document.getElementById("btn-augen").click();
+    await wait(30);
+    check("und wieder aus", q("vehicle-bilanz").textContent.includes("••••"));
+  }
+
+  console.log("\n--- Nichts davon beim Kunden ---");
+  {
+    const geld = App.Store.damagesOf(v.id, "schaden").find((d) => d.zahlung === 500);
+
+    // Schadensstand friert keine Beträge ein
+    const stand2 = await App.Store.createSnapshot(v.id, "");
+    const drin = stand2.damages.find((d) => d.id === geld.id);
+    check("Stand ohne Zahlung", drin.zahlung === undefined, JSON.stringify(Object.keys(drin)));
+    check("Stand ohne Schätzung", drin.schaetzung === undefined);
+    check("Stand ohne Reparaturkosten", drin.kosten === undefined);
+    check("Stand ohne Vertragsnummer", drin.vertragsnr === undefined);
+    check("Stand ohne Bearbeitungsstand", drin.status === undefined);
+
+    // Kunden-PDF
+    const ergebnis = App.Uebersicht.erzeuge(
+      App.Store.getVehicle(v.id), App.Store.damagesOf(v.id, "schaden"), App.Store.damageCount(v.id));
+    const roh = ergebnis.doc.bauen();
+    const text = typeof roh === "string" ? roh : new TextDecoder("latin1").decode(roh);
+    check("PDF nennt keine Vertragsnummer", !/MV 2026-0500/.test(text));
+    check("PDF nennt keinen Betrag", !/500,00|700,00|380,00/.test(text));
+    check("PDF nennt keinen Bearbeitungsstand", !/Repariert|Ausgebessert|Bleibt so/.test(text));
+
+    // Druckansicht des Standes
+    App.Snapshot.open(stand2.id);
+    const doku = q("snapshot-view-body").textContent;
+    check("Druckansicht ohne Beträge", !/500|700|380/.test(doku), doku.slice(0, 200));
+    check("Druckansicht ohne Vertragsnummer", !/MV 2026-0500/.test(doku));
+
+    await App.Store.deleteSnapshot(stand2.id);
+    /* Wieder aufräumen: die folgenden Prüfungen zählen Schäden und Bilder. */
+    await App.Store.deleteDamage(v.id, geld.id);
+    App.Nav.go("fleet");
+  }
+
   console.log("\n--- Zustandsmaske ---");
   {
     App.Annotate.open({ title: "t", art: "zustand", onSave: () => {} });

@@ -192,6 +192,11 @@
           created_at: d.createdAt || 0, area: d.area || "",
           kind: d.kind === "zustand" ? "zustand" : "schaden",
           km: d.km || "", anlass: d.anlass || "",
+          status: d.status || "offen",
+          schaetzung: typeof d.schaetzung === "number" ? d.schaetzung : null,
+          zahlung: typeof d.zahlung === "number" ? d.zahlung : null,
+          kosten: typeof d.kosten === "number" ? d.kosten : null,
+          vertragsnr: d.vertragsnr || "",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -247,6 +252,11 @@
         area: r.area || "",
         kind: r.kind === "zustand" ? "zustand" : "schaden",
         km: r.km || "", anlass: r.anlass || "",
+        status: r.status || "offen",
+        schaetzung: r.schaetzung,
+        zahlung: r.zahlung,
+        kosten: r.kosten,
+        vertragsnr: r.vertragsnr || "",
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

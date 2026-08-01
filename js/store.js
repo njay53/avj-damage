@@ -206,6 +206,24 @@
      den Fall, dass ein Foto mehrere Schäden zeigt.
      Wird beim Laden und nach jedem Abgleich angewendet, damit alte und neue
      Datensätze nebeneinander bestehen können. */
+  /* Betragsfelder kommen aus einem Textfeld: "1.234,50", "1234.5", "  " —
+     alles davon soll heil ankommen. Leer bleibt leer, nicht 0: der
+     Unterschied zwischen "noch nichts eingetragen" und "nichts bezahlt"
+     ist genau der, auf den es beim Nachrechnen ankommt. */
+  function zuBetrag(wert) {
+    if (wert === null || wert === undefined) return null;
+    if (typeof wert === "number") return isFinite(wert) ? wert : null;
+    var text = String(wert).trim();
+    if (!text) return null;
+    text = text.replace(/[^0-9,.\-]/g, "");
+    /* Deutsche Schreibweise: Punkt trennt Tausender, Komma die Nachkommastellen. */
+    if (text.indexOf(",") !== -1) text = text.replace(/\./g, "").replace(",", ".");
+    var zahl = parseFloat(text);
+    return isFinite(zahl) ? zahl : null;
+  }
+
+  var STAENDE = ["offen", "ausgebessert", "repariert", "bleibt"];
+
   function normalisiereSchaden(d) {
     if (!d) return d;
     if (!Array.isArray(d.images)) {
@@ -219,6 +237,14 @@
     /* Zwei Arten von Eintrag: ein Schaden — oder eine Aufnahme vom Zustand,
        die gerade KEINEN Schaden zeigt. Alte Datensätze sind immer Schäden. */
     if (d.kind !== "zustand") d.kind = "schaden";
+
+    /* Interne Angaben — tauchen auf keinem Kundendokument auf. */
+    if (STAENDE.indexOf(d.status) === -1) d.status = "offen";
+    d.schaetzung = zuBetrag(d.schaetzung);
+    d.zahlung = zuBetrag(d.zahlung);
+    d.kosten = zuBetrag(d.kosten);
+    if (typeof d.vertragsnr !== "string") d.vertragsnr = "";
+
     delete d.image;
     delete d.note;
     return d;
@@ -335,6 +361,11 @@
       dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
       kind: damage.kind === "zustand" ? "zustand" : "schaden",
+      status: STAENDE.indexOf(damage.status) === -1 ? "offen" : damage.status,
+      schaetzung: zuBetrag(damage.schaetzung),
+      zahlung: zuBetrag(damage.zahlung),
+      kosten: zuBetrag(damage.kosten),
+      vertragsnr: damage.vertragsnr || "",
       /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
          wer den Stand kennt, kann ihn eintragen. */
       km: damage.km || "",
@@ -353,6 +384,7 @@
     var d = v.damages.find(function (x) { return x.id === damageId; });
     if (!d) return Promise.resolve();
     Object.keys(patch).forEach(function (k) { d[k] = patch[k]; });
+    normalisiereSchaden(d);
     d.updatedAt = now();
     v.updatedAt = now();
     return save();
@@ -464,6 +496,37 @@
     return changed;
   }
 
+  /* Was ein Fahrzeug an Schäden eingebracht und gekostet hat.
+
+     Zustandsaufnahmen bleiben aussen vor, die haben keine Beträge. Offene
+     Schätzungen werden getrennt ausgewiesen: sie sind eine Erwartung, kein
+     Geld, und gehören deshalb nicht in dieselbe Summe wie das, was wirklich
+     geflossen ist. */
+  function bilanz(vehicleId) {
+    var zahlungen = 0, kosten = 0, offeneSchaetzung = 0;
+    var offen = 0, erledigt = 0;
+
+    damagesOf(vehicleId, "schaden").forEach(function (d) {
+      if (typeof d.zahlung === "number") zahlungen += d.zahlung;
+      if (typeof d.kosten === "number") kosten += d.kosten;
+      if (d.status === "offen") {
+        offen++;
+        if (typeof d.schaetzung === "number") offeneSchaetzung += d.schaetzung;
+      } else {
+        erledigt++;
+      }
+    });
+
+    return {
+      zahlungen: zahlungen,
+      kosten: kosten,
+      differenz: zahlungen - kosten,
+      offeneSchaetzung: offeneSchaetzung,
+      offen: offen,
+      erledigt: erledigt
+    };
+  }
+
   // ------------------------------------------------------------ Schadensstände
 
   /* Friert den aktuellen Zustand eines Fahrzeugs ein. Das Ergebnis ist
@@ -493,6 +556,8 @@
           createdAt: d.createdAt || 0,
           area: d.area || "",
           km: d.km || ""
+          /* Bewusst ohne Beträge, Vertragsnummer und Stand: ein Stand kann
+             gedruckt und einem Kunden gezeigt werden. */
         };
       })
     };
@@ -724,6 +789,8 @@
     deleteCategory: deleteCategory,
     damagesOf: damagesOf,
     damageCount: damageCount,
+    bilanz: bilanz,
+    zuBetrag: zuBetrag,
     normalisiereSchaden: normalisiereSchaden,
     entruempele: entruempele,
     speicherbedarf: speicherbedarf,

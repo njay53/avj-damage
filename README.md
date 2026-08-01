@@ -146,6 +146,41 @@ im Alltag zeigt, dass die Grenze woanders verläuft.
 
 ---
 
+## Was ein Schaden gekostet hat — intern
+
+Jeder Schaden hat einen internen Block: **Stand** (offen, ausgebessert,
+repariert, bleibt so), **geschätzter Schaden**, **vom Mieter erhalten**,
+**Reparatur gekostet** und die **Mietvertragsnummer**. Gepflegt wird das nicht
+draussen beim Erfassen, sondern später am Schreibtisch — Schaden antippen, im
+Detail den Block „Intern" aufklappen.
+
+In der Fahrzeugansicht steht darüber die Bilanz: Einnahmen, Reparaturkosten,
+Differenz. Offene Schätzungen werden getrennt ausgewiesen — eine Schätzung ist
+eine Erwartung, kein Geld, und hat in derselben Summe nichts zu suchen.
+
+**Beträge sind standardmässig verdeckt** und erscheinen als `••••`. Ein Tipp
+auf das Auge in der Kopfzeile zeigt sie, ein zweiter versteckt sie wieder. Der
+Grund ist praktisch: man steht mit dem Telefon neben dem Kunden und geht die
+Schäden durch — da soll nicht danebenstehen, was der letzte Mieter gezahlt hat.
+
+**Nichts davon verlässt das Haus.** Weder die Schadenübersicht als PDF noch ein
+eingefrorener Schadensstand noch die Druckansicht enthalten Beträge,
+Vertragsnummer oder Bearbeitungsstand. Ein eingefrorener Stand kopiert diese
+Felder gar nicht erst mit. Der Testlauf prüft das an vier Stellen — wenn eines
+Tages doch ein Betrag ins Kundendokument rutscht, schlägt er an.
+
+### Zur Mietvertragsnummer
+
+Sie ist der einzige Kundenbezug in der App, und sie ist einer: über rentsoft
+lässt sich damit eine Person zuordnen. Der Bestand ist damit nicht mehr ganz so
+neutral wie vorher — Namen stehen zwar keine drin, aber ein Pseudonym ist
+datenschutzrechtlich trotzdem ein Personenbezug. Das ist bei einer internen
+Betriebsdokumentation dieser Grösse handhabbar; wer es genau wissen will, fragt
+den Steuerberater oder einen Datenschutzbeauftragten. Namen gehören auf keinen
+Fall hinein.
+
+---
+
 ## Wann synchronisiert wird
 
 Von allein, ohne Knopfdruck:

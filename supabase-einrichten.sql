@@ -87,6 +87,18 @@ alter table public.damages add column if not exists kind        text    not null
 alter table public.damages add column if not exists km          text    not null default '';
 alter table public.damages add column if not exists anlass      text    not null default '';
 
+-- Interne Angaben. Erscheinen auf keinem Kundendokument.
+-- status     = offen | ausgebessert | repariert | bleibt
+-- schaetzung = geschaetzte Schadenhoehe in Euro
+-- zahlung    = was der Mieter tatsaechlich gezahlt hat
+-- kosten     = was die Reparatur gekostet hat
+-- vertragsnr = Mietvertragsnummer aus rentsoft, bewusst KEIN Kundenname
+alter table public.damages add column if not exists status      text    not null default 'offen';
+alter table public.damages add column if not exists schaetzung  numeric;
+alter table public.damages add column if not exists zahlung     numeric;
+alter table public.damages add column if not exists kosten      numeric;
+alter table public.damages add column if not exists vertragsnr  text    not null default '';
+
 -- ------------------------------------------------------------- Indizes
 -- Der Abgleich fragt immer "was ist neuer als ...", das laeuft darueber.
 

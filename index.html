@@ -16,13 +16,15 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=29" />
+<link rel="stylesheet" href="css/app.css?b=30" />
 </head>
 <body>
 
 <div class="header">
   <img src="icons/logo.png" alt="AVJ Logo" />
   <span class="header-title">Schadenmanager</span>
+  <button class="header-btn" id="btn-augen" title="Beträge ein-/ausblenden"
+          aria-label="Beträge ein- oder ausblenden">👁</button>
   <button class="header-btn" id="btn-settings" data-tab="settings"
           title="Einstellungen" aria-label="Einstellungen">⚙</button>
 </div>
@@ -67,6 +69,8 @@
   </div>
   <div class="plate-big" id="vehicle-plate"></div>
   <div class="fz-meta hidden" id="vehicle-meta"></div>
+
+  <div class="bilanz hidden" id="vehicle-bilanz"></div>
 
   <div class="section-label">Dokumentierte Schäden</div>
   <div id="damage-grid" class="damage-grid"></div>
@@ -415,12 +419,56 @@
       <label for="detail-note-input">Beschreibung</label>
       <textarea id="detail-note-input" rows="2"></textarea>
     </div>
+
+    <details class="klappe intern" id="detail-intern">
+      <summary>
+        <span>Intern — Kosten und Stand</span>
+        <span class="klappe-zahl">erscheint auf keinem Kundendokument</span>
+      </summary>
+      <div class="klappe-inhalt">
+        <div class="field">
+          <label for="detail-status">Stand</label>
+          <select id="detail-status">
+            <option value="offen">Offen</option>
+            <option value="ausgebessert">Ausgebessert</option>
+            <option value="repariert">Repariert</option>
+            <option value="bleibt">Bleibt so</option>
+          </select>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label for="detail-schaetzung">Geschätzter Schaden <em>(€)</em></label>
+            <input type="text" id="detail-schaetzung" inputmode="decimal" placeholder="700" />
+          </div>
+          <div class="field">
+            <label for="detail-zahlung">Vom Mieter erhalten <em>(€)</em></label>
+            <input type="text" id="detail-zahlung" inputmode="decimal" placeholder="500" />
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label for="detail-kosten">Reparatur gekostet <em>(€)</em></label>
+            <input type="text" id="detail-kosten" inputmode="decimal" placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="detail-vertrag">Mietvertrag <em>(optional)</em></label>
+            <input type="text" id="detail-vertrag" placeholder="z. B. MV 2026-0500"
+                   autocapitalize="characters" spellcheck="false" />
+          </div>
+        </div>
+        <div class="note-box" id="detail-saldo"></div>
+        <p class="hint no-top">
+          Nur die Vertragsnummer, keine Namen. Wer dahintersteckt, steht in rentsoft.
+        </p>
+      </div>
+    </details>
+
     <div class="btn-row spread">
       <button type="button" class="ghost-danger" id="btn-delete-damage">Schaden löschen</button>
       <div class="btn-row">
         <button type="button" class="secondary" data-close="modal-detail">Schliessen</button>
         <button type="button" class="secondary" id="btn-edit-damage">Bearbeiten</button>
-        <button type="button" id="btn-save-note">Beschreibung speichern</button>
+        <button type="button" id="btn-save-note">Speichern</button>
       </div>
     </div>
   </div>
@@ -466,14 +514,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=29"></script>
-<script src="js/cloud.js?b=29"></script>
-<script src="js/logo.js?b=29"></script>
-<script src="js/pdf.js?b=29"></script>
-<script src="js/annotate.js?b=29"></script>
-<script src="js/fleet.js?b=29"></script>
-<script src="js/uebersicht.js?b=29"></script>
-<script src="js/snapshot.js?b=29"></script>
-<script src="js/app.js?b=29"></script>
+<script src="js/store.js?b=30"></script>
+<script src="js/cloud.js?b=30"></script>
+<script src="js/logo.js?b=30"></script>
+<script src="js/pdf.js?b=30"></script>
+<script src="js/annotate.js?b=30"></script>
+<script src="js/fleet.js?b=30"></script>
+<script src="js/uebersicht.js?b=30"></script>
+<script src="js/snapshot.js?b=30"></script>
+<script src="js/app.js?b=30"></script>
 </body>
 </html>

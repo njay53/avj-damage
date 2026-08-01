@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v29";
+  var APP_VERSION = "v30";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -225,19 +225,43 @@
      aussehen. Er wandert bewusst nicht in den Abgleich. */
   var kennungAktiv = false;
 
+  /* Beträge sind standardmässig verdeckt. Man steht mit dem Telefon neben dem
+     Kunden und geht die Schäden durch — da soll nicht danebenstehen, was der
+     letzte Mieter gezahlt hat. Wie in einer Banking-App: ein Tipp aufs Auge. */
+  var betraegeSichtbar = false;
+
   var Einstellungen = {
     kennungAktiv: function () { return kennungAktiv; },
+    betraegeSichtbar: function () { return betraegeSichtbar; },
     laden: function () {
-      return App.Store.idbGet("kennungAktiv").then(function (wert) {
-        kennungAktiv = wert === true;
+      return Promise.all([
+        App.Store.idbGet("kennungAktiv"),
+        App.Store.idbGet("betraegeSichtbar")
+      ]).then(function (werte) {
+        kennungAktiv = werte[0] === true;
+        betraegeSichtbar = werte[1] === true;
         return kennungAktiv;
       });
     },
     setzeKennung: function (an) {
       kennungAktiv = !!an;
       return App.Store.idbSet("kennungAktiv", kennungAktiv).then(wendeKennungAn);
+    },
+    setzeBetraege: function (an) {
+      betraegeSichtbar = !!an;
+      return App.Store.idbSet("betraegeSichtbar", betraegeSichtbar).then(wendeBetraegeAn);
     }
   };
+
+  function wendeBetraegeAn() {
+    var knopf = document.getElementById("btn-augen");
+    if (knopf) {
+      knopf.textContent = betraegeSichtbar ? "👁" : "🙈";
+      knopf.classList.toggle("active", betraegeSichtbar);
+      knopf.title = betraegeSichtbar ? "Beträge ausblenden" : "Beträge einblenden";
+    }
+    if (Nav.current() === "vehicle") App.Fleet.renderVehicle();
+  }
   App.Einstellungen = Einstellungen;
 
   /* Sichtbarkeit überall nachziehen, wo die Kennung eine Rolle spielt. */
@@ -413,6 +437,9 @@
       renderKategorien();
       zeigeSpeicher();
     });
+    q("btn-augen").addEventListener("click", function () {
+      Einstellungen.setzeBetraege(!Einstellungen.betraegeSichtbar());
+    });
     q("btn-settings-back").addEventListener("click", function () {
       Nav.go("fleet");
       App.Fleet.renderFleet();
@@ -485,6 +512,7 @@
          dann zeichnen, sonst blitzt das Kennungsfeld kurz auf. */
       return Einstellungen.laden().then(function () {
         wendeKennungAn();
+        wendeBetraegeAn();
         App.Fleet.renderFleet();
         Nav.go("fleet");
         registerServiceWorker();

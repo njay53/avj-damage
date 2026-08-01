@@ -218,6 +218,7 @@
     q("vehicle-meta").innerHTML = zeile.join(" · ");
     q("vehicle-meta").classList.toggle("hidden", !zeile.length);
 
+    zeigeBilanz(v);
     fuelleRaster(q("damage-grid"), v, "schaden");
 
     /* Zustandsaufnahmen nur, wenn sie für dieses Fahrzeug eingeschaltet sind —
@@ -237,6 +238,31 @@
     App.Snapshot.renderList();
   }
 
+  /* Was das Fahrzeug an Schäden eingebracht und gekostet hat. Erscheint nur,
+     wenn überhaupt etwas eingetragen ist — ein leerer Kasten mit drei Nullen
+     hilft niemandem. */
+  function zeigeBilanz(v) {
+    var kasten = q("vehicle-bilanz");
+    var b = Store.bilanz(v.id);
+    var etwasDa = b.zahlungen || b.kosten || b.offeneSchaetzung;
+    kasten.classList.toggle("hidden", !etwasDa);
+    if (!etwasDa) return;
+
+    kasten.innerHTML =
+      '<div class="bilanz-zeile"><span>Von Mietern erhalten</span>' +
+        '<span class="bilanz-wert ein">' + euro(b.zahlungen) + '</span></div>' +
+      '<div class="bilanz-zeile"><span>Reparaturen bezahlt</span>' +
+        '<span class="bilanz-wert aus">' + euro(b.kosten) + '</span></div>' +
+      '<div class="bilanz-zeile summe"><span>Differenz</span>' +
+        '<span class="bilanz-wert ' + (b.differenz < 0 ? "aus" : "ein") + '">' +
+        euro(b.differenz) + '</span></div>' +
+      (b.offeneSchaetzung
+        ? '<div class="bilanz-zeile klein"><span>' + b.offen +
+          (b.offen === 1 ? " offener Schaden, geschätzt" : " offene Schäden, geschätzt") +
+          '</span><span class="bilanz-wert">' + euro(b.offeneSchaetzung) + '</span></div>'
+        : "");
+  }
+
   /* Ein Raster für beide Arten — sie unterscheiden sich nur im Wortlaut. */
   function fuelleRaster(grid, v, art) {
     var istSchaden = art !== "zustand";
@@ -251,6 +277,8 @@
           '<img src="' + (bilder[0] || "") + '" alt="' + (istSchaden ? "Schaden" : "Zustand") + '" loading="lazy">' +
           (bilder.length > 1 ? '<span class="dc-badge">' + bilder.length + ' Fotos</span>' : '') +
           (istSchaden && d.count > 1 ? '<span class="dc-badge count">' + d.count + ' Schäden</span>' : '') +
+          (istSchaden && d.status && d.status !== "offen"
+            ? '<span class="dc-badge stand">' + esc(STANDTEXT[d.status] || "") + '</span>' : '') +
         '</div>' +
         '<div class="meta">' + esc(fmtDamageDate(d)) +
           (!istSchaden && d.anlass ? " · " + esc(anlassText(d.anlass)) : "") +
@@ -419,6 +447,24 @@
     return zahl.toLocaleString("de-DE") + " km";
   }
 
+  var STANDTEXT = {
+    offen: "Offen",
+    ausgebessert: "Ausgebessert",
+    repariert: "Repariert",
+    bleibt: "Bleibt so"
+  };
+
+  /* Beträge werden ausgeblendet, wenn ein Kunde mitguckt — deshalb geht jede
+     Anzeige durch diese eine Stelle. */
+  function euro(wert) {
+    if (typeof wert !== "number") return "—";
+    if (!App.Einstellungen.betraegeSichtbar()) return "••••";
+    return wert.toLocaleString("de-DE", {
+      style: "currency", currency: "EUR",
+      minimumFractionDigits: 0, maximumFractionDigits: 2
+    });
+  }
+
   // -------------------------------------------------------------- Detailansicht
 
   /* Ohne Art liefert damagesOf beide Sorten — die Detailansicht ist für
@@ -450,6 +496,17 @@
 
     q("detail-note-input").value = d.description || "";
     q("detail-note-input").disabled = false;
+
+    /* Zustandsaufnahmen haben keine Kosten und keinen Stand. */
+    q("detail-intern").classList.toggle("hidden", istZustand);
+    if (!istZustand) {
+      q("detail-status").value = d.status || "offen";
+      q("detail-schaetzung").value = d.schaetzung === null ? "" : String(d.schaetzung);
+      q("detail-zahlung").value = d.zahlung === null ? "" : String(d.zahlung);
+      q("detail-kosten").value = d.kosten === null ? "" : String(d.kosten);
+      q("detail-vertrag").value = d.vertragsnr || "";
+      zeigeSaldo(d);
+    }
     q("btn-save-note").classList.remove("hidden");
     q("btn-edit-damage").classList.remove("hidden");
     q("btn-delete-damage").classList.remove("hidden");
@@ -457,6 +514,40 @@
   }
 
   /* Bei mehreren Fotos: Streifen unter dem grossen Bild zum Umschalten. */
+  /* Was unter dem Strich bei diesem einen Schaden herauskommt. */
+  function zeigeSaldo(d) {
+    var kasten = q("detail-saldo");
+    var hatZahlen = typeof d.zahlung === "number" || typeof d.kosten === "number";
+    if (!hatZahlen) {
+      kasten.className = "note-box";
+      kasten.textContent = "Noch nichts eingetragen.";
+      return;
+    }
+    var ein = typeof d.zahlung === "number" ? d.zahlung : 0;
+    var aus = typeof d.kosten === "number" ? d.kosten : 0;
+    var saldo = ein - aus;
+    kasten.className = "note-box " + (saldo < 0 ? "warn" : "ok");
+    kasten.textContent = "Erhalten " + euro(d.zahlung) + " · Reparatur " + euro(d.kosten) +
+      " · " + (saldo < 0 ? "Draufgezahlt " : "Übrig ") + euro(Math.abs(saldo));
+  }
+
+  function speichereIntern() {
+    var d = findeEintrag(currentDamageId);
+    if (!d) return;
+    Store.updateDamage(currentVehicleId, d.id, {
+      description: q("detail-note-input").value.trim(),
+      status: q("detail-status").value,
+      schaetzung: q("detail-schaetzung").value,
+      zahlung: q("detail-zahlung").value,
+      kosten: q("detail-kosten").value,
+      vertragsnr: q("detail-vertrag").value.trim()
+    }).then(function () {
+      zeigeSaldo(findeEintrag(currentDamageId));
+      renderVehicle();
+      q("modal-detail").classList.add("hidden");
+    });
+  }
+
   function zeigeMiniaturen(bilder) {
     var wrap = q("detail-thumbs");
     wrap.innerHTML = "";
@@ -500,10 +591,19 @@
     });
   }
 
+  /* Ein Speichern-Knopf für den ganzen Dialog. Zwei getrennte wären eine
+     Falle: man tippt oben etwas ein, drückt unten und wundert sich. */
   function saveDetailNote() {
-    Store.updateDamage(currentVehicleId, currentDamageId,
-      { description: q("detail-note-input").value.trim() }
-    ).then(function () {
+    var d = findeEintrag(currentDamageId);
+    var patch = { description: q("detail-note-input").value.trim() };
+    if (d && d.kind !== "zustand") {
+      patch.status = q("detail-status").value;
+      patch.schaetzung = q("detail-schaetzung").value;
+      patch.zahlung = q("detail-zahlung").value;
+      patch.kosten = q("detail-kosten").value;
+      patch.vertragsnr = q("detail-vertrag").value.trim();
+    }
+    Store.updateDamage(currentVehicleId, currentDamageId, patch).then(function () {
       q("modal-detail").classList.add("hidden");
       renderVehicle();
     });
