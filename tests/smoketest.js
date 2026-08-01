@@ -969,6 +969,13 @@ function kontrast(a, b) {
   check("Anmeldung erfolgreich", A2.Cloud.status().angemeldet);
   check("E-Mail gemerkt", A2.Cloud.status().email === "chef@jansen.de");
 
+  {
+    await A2.Cloud.saveConfig("https://demo.supabase.co/rest/v1/", "anon-key-123");
+    check("kopierte API-Adresse wird zurechtgestutzt",
+      A2.Cloud.config().url === "https://demo.supabase.co", A2.Cloud.config().url);
+    await A2.Cloud.saveConfig("https://demo.supabase.co", "anon-key-123");
+  }
+
   console.log("\n--- Abgleich: Hochladen ---");
   const v2 = await A2.Store.addVehicle({ name: "Ford Transit", plate: "NOM-JA 200" });
   await A2.Store.addDamage(v2.id, { image: "data:image/jpeg;base64,X1", note: "Delle Schiebetür", date: "2026-07-01", area: "Schiebetür" });

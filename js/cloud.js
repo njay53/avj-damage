@@ -55,7 +55,12 @@
   }
 
   function saveConfig(url, anonKey) {
-    var clean = String(url || "").trim().replace(/\/+$/, "");
+    /* Supabase zeigt im Dashboard die fertige API-Adresse mit "/rest/v1/"
+       hinten dran — genau die kopiert man. Die Pfade hängt cloud.js selbst an,
+       deshalb hier abschneiden statt eine Fehlermeldung zu werfen. */
+    var clean = String(url || "").trim()
+      .replace(/\/+$/, "")
+      .replace(/\/(rest|auth)\/v1$/, "");
     if (!/^https:\/\/.+/.test(clean)) {
       return Promise.reject(new Error("Die Projekt-URL muss mit https:// beginnen."));
     }
@@ -80,7 +85,7 @@
   // ---------------------------------------------------------------- Anmeldung
 
   function login(email, password) {
-    if (!cfg) return Promise.reject(new Error("Erst Projekt-URL und Schlüssel eintragen."));
+    if (!cfg) return Promise.reject(new Error("Projekt-URL und Schlüssel fehlen — beides eintragen und auf Speichern drücken."));
     return fetch(cfg.url + "/auth/v1/token?grant_type=password", {
       method: "POST",
       headers: { "apikey": cfg.anonKey, "Content-Type": "application/json" },

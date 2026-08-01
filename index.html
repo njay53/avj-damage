@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=25" />
+<link rel="stylesheet" href="css/app.css?b=28" />
 </head>
 <body>
 
@@ -127,7 +127,13 @@
     </div>
     <div class="field">
       <label for="input-cloud-key">Öffentlicher Projekt-Schlüssel</label>
-      <input type="text" id="input-cloud-key" placeholder="eyJhbGciOi…" autocapitalize="off" spellcheck="false" />
+      <input type="text" id="input-cloud-key" placeholder="sb_publishable_…" autocapitalize="off" spellcheck="false" />
+      <p class="hint">
+        Supabase → Project Settings → API Keys. Der Wert mit <strong>sb_publishable_</strong>
+        am Anfang. Alte Projekte haben stattdessen einen anon-Schlüssel mit <strong>eyJ</strong>;
+        beides geht. Nicht den <strong>sb_secret_</strong>-Schlüssel nehmen — der hebelt den
+        Zugriffsschutz aus und hat im Browser nichts zu suchen.
+      </p>
     </div>
     <div class="btn-row">
       <button id="btn-cloud-save">Speichern</button>
@@ -457,14 +463,14 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=25"></script>
-<script src="js/cloud.js?b=25"></script>
-<script src="js/logo.js?b=25"></script>
-<script src="js/pdf.js?b=25"></script>
-<script src="js/annotate.js?b=25"></script>
-<script src="js/fleet.js?b=25"></script>
-<script src="js/uebersicht.js?b=25"></script>
-<script src="js/snapshot.js?b=25"></script>
-<script src="js/app.js?b=25"></script>
+<script src="js/store.js?b=28"></script>
+<script src="js/cloud.js?b=28"></script>
+<script src="js/logo.js?b=28"></script>
+<script src="js/pdf.js?b=28"></script>
+<script src="js/annotate.js?b=28"></script>
+<script src="js/fleet.js?b=28"></script>
+<script src="js/uebersicht.js?b=28"></script>
+<script src="js/snapshot.js?b=28"></script>
+<script src="js/app.js?b=28"></script>
 </body>
 </html>

@@ -202,6 +202,21 @@ Konto nicht im Weg stehen, und Registrierung von aussen (`Enable signups`)
 gehört ausgeschaltet — sonst könnte sich jeder selbst ein Konto anlegen und
 käme an die Daten.
 
+### Zu den Schlüsseln
+
+Supabase hat die API-Schlüssel umgestellt. Projekte, die seit Ende 2025
+angelegt wurden, haben die alten `eyJ…`-Schlüssel (anon, service_role) zwar
+noch im Dashboard stehen, aber **nicht mehr aktiv** — sie werden mit
+„Invalid API key" abgewiesen.
+
+Richtig ist der Wert, der mit **`sb_publishable_`** beginnt (Project Settings →
+API Keys). Bei älteren Projekten funktioniert weiterhin der anon-Schlüssel mit
+`eyJ`. Die App kommt mit beiden zurecht, sie reicht den Wert nur als `apikey`
+weiter.
+
+Der `sb_secret_`-Schlüssel (früher service_role) gehört **nie** in die App: er
+umgeht den Zugriffsschutz vollständig.
+
 ### 4. In der App eintragen
 
 Projekt → **Settings → API**. Dort stehen:

@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v25";
+  var APP_VERSION = "v28";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -133,7 +133,15 @@
     q("btn-cloud-test").addEventListener("click", function () {
       q("cloud-test-result").classList.remove("hidden");
       q("cloud-test-result").innerHTML = "Prüfe …";
-      App.Cloud.testConnection().then(function (msg) {
+      /* Stehen Werte in den Feldern, werden sie vorher übernommen. Sonst
+         prüft man gegen einen alten Stand und bekommt eine Meldung, die
+         nichts mit dem zu tun hat, was gerade im Feld steht. */
+      var url = q("input-cloud-url").value.trim();
+      var key = q("input-cloud-key").value.trim();
+      var vorlauf = (url && key)
+        ? App.Cloud.saveConfig(url, key).then(refreshCloudUi)
+        : Promise.resolve();
+      vorlauf.then(App.Cloud.testConnection).then(function (msg) {
         q("cloud-test-result").innerHTML = '<span class="ok-text">' + msg + '</span>';
       }).catch(function (err) {
         q("cloud-test-result").innerHTML = '<span class="warn-text">' +
