@@ -14,6 +14,7 @@
      versteckt. */
   var filterKategorie = "";
   var zeigeVersteckte = false;
+  var zeigeArchiv = false;
 
   function esc(str) {
     var d = document.createElement("div");
@@ -72,6 +73,10 @@
     q("btn-edit-damage").addEventListener("click", editCurrentDamage);
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
     q("btn-vehicle-doc").addEventListener("click", function () { druckeAkte(); });
+    q("btn-vehicle-hu-cal").addEventListener("click", function () {
+      var v = Store.getVehicle(currentVehicleId);
+      if (v) huKalender(v);
+    });
 
     q("input-marke").addEventListener("change", function () {
       fuelleModelle(q("input-marke").value);
@@ -110,7 +115,7 @@
     var kats = Store.categories();
     var versteckt = Store.versteckteAnzahl(filterKategorie);
 
-    if (!kats.length && !versteckt) {
+    if (!kats.length && !versteckt && !Store.archivAnzahl()) {
       leiste.classList.add("hidden");
       return;
     }
@@ -144,13 +149,24 @@
           renderFleet();
         });
     }
+    var imArchiv = Store.archivAnzahl();
+    if (imArchiv) {
+      chip("Archiv · " + imArchiv, zeigeArchiv, true, function () {
+        zeigeArchiv = !zeigeArchiv;
+        renderFleet();
+      });
+    }
   }
 
   function renderFleet() {
     renderFilter();
     var grid = q("fleet-grid");
     grid.innerHTML = "";
-    var list = Store.vehicles({ kategorie: filterKategorie, mitVersteckten: zeigeVersteckte });
+    var list = Store.vehicles({
+      kategorie: filterKategorie,
+      mitVersteckten: zeigeVersteckte,
+      archiv: zeigeArchiv
+    });
 
     if (!list.length) {
       var hint = document.createElement("div");
@@ -178,10 +194,16 @@
             ? '<img class="fz-bild" src="' + v.photo + '" alt="" loading="lazy">'
             : '<div class="fz-bild leer" aria-hidden="true">▭</div>') +
           '<div class="fz-text">' +
-            '<h3>' + esc(v.name) +
+            '<h3>' + (v.nr ? '<span class="fz-nr">' + v.nr + '</span>' : '') + esc(v.name) +
               (v.hidden ? ' <span class="klappe-zahl">ausgeblendet</span>' : '') + '</h3>' +
             '<div class="plate">' + esc(v.plate || "kein Kennzeichen") + '</div>' +
             (kat ? '<div class="fz-kat">' + esc(kat) + '</div>' : '') +
+            (function () {
+              var h = huStand(v);
+              return h && h.klasse
+                ? '<span class="hu-marke ' + h.klasse + '">' + esc(h.text) + '</span>'
+                : "";
+            })() +
           '</div>' +
         '</div>' +
         '<div class="fz-marken">' +
@@ -218,10 +240,16 @@
     q("vehicle-plate").textContent = v.plate || "kein Kennzeichen hinterlegt";
     q("vehicle-plate").classList.toggle("leer", !v.plate);
 
+    q("btn-delete-vehicle").textContent = v.archived ? "Aus dem Archiv holen" : "Archivieren …";
+    q("btn-vehicle-hu-cal").classList.toggle("hidden", !v.hu);
+
     var zeile = [];
     var katName = Store.categoryName(v.categoryId);
     if (katName) zeile.push(esc(katName));
     if (v.vin) zeile.push('VIN <span class="mono">' + esc(v.vin) + "</span>");
+    var h = huStand(v);
+    if (h) zeile.push(esc(h.text));
+    if (v.archived) zeile.push("<strong>archiviert</strong>");
     q("vehicle-meta").innerHTML = zeile.join(" · ");
     q("vehicle-meta").classList.toggle("hidden", !zeile.length);
 
@@ -300,7 +328,9 @@
           (istSchaden && d.status && d.status !== "offen"
             ? '<span class="dc-badge stand">' + esc(STANDTEXT[d.status] || "") + '</span>' : '') +
         '</div>' +
-        '<div class="meta">' + esc(fmtDamageDate(d)) +
+        '<div class="meta">' +
+          (istSchaden ? '<span class="fz-nr">' + esc(Store.schadenNummer(v.id, d)) + '</span>' : '') +
+          esc(fmtDamageDate(d)) +
           (!istSchaden && d.anlass ? " · " + esc(anlassText(d.anlass)) : "") +
           (d.km ? " · " + esc(kmText(d.km)) : "") +
           (d.area ? " · " + esc(d.area) : "") + '</div>' +
@@ -369,6 +399,74 @@
 
   /* Schnellauswahl Hersteller → Modell. Sie schreibt nur in die Bezeichnung;
      gespeichert wird weiterhin ausschliesslich dieser eine Text. */
+  /* Kalendereintrag statt Push: eine .ics-Datei mit zwei Weckern wandert in
+     den Kalender des Geräts. Der erinnert danach von allein — auch wenn die
+     App wochenlang nicht geöffnet wird. Für echte Push-Nachrichten bräuchte
+     es einen Server, der läuft; für zwei Termine im Jahr wäre das absurd. */
+  function huKalender(v) {
+    if (!v.hu) {
+      alert("Für dieses Fahrzeug ist kein HU-Termin hinterlegt.\n\n" +
+        "Trag ihn über den Stift neben dem Namen ein.");
+      return;
+    }
+    var tag = v.hu.replace(/-/g, "");
+    var monatsErster = v.hu.slice(0, 8) + "01";
+    var zweiWochen = new Date(new Date(v.hu + "T09:00:00").getTime() - 14 * 86400000);
+
+    function stempel(d) {
+      return d.getUTCFullYear() +
+        String(d.getUTCMonth() + 1).padStart(2, "0") +
+        String(d.getUTCDate()).padStart(2, "0") + "T" +
+        String(d.getUTCHours()).padStart(2, "0") +
+        String(d.getUTCMinutes()).padStart(2, "0") + "00Z";
+    }
+
+    /* Wecker relativ zum Termin, damit der Kalender sie selbst ausrechnet:
+       einer am Ersten des Fälligkeitsmonats, einer zwei Wochen davor. */
+    var tageBisErster = Math.round(
+      (new Date(v.hu + "T12:00:00") - new Date(monatsErster + "T12:00:00")) / 86400000);
+
+    var titel = "HU fällig — " + v.name + (v.plate ? " (" + v.plate + ")" : "");
+    var zeilen = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Autovermietung Jansen//Schadenmanager//DE",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:hu-" + v.id + "-" + tag + "@schadenmanager",
+      "DTSTAMP:" + stempel(new Date()),
+      "DTSTART;VALUE=DATE:" + tag,
+      "DTEND;VALUE=DATE:" + tag,
+      "SUMMARY:" + titel,
+      "DESCRIPTION:Hauptuntersuchung " + (v.plate || v.name) +
+        (v.vin ? "\\nVIN " + v.vin : "") + "\\nEingetragen aus dem Schadenmanager.",
+      "BEGIN:VALARM",
+      "TRIGGER:-P" + tageBisErster + "D",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:" + titel + " — diesen Monat",
+      "END:VALARM",
+      "BEGIN:VALARM",
+      "TRIGGER:-P14D",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:" + titel + " — in zwei Wochen",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ];
+
+    var blob = new Blob([zeilen.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "HU-" + (v.plate || v.name).replace(/[^A-Za-z0-9]+/g, "-") + ".ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    void zweiWochen;
+  }
+
   function fuelleMarken() {
     var sel = q("input-marke");
     sel.innerHTML = '<option value="">— wählen —</option>';
@@ -451,6 +549,7 @@
       plateInput.value = v.plate || "";
       fuelleKategorieAuswahl(v.categoryId);
       q("input-vehicle-vin").value = v.vin || "";
+      q("input-vehicle-hu").value = v.hu || "";
       bildEntwurf = v.photo || "";
       q("input-vehicle-hidden").checked = !!v.hidden;
       q("input-vehicle-zustand").checked = !!v.zustand;
@@ -462,6 +561,7 @@
          Wahrscheinlichkeit auch eins davon. */
       fuelleKategorieAuswahl(filterKategorie);
       q("input-vehicle-vin").value = "";
+      q("input-vehicle-hu").value = "";
       bildEntwurf = "";
       q("input-vehicle-hidden").checked = false;
       q("input-vehicle-zustand").checked = false;
@@ -488,6 +588,7 @@
       name: name,
       plate: plate,
       vin: q("input-vehicle-vin").value.trim().toUpperCase(),
+      hu: q("input-vehicle-hu").value,
       photo: bildEntwurf,
       categoryId: q("input-vehicle-category").value,
       hidden: q("input-vehicle-hidden").checked,
@@ -504,12 +605,45 @@
     });
   }
 
+  /* Zwei Wege aus dem Bestand — und der harmlose ist der voreingestellte.
+     Ein Leasingfahrzeug ist weg, aber die Schadensfrage klärt sich manchmal
+     erst Wochen später. Deshalb Archiv statt Papierkorb. */
   function deleteCurrentVehicle() {
     var v = Store.getVehicle(currentVehicleId);
     if (!v) return;
-    var count = Store.damagesOf(v.id).length;
-    if (!confirm('Fahrzeug "' + v.name + '" inkl. ' + count +
-      ' Schadensbildern löschen?\n\nFestgehaltene Schadensstände bleiben erhalten.')) return;
+
+    if (v.archived) {
+      if (!confirm('"' + v.name + '" ist archiviert.\n\nWieder in den Fuhrpark holen?')) return;
+      Store.archiviere(v.id, false).then(function () {
+        App.Nav.go("fleet");
+        renderFleet();
+      });
+      return;
+    }
+
+    var anzahl = Store.damagesOf(v.id).length;
+    var archivieren = confirm(
+      '"' + v.name + '" aus dem Fuhrpark nehmen?\n\n' +
+      "OK  —  ins Archiv verschieben. Fahrzeug und alle " + anzahl +
+      " Einträge bleiben erhalten und bleiben auffindbar.\n\n" +
+      "Abbrechen  —  nichts tun.");
+    if (!archivieren) return;
+
+    Store.archiviere(v.id, true).then(function () {
+      App.Nav.go("fleet");
+      renderFleet();
+    });
+  }
+
+  /* Endgültig löschen liegt bewusst nicht auf dem Hauptweg. */
+  function loescheFahrzeugEndgueltig() {
+    var v = Store.getVehicle(currentVehicleId);
+    if (!v) return;
+    var anzahl = Store.damagesOf(v.id).length;
+    if (!confirm('"' + v.name + '" mit ' + anzahl + " Einträgen endgültig löschen?\n\n" +
+      "Die Fotos sind danach auch auf den anderen Geräten weg. " +
+      "Festgehaltene Schadensstände bleiben erhalten.")) return;
+    if (!confirm("Wirklich? Das lässt sich nur über eine Sicherungsdatei rückgängig machen.")) return;
     Store.deleteVehicle(v.id).then(function () {
       App.Nav.go("fleet");
       renderFleet();
@@ -533,6 +667,22 @@
     var zahl = parseInt(String(km).replace(/[^0-9]/g, ""), 10);
     if (isNaN(zahl)) return "";
     return zahl.toLocaleString("de-DE") + " km";
+  }
+
+  /* Wie weit ist die HU noch weg? Ab acht Wochen wird es gelb, ab dem
+     Fälligkeitstag rot. */
+  function huStand(v) {
+    if (!v.hu) return null;
+    var ziel = new Date(v.hu + "T12:00:00");
+    if (isNaN(ziel.getTime())) return null;
+    var tage = Math.round((ziel - new Date()) / 86400000);
+    return {
+      tage: tage,
+      klasse: tage < 0 ? "faellig" : (tage <= 56 ? "bald" : ""),
+      text: tage < 0
+        ? "HU überfällig seit " + Math.abs(tage) + " Tagen"
+        : (tage === 0 ? "HU heute fällig" : "HU in " + tage + " Tagen")
+    };
   }
 
   var STANDTEXT = {
@@ -574,6 +724,7 @@
 
     var istZustand = d.kind === "zustand";
     var zusatz = [];
+    if (!istZustand) zusatz.push("Nr. " + Store.schadenNummer(currentVehicleId, d));
     if (istZustand) zusatz.push(anlassText(d.anlass));
     if (!istZustand && d.count > 1) zusatz.push(d.count + " Schäden auf diesem Eintrag");
     if (bilder.length > 1) zusatz.push(bilder.length + " Fotos");
@@ -764,7 +915,12 @@
     bind: bind,
     druckeAkte: druckeAkte,
     renderFleet: renderFleet,
-    _filter: function () { return { kategorie: filterKategorie, versteckte: zeigeVersteckte }; },
+    _filter: function () {
+      return { kategorie: filterKategorie, versteckte: zeigeVersteckte, archiv: zeigeArchiv };
+    },
+    _huKalender: huKalender,
+    _huStand: huStand,
+    loescheFahrzeugEndgueltig: loescheFahrzeugEndgueltig,
     renderVehicle: renderVehicle,
     openVehicle: openVehicle,
     _openDetail: openDetail,

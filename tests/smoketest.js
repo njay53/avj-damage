@@ -431,6 +431,121 @@ function kontrast(a, b) {
     App.Nav.go("fleet");
   }
 
+  console.log("\n--- Nummern ---");
+  {
+    const fz = App.Store.getVehicle(v.id);
+    check("Fahrzeug hat eine Nummer", fz.nr > 0, String(fz.nr));
+    const ersterSchaden = App.Store.damagesOf(v.id, "schaden")
+      .slice().sort((a, b) => a.nr - b.nr)[0];
+    check("Schaden hat eine Nummer", ersterSchaden.nr > 0, String(ersterSchaden.nr));
+    check("Nummer wird als Fahrzeug.Schaden gezeigt",
+      App.Store.schadenNummer(v.id, ersterSchaden) === fz.nr + "." + ersterSchaden.nr,
+      App.Store.schadenNummer(v.id, ersterSchaden));
+
+    const zweit = await App.Store.addVehicle({ name: "Nummerntest", plate: "NOM-JA 42" });
+    check("zweites Fahrzeug bekommt die nächste Nummer", zweit.nr === fz.nr + 1,
+      zweit.nr + " nach " + fz.nr);
+    const d1 = await App.Store.addDamage(zweit.id, { images: ["x"], description: "a" });
+    const d2 = await App.Store.addDamage(zweit.id, { images: ["y"], description: "b" });
+    check("Schäden zählen je Fahrzeug hoch", d1.nr === 1 && d2.nr === 2,
+      d1.nr + "/" + d2.nr);
+    check("Anzeige stimmt", App.Store.schadenNummer(zweit.id, d2) === zweit.nr + ".2");
+    await App.Store.deleteVehicle(zweit.id);
+  }
+
+  console.log("\n--- Suche ---");
+  {
+    const treffer = App.Store.suche("NOM-JA 123");
+    check("findet über das Kennzeichen", treffer.fahrzeuge.some((x) => x.id === v.id),
+      String(treffer.fahrzeuge.length));
+    check("Schreibweise egal",
+      App.Store.suche("nomja123").fahrzeuge.some((x) => x.id === v.id));
+    check("findet über die Bezeichnung",
+      App.Store.suche("Yaris").fahrzeuge.some((x) => x.id === v.id),
+      String(App.Store.suche("Yaris").fahrzeuge.length));
+    check("ein Zeichen sucht noch nicht", App.Store.suche("N").fahrzeuge.length === 0);
+
+    const mitVertrag = await App.Store.addDamage(v.id, {
+      images: ["data:image/jpeg;base64,SUCH"], description: "Delle Heckklappe",
+      vertragsnr: "MV 2026-0777"
+    });
+    check("findet über die Mietvertragsnummer",
+      App.Store.suche("2026-0777").schaeden.some((t) => t.damage.id === mitVertrag.id));
+    check("findet über den Beschreibungstext",
+      App.Store.suche("Heckklappe").schaeden.some((t) => t.damage.id === mitVertrag.id));
+    check("findet über die Schadennummer",
+      App.Store.suche(App.Store.schadenNummer(v.id, mitVertrag))
+        .schaeden.some((t) => t.damage.id === mitVertrag.id));
+
+    // Oberfläche
+    q("input-suche").value = "Heckklappe";
+    q("input-suche").dispatchEvent(new w.Event("input", { bubbles: true }));
+    check("Trefferliste erscheint", !q("suche-ergebnis").classList.contains("hidden"));
+    check("Fuhrpark tritt zurück", q("fleet-grid").classList.contains("hidden"));
+    check("Treffer nennt den Schaden",
+      /Heckklappe/.test(q("suche-ergebnis").textContent), q("suche-ergebnis").textContent);
+    q("btn-suche-leeren").click();
+    check("Leeren stellt den Fuhrpark wieder her",
+      !q("fleet-grid").classList.contains("hidden"));
+
+    await App.Store.deleteDamage(v.id, mitVertrag.id);
+    await App.Store.leerePapierkorb();
+  }
+
+  console.log("\n--- Archiv ---");
+  {
+    const leasing = await App.Store.addVehicle({ name: "DirectCar Leasing", plate: "NOM-JA 55" });
+    await App.Store.addDamage(leasing.id, { images: ["z"], description: "Kratzer" });
+
+    await App.Store.archiviere(leasing.id, true);
+    check("verschwindet aus dem Fuhrpark",
+      !App.Store.vehicles().some((x) => x.id === leasing.id));
+    check("steht im Archiv",
+      App.Store.vehicles({ archiv: true }).some((x) => x.id === leasing.id));
+    check("Archivzähler stimmt", App.Store.archivAnzahl() === 1);
+    check("Schäden bleiben erhalten", App.Store.damagesOf(leasing.id).length === 1);
+    check("bleibt auffindbar", App.Store.suche("DirectCar").fahrzeuge.length === 1);
+
+    await App.Store.archiviere(leasing.id, false);
+    check("kommt zurück in den Fuhrpark",
+      App.Store.vehicles().some((x) => x.id === leasing.id));
+    await App.Store.deleteVehicle(leasing.id);
+  }
+
+  console.log("\n--- HU-Termin ---");
+  {
+    const inZehnTagen = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+    await App.Store.updateVehicle(v.id, { hu: inZehnTagen });
+    const stand = App.Fleet._huStand(App.Store.getVehicle(v.id));
+    check("Frist wird gerechnet", stand.tage === 10, String(stand.tage));
+    check("wird als bald markiert", stand.klasse === "bald", stand.klasse);
+
+    const vorbei = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    await App.Store.updateVehicle(v.id, { hu: vorbei });
+    check("überfällig wird erkannt",
+      App.Fleet._huStand(App.Store.getVehicle(v.id)).klasse === "faellig");
+
+    App.Fleet.renderFleet();
+    check("Fuhrpark zeigt die Fälligkeit",
+      /überfällig/.test(q("fleet-grid").textContent), q("fleet-grid").textContent.slice(0, 120));
+
+    // Kalenderdatei
+    let ics = "";
+    const alterBlob = w.Blob;
+    w.Blob = function (teile) { ics = String(teile[0]); return new alterBlob(teile); };
+    w.URL.createObjectURL = () => "blob:test";
+    w.URL.revokeObjectURL = () => {};
+    App.Fleet._huKalender(App.Store.getVehicle(v.id));
+    w.Blob = alterBlob;
+    check("Kalenderdatei erzeugt", /BEGIN:VCALENDAR/.test(ics));
+    check("Termin trägt das HU-Datum", ics.includes(vorbei.replace(/-/g, "")));
+    check("zwei Wecker dran", (ics.match(/BEGIN:VALARM/g) || []).length === 2);
+    check("einer zwei Wochen vorher", /TRIGGER:-P14D/.test(ics));
+    check("Titel nennt das Fahrzeug", /SUMMARY:HU fällig/.test(ics));
+
+    await App.Store.updateVehicle(v.id, { hu: "" });
+  }
+
   console.log("\n--- Kategorien ---");
   {
     const pkw = await App.Store.addCategory("PKW");
@@ -1016,9 +1131,30 @@ function kontrast(a, b) {
   console.log("\n--- Löschen gibt Platz frei ---");
   {
     const geloescht = App.Store.getVehicle(v.id).damages.find((d) => d.deleted === true);
-    check("gelöschter Schaden behält keine Fotos", geloescht.images.length === 0,
-      String(geloescht.images.length));
     check("Löschmarke bleibt stehen", geloescht.deleted === true);
+    check("Fotos bleiben zunächst — Papierkorb", geloescht.images.length > 0,
+      String(geloescht.images.length));
+    check("Löschzeitpunkt vermerkt", geloescht.deletedAt > 0);
+    check("liegt im Papierkorb",
+      App.Store.papierkorb().some((e) => e.damage.id === geloescht.id));
+    check("Restfrist wird genannt",
+      App.Store.papierkorb().find((e) => e.damage.id === geloescht.id).restTage ===
+      App.Store.PAPIERKORB_TAGE);
+
+    // Zurückholen
+    await App.Store.restoreDamage(v.id, geloescht.id);
+    check("wiederhergestellt",
+      App.Store.damagesOf(v.id).some((d) => d.id === geloescht.id));
+    check("danach nicht mehr im Papierkorb",
+      !App.Store.papierkorb().some((e) => e.damage.id === geloescht.id));
+    await App.Store.deleteDamage(v.id, geloescht.id);
+
+    // Abgelaufene Frist gibt den Platz frei
+    App.Store.getVehicle(v.id).damages.find((d) => d.id === geloescht.id).deletedAt =
+      Date.now() - (App.Store.PAPIERKORB_TAGE + 1) * 86400000;
+    check("abgelaufenes räumt auf", App.Store.entruempele() === true);
+    check("Fotos danach weg",
+      App.Store.getVehicle(v.id).damages.find((d) => d.id === geloescht.id).images.length === 0);
     check("Stand hat seine Kopien behalten",
       App.Store.getSnapshot(stand.id).damages.some((d) => (d.images || []).length > 0));
 
@@ -1030,6 +1166,8 @@ function kontrast(a, b) {
     await App.Store.updateDamage(v.id, dick.id, { deleted: true });   // ohne Aufräumen
     check("Altbestand hat noch Fotos am Tombstone",
       App.Store.getVehicle(v.id).damages.find((d) => d.id === dick.id).images.length === 2);
+    check("Altbestand ohne Löschzeitpunkt",
+      !App.Store.getVehicle(v.id).damages.find((d) => d.id === dick.id).deletedAt);
     check("Aufräumen meldet, dass es etwas gab", App.Store.entruempele() === true);
     check("Altbestand ist danach leer",
       App.Store.getVehicle(v.id).damages.find((d) => d.id === dick.id).images.length === 0);

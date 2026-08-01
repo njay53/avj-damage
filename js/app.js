@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v36";
+  var APP_VERSION = "v37";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -202,7 +202,10 @@
       if (e.key === "Enter") { e.preventDefault(); q("btn-kategorie-add").click(); }
     });
 
-    q("btn-export").addEventListener("click", function () { App.Store.exportDownload(); });
+    q("btn-export").addEventListener("click", function () {
+      App.Store.exportDownload();
+      setTimeout(zeigeSicherung, 150);
+    });
     q("btn-import").addEventListener("click", function () { q("file-import-input").click(); });
 
     q("file-import-input").addEventListener("change", function (e) {
@@ -272,6 +275,163 @@
     if (schalter) schalter.checked = kennungAktiv;
     if (Nav.current() === "vehicle") App.Fleet.renderVehicle();
     if (Nav.current() === "fleet") App.Fleet.renderFleet();
+  }
+
+  // ---------------------------------------------------------------- Suche
+
+  function esc(t) { return App.Fleet.esc(t); }
+
+  function zeigeSuche() {
+    var feld = q("input-suche");
+    var box = q("suche-ergebnis");
+    var begriff = feld.value.trim();
+
+    q("btn-suche-leeren").classList.toggle("hidden", !begriff);
+    /* Unter zwei Zeichen liefert die Suche den halben Bestand — dann lieber
+       den normalen Fuhrpark stehen lassen. */
+    var an = begriff.length >= 2;
+    box.classList.toggle("hidden", !an);
+    q("fleet-grid").classList.toggle("hidden", an);
+    q("kategorie-filter").classList.toggle("hidden", an);
+    var karte = document.getElementById("card-code-search");
+    if (karte) karte.classList.toggle("hidden", an || !kennungAktiv);
+    document.querySelectorAll("#view-fleet .view-head").forEach(function (el) {
+      el.classList.toggle("hidden", an);
+    });
+    if (!an) return;
+
+    var t = App.Store.suche(begriff);
+    box.innerHTML = "";
+
+    if (!t.fahrzeuge.length && !t.schaeden.length && !t.staende.length) {
+      box.innerHTML = '<div class="empty-hint">Nichts gefunden zu „' + esc(begriff) + '".</div>';
+      return;
+    }
+
+    if (t.fahrzeuge.length) {
+      box.appendChild(gruppe("Fahrzeuge", t.fahrzeuge.map(function (v) {
+        return {
+          nr: v.nr ? String(v.nr) : "",
+          bild: v.photo || "",
+          titel: v.name + (v.archived ? " · archiviert" : ""),
+          unten: (v.plate || "kein Kennzeichen") +
+            (v.vin ? " · " + v.vin : ""),
+          klick: function () { App.Fleet.openVehicle(v.id); leereSuche(); }
+        };
+      })));
+    }
+
+    if (t.schaeden.length) {
+      box.appendChild(gruppe("Schäden", t.schaeden.map(function (tr) {
+        var d = tr.damage;
+        return {
+          nr: App.Store.schadenNummer(tr.vehicle.id, d),
+          bild: (d.images || [])[0] || "",
+          titel: d.description || "(keine Beschreibung)",
+          unten: tr.vehicle.name + " · " + App.Fleet.fmtDamageDate(d) +
+            (d.vertragsnr ? " · " + d.vertragsnr : ""),
+          klick: function () { App.Fleet.openVehicle(tr.vehicle.id); leereSuche(); }
+        };
+      })));
+    }
+
+    if (t.staende.length && kennungAktiv) {
+      box.appendChild(gruppe("Schadensstände", t.staende.map(function (st) {
+        return {
+          nr: st.code,
+          bild: "",
+          titel: st.vehicleName + " · " + st.vehiclePlate,
+          unten: App.Fleet.fmtStamp(st.createdAt),
+          klick: function () { App.Snapshot.open(st.id); leereSuche(); }
+        };
+      })));
+    }
+  }
+
+  function gruppe(titel, eintraege) {
+    var wrap = document.createElement("div");
+    wrap.className = "treffer-gruppe";
+    var kopf = document.createElement("div");
+    kopf.className = "section-label";
+    kopf.textContent = titel + " · " + eintraege.length;
+    wrap.appendChild(kopf);
+
+    eintraege.forEach(function (e) {
+      var zeile = document.createElement("div");
+      zeile.className = "treffer";
+      zeile.innerHTML =
+        (e.nr ? '<span class="treffer-nr">' + esc(e.nr) + "</span>" : "") +
+        (e.bild ? '<img class="treffer-bild" src="' + e.bild + '" alt="">' : "") +
+        '<span class="treffer-text">' + esc(e.titel) +
+        "<small>" + esc(e.unten) + "</small></span>";
+      zeile.addEventListener("click", e.klick);
+      wrap.appendChild(zeile);
+    });
+    return wrap;
+  }
+
+  function leereSuche() {
+    q("input-suche").value = "";
+    zeigeSuche();
+  }
+
+  // ---------------------------------------------------------------- Papierkorb
+
+  function zeigePapierkorb() {
+    var box = document.getElementById("papierkorb-liste");
+    if (!box) return;
+    var liste = App.Store.papierkorb();
+    q("papierkorb-hinweis").textContent = liste.length
+      ? "Gelöschte Schäden bleiben " + App.Store.PAPIERKORB_TAGE +
+        " Tage wiederherstellbar. Danach werden die Fotos endgültig entfernt."
+      : "Leer. Gelöschte Schäden landen hier und bleiben " +
+        App.Store.PAPIERKORB_TAGE + " Tage wiederherstellbar.";
+
+    box.innerHTML = "";
+    liste.forEach(function (e) {
+      var zeile = document.createElement("div");
+      zeile.className = "korb-zeile";
+      var bild = (e.damage.images || [])[0] || "";
+      zeile.innerHTML =
+        (bild ? '<img src="' + bild + '" alt="">' : "") +
+        '<span class="korb-text">' + esc(e.damage.description || "(keine Beschreibung)") +
+        "<small>" + esc(e.vehicleName) + " · noch " + e.restTage +
+        (e.restTage === 1 ? " Tag" : " Tage") + "</small></span>";
+
+      var knopf = document.createElement("button");
+      knopf.type = "button";
+      knopf.className = "mini ghost";
+      knopf.textContent = "Zurückholen";
+      knopf.addEventListener("click", function () {
+        App.Store.restoreDamage(e.vehicleId, e.damage.id).then(function () {
+          zeigePapierkorb();
+          App.Fleet.renderFleet();
+        });
+      });
+      zeile.appendChild(knopf);
+      box.appendChild(zeile);
+    });
+  }
+
+  // ---------------------------------------------------------------- Sicherung
+
+  function zeigeSicherung() {
+    var kasten = document.getElementById("sicherung-stand");
+    if (!kasten) return;
+    App.Store.idbGet("lastExport").then(function (wann) {
+      if (!wann) {
+        kasten.className = "note-box warn";
+        kasten.textContent = "Noch nie gesichert. Auf dem kostenlosen Tarif gibt es " +
+          "keine Backups — diese Datei ist dein einziges Netz.";
+        return;
+      }
+      var tage = Math.floor((Date.now() - wann) / 86400000);
+      var wortlaut = tage === 0 ? "heute" : (tage === 1 ? "gestern" : "vor " + tage + " Tagen");
+      kasten.className = "note-box " + (tage >= 28 ? "warn" : "ok");
+      kasten.textContent = "Zuletzt gesichert " + wortlaut + " (" +
+        new Date(wann).toLocaleDateString("de-DE") + ")." +
+        (tage >= 28 ? " Wird Zeit." : "");
+    });
   }
 
   // ---------------------------------------------------------------- Kategorien
@@ -435,8 +595,13 @@
       Nav.go("settings");
       refreshCloudUi();
       renderKategorien();
+      zeigePapierkorb();
+      zeigeSicherung();
       zeigeSpeicher();
     });
+    q("input-suche").addEventListener("input", zeigeSuche);
+    q("btn-suche-leeren").addEventListener("click", leereSuche);
+
     q("btn-heim").addEventListener("click", function () {
       Nav.go("fleet");
       App.Fleet.renderFleet();
@@ -474,7 +639,9 @@
       if (Nav.current() === "settings") refreshCloudUi();
     });
     App.Store.onChange(function () {
-      if (Nav.current() === "settings") zeigeSpeicher();
+      if (Nav.current() !== "settings") return;
+      zeigeSpeicher();
+      zeigePapierkorb();
     });
 
     /* Schritt 1: Datenbank. Nur hier ist "Daten nicht ladbar" die richtige Diagnose. */

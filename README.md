@@ -233,6 +233,51 @@ Fall hinein.
 
 ---
 
+## Nummern, Suche, Archiv
+
+**Jedes Fahrzeug hat eine Nummer**, jeder Schaden darunter eine eigene. Der
+dritte Schaden am Fahrzeug 1 heisst `1.3` — kurz genug, um sie am Telefon
+durchzugeben oder in eine rentsoft-Notiz zu schreiben. Bestehende Einträge
+wurden beim ersten Start nachnummeriert, in der Reihenfolge ihrer Anlage.
+
+**Die Suche** oben im Fuhrpark nimmt alles: Kennzeichen, Bezeichnung, VIN,
+Mietvertragsnummer, Schadennummer, Kennung eines Standes, Beschreibungstext.
+Gross- und Kleinschreibung, Bindestriche und Leerzeichen sind egal — `nomja123`
+findet `NOM-JA 123`. Ab zwei Zeichen tritt der Fuhrpark zurück und die Treffer
+erscheinen, nach Fahrzeugen, Schäden und Ständen getrennt.
+
+**Archiv statt löschen.** Der Knopf im Fahrzeug heisst „Archivieren …". Ein
+Leasingfahrzeug, das zurückgeht, wandert dorthin: aus dem Fuhrpark raus, aber
+mit allen Schäden erhalten und weiterhin über die Suche auffindbar. Denn die
+Schadensfrage klärt sich manchmal erst, wenn der Wagen längst weg ist. Ein Chip
+„Archiv · 3" über der Übersicht holt sie hervor; endgültig löschen geht
+weiterhin, liegt aber bewusst nicht auf dem Hauptweg.
+
+**Papierkorb für Schäden.** Ein gelöschter Schaden behält seine Fotos 30 Tage
+und lässt sich in den Einstellungen zurückholen. Erst danach wird der Platz
+freigegeben. Draussen am Fahrzeug, mit nassen Fingern, ist ein Fehlgriff eben
+kein Weltuntergang mehr.
+
+---
+
+## HU-Termine
+
+Je Fahrzeug lässt sich die nächste Hauptuntersuchung eintragen. Im Fuhrpark
+erscheint dann acht Wochen vorher eine gelbe Marke, nach dem Termin eine rote.
+
+Erinnern lässt die App den **Kalender des Geräts** — der Knopf „HU in Kalender"
+erzeugt einen Termin mit zwei Weckern: einer am Ersten des Fälligkeitsmonats,
+einer zwei Wochen vorher. Danach meldet sich iOS von selbst, auch wenn die App
+monatelang nicht geöffnet wird.
+
+Bewusst **keine** Push-Nachrichten: die könnte eine Web-App auf dem iPhone zwar
+seit iOS 16.4, aber nur mit einem Server, der sie verschickt. GitHub Pages ist
+reine Ablage. Über Supabase wäre es machbar und für zwei Termine im Jahr je
+Fahrzeug völlig unverhältnismässig — der Kalender kann das besser und
+zuverlässiger.
+
+---
+
 ## Wann synchronisiert wird
 
 Von allein, ohne Knopfdruck:

@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=36" />
+<link rel="stylesheet" href="css/app.css?b=37" />
 </head>
 <body>
 
@@ -38,6 +38,14 @@
 
 <!-- ============================================ FUHRPARK -->
 <section id="view-fleet" class="content wide">
+  <div class="suchzeile">
+    <input type="text" id="input-suche" placeholder="Suchen: Kennzeichen, Nummer, Mietvertrag …"
+           autocapitalize="off" spellcheck="false" />
+    <button type="button" class="secondary icon-btn hidden" id="btn-suche-leeren"
+            aria-label="Suche leeren">✕</button>
+  </div>
+  <div id="suche-ergebnis" class="hidden"></div>
+
   <div class="card hidden" id="card-code-search">
     <div class="tool-title">Kennung nachschlagen</div>
     <div class="field" style="margin-bottom:0">
@@ -66,7 +74,8 @@
     </div>
     <div class="btn-row">
       <button class="secondary" id="btn-vehicle-doc">PDF erstellen</button>
-      <button class="ghost-danger" id="btn-delete-vehicle">Löschen</button>
+      <button class="secondary" id="btn-vehicle-hu-cal">HU in Kalender</button>
+      <button class="secondary mini" id="btn-delete-vehicle">Archivieren …</button>
     </div>
   </div>
   <div class="plate-big" id="vehicle-plate"></div>
@@ -220,7 +229,14 @@
   </div>
 
   <div class="card">
+    <div class="tool-title">Papierkorb</div>
+    <p class="hint no-top" id="papierkorb-hinweis"></p>
+    <div id="papierkorb-liste"></div>
+  </div>
+
+  <div class="card">
     <div class="tool-title">Sicherung als Datei</div>
+    <div class="note-box" id="sicherung-stand"></div>
     <p class="hint no-top">
       Unabhängig vom Abgleich: alle Fahrzeuge, Schäden und Stände als eine Datei sichern
       oder einlesen. Sinnvoll vor grösseren Änderungen.
@@ -270,6 +286,10 @@
       <div class="field">
         <label for="input-vehicle-category">Kategorie</label>
         <select id="input-vehicle-category"></select>
+      </div>
+      <div class="field">
+        <label for="input-vehicle-hu">Nächste HU <em>(optional)</em></label>
+        <input type="date" id="input-vehicle-hu" />
       </div>
       <div class="field">
         <label for="input-vehicle-vin">VIN <em>(optional)</em></label>
@@ -561,15 +581,15 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=36"></script>
-<script src="js/modelle.js?b=36"></script>
-<script src="js/cloud.js?b=36"></script>
-<script src="js/logo.js?b=36"></script>
-<script src="js/pdf.js?b=36"></script>
-<script src="js/annotate.js?b=36"></script>
-<script src="js/fleet.js?b=36"></script>
-<script src="js/uebersicht.js?b=36"></script>
-<script src="js/snapshot.js?b=36"></script>
-<script src="js/app.js?b=36"></script>
+<script src="js/store.js?b=37"></script>
+<script src="js/modelle.js?b=37"></script>
+<script src="js/cloud.js?b=37"></script>
+<script src="js/logo.js?b=37"></script>
+<script src="js/pdf.js?b=37"></script>
+<script src="js/annotate.js?b=37"></script>
+<script src="js/fleet.js?b=37"></script>
+<script src="js/uebersicht.js?b=37"></script>
+<script src="js/snapshot.js?b=37"></script>
+<script src="js/app.js?b=37"></script>
 </body>
 </html>

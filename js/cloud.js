@@ -180,7 +180,8 @@
       vehicleRows.push({
         id: v.id, name: v.name, plate: v.plate || "",
         category_id: v.categoryId || "", hidden: !!v.hidden, zustand: !!v.zustand,
-        vin: v.vin || "", photo: v.photo || "",
+        vin: v.vin || "", photo: v.photo || "", hu: v.hu || "",
+        nr: parseInt(v.nr, 10) || 0, archived: !!v.archived,
         deleted: !!v.deleted, updated_at: v.updatedAt || 0
       });
       (v.damages || []).forEach(function (d) {
@@ -197,6 +198,8 @@
           zahlung: typeof d.zahlung === "number" ? d.zahlung : null,
           kosten: typeof d.kosten === "number" ? d.kosten : null,
           vertragsnr: d.vertragsnr || "",
+          nr: parseInt(d.nr, 10) || 0,
+          deleted_at: d.deletedAt || 0,
           regulierung: d.regulierung || "mieter",
           erstattung: typeof d.erstattung === "number" ? d.erstattung : null,
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
@@ -229,7 +232,8 @@
       var v = {
         id: r.id, name: r.name, plate: r.plate || "",
         categoryId: r.category_id || "", hidden: !!r.hidden, zustand: !!r.zustand,
-        vin: r.vin || "", photo: r.photo || "",
+        vin: r.vin || "", photo: r.photo || "", hu: r.hu || "",
+        nr: Number(r.nr) || 0, archived: !!r.archived,
         deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0, damages: []
       };
       byId[r.id] = v;
@@ -259,6 +263,8 @@
         zahlung: r.zahlung,
         kosten: r.kosten,
         vertragsnr: r.vertragsnr || "",
+        nr: Number(r.nr) || 0,
+        deletedAt: Number(r.deleted_at) || 0,
         regulierung: r.regulierung || "mieter",
         erstattung: r.erstattung,
         deleted: !!r.deleted,

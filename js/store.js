@@ -119,11 +119,55 @@
 
   /* opts.mitVersteckten — Langzeitmieten sind normalerweise ausgeblendet
      opts.kategorie      — Kennung einer Kategorie, "" heisst alle */
+  function naechsteFahrzeugNr() {
+    return state.vehicles.reduce(function (m, v) {
+      return Math.max(m, parseInt(v.nr, 10) || 0);
+    }, 0) + 1;
+  }
+
+  function naechsteSchadenNr(v) {
+    return (v.damages || []).reduce(function (m, d) {
+      return Math.max(m, parseInt(d.nr, 10) || 0);
+    }, 0) + 1;
+  }
+
+  /* Bestand nachnummerieren — Fahrzeuge in der Reihenfolge ihrer Anlage,
+     Schäden ebenso. Läuft einmal beim Start und danach nur noch für das,
+     was ohne Nummer hereinkommt. */
+  function vergebeNummern() {
+    var geaendert = false;
+    var ohne = state.vehicles.filter(function (v) { return !parseInt(v.nr, 10); });
+    ohne.sort(function (a, b) { return (a.updatedAt || 0) - (b.updatedAt || 0); })
+      .forEach(function (v) {
+        v.nr = naechsteFahrzeugNr();
+        geaendert = true;
+      });
+
+    state.vehicles.forEach(function (v) {
+      var fehlend = (v.damages || []).filter(function (d) { return !parseInt(d.nr, 10); });
+      fehlend.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); })
+        .forEach(function (d) {
+          d.nr = naechsteSchadenNr(v);
+          geaendert = true;
+        });
+    });
+    return geaendert;
+  }
+
+  /* "1.3" — kurz genug, um sie am Telefon durchzugeben. */
+  function schadenNummer(vehicleId, damage) {
+    var v = getVehicle(vehicleId);
+    if (!v || !damage) return "";
+    return (v.nr || "?") + "." + (damage.nr || "?");
+  }
+
   function vehicles(opts) {
     var o = opts || {};
     return state.vehicles
       .filter(function (v) {
         if (v.deleted) return false;
+        if (v.archived && !o.archiv) return false;
+        if (o.archiv && !v.archived) return false;
         if (v.hidden && !o.mitVersteckten) return false;
         if (o.kategorie && (v.categoryId || "") !== o.kategorie) return false;
         return true;
@@ -131,9 +175,24 @@
       .sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "de"); });
   }
 
+  function archivAnzahl() {
+    return state.vehicles.filter(function (v) {
+      return !v.deleted && v.archived;
+    }).length;
+  }
+
+  function archiviere(id, an) {
+    var v = getVehicle(id);
+    if (!v) return Promise.resolve();
+    v.archived = !!an;
+    v.archivedAt = an ? now() : 0;
+    v.updatedAt = now();
+    return save();
+  }
+
   function versteckteAnzahl(kategorie) {
     return state.vehicles.filter(function (v) {
-      if (v.deleted || !v.hidden) return false;
+      if (v.deleted || v.archived || !v.hidden) return false;
       if (kategorie && (v.categoryId || "") !== kategorie) return false;
       return true;
     }).length;
@@ -163,8 +222,13 @@
       id: uid("veh"),
       name: data.name,
       plate: data.plate || "",
+      /* Durchlaufende Nummer, damit ein Schaden kurz benannt werden kann:
+         Fahrzeug 1, dritter Schaden → "1.3". */
+      nr: naechsteFahrzeugNr(),
       categoryId: data.categoryId || "",
       vin: data.vin || "",
+      hu: data.hu || "",
+      archived: false,
       photo: data.photo || "",
       hidden: !!data.hidden,
       /* Zustandsaufnahmen sind der Sonderfall (Langzeitmiete), nicht die Regel —
@@ -184,6 +248,7 @@
     if (typeof data.plate === "string") v.plate = data.plate;
     if ("categoryId" in data) v.categoryId = data.categoryId || "";
     if ("vin" in data) v.vin = data.vin || "";
+    if ("hu" in data) v.hu = data.hu || "";
     if ("photo" in data) v.photo = data.photo || "";
     if ("hidden" in data) v.hidden = !!data.hidden;
     if ("zustand" in data) v.zustand = !!data.zustand;
@@ -289,7 +354,12 @@
         return;
       }
       (v.damages || []).forEach(function (d) {
-        if (d.deleted && d.images && d.images.length) {
+        if (!d.deleted || !d.images || !d.images.length) return;
+        /* Ohne Löschzeitpunkt stammt der Eintrag aus einer Fassung ohne
+           Papierkorb — der darf sofort weg. */
+        var abgelaufen = !d.deletedAt ||
+          (now() - d.deletedAt) > PAPIERKORB_TAGE * 86400000;
+        if (abgelaufen) {
           d.images = [];
           geaendert = true;
         }
@@ -370,6 +440,7 @@
       date: damage.date || "",
       dateMode: damage.dateMode || (damage.date ? "exact" : "unknown"),
       area: damage.area || "",
+      nr: naechsteSchadenNr(v),
       kind: damage.kind === "zustand" ? "zustand" : "schaden",
       status: STAENDE.indexOf(damage.status) === -1 ? "offen" : damage.status,
       schaetzung: zuBetrag(damage.schaetzung),
@@ -402,10 +473,95 @@
     return save();
   }
 
+  /* Gelöschtes wandert in den Papierkorb: die Fotos bleiben noch, damit ein
+     Fehlgriff draussen am Fahrzeug nicht endgültig ist. Erst nach Ablauf der
+     Frist wird der Platz freigegeben. */
+  var PAPIERKORB_TAGE = 30;
+
   function deleteDamage(vehicleId, damageId) {
-    /* images gleich mit leeren, damit schon der nächste Abgleich die schlanke
-       Fassung überträgt statt die Fotos ein letztes Mal hochzuladen. */
-    return updateDamage(vehicleId, damageId, { deleted: true, images: [] });
+    return updateDamage(vehicleId, damageId, { deleted: true, deletedAt: now() });
+  }
+
+  function restoreDamage(vehicleId, damageId) {
+    return updateDamage(vehicleId, damageId, { deleted: false, deletedAt: 0 });
+  }
+
+  /* Was im Papierkorb liegt, quer über alle Fahrzeuge. */
+  function papierkorb() {
+    var raus = [];
+    state.vehicles.forEach(function (v) {
+      if (v.deleted) return;
+      (v.damages || []).forEach(function (d) {
+        if (!d.deleted || !d.deletedAt) return;
+        if (!(d.images || []).length) return;     // schon endgültig geräumt
+        raus.push({
+          vehicleId: v.id,
+          vehicleName: v.name,
+          damage: d,
+          restTage: Math.max(0, PAPIERKORB_TAGE -
+            Math.floor((now() - d.deletedAt) / 86400000))
+        });
+      });
+    });
+    return raus.sort(function (a, b) { return b.damage.deletedAt - a.damage.deletedAt; });
+  }
+
+  function leerePapierkorb() {
+    var geaendert = false;
+    state.vehicles.forEach(function (v) {
+      (v.damages || []).forEach(function (d) {
+        if (d.deleted && (d.images || []).length) {
+          d.images = [];
+          d.updatedAt = now();
+          geaendert = true;
+        }
+      });
+    });
+    return geaendert ? save() : Promise.resolve();
+  }
+
+  // ---------------------------------------------------------------- Suche
+
+  /* Ein Feld für alles: Kennzeichen, Bezeichnung, Fahrgestellnummer,
+     Mietvertrag, Schadennummer, Kennung eines Standes, Beschreibungstext.
+     Getippt wird am Telefon, deshalb wird gross/klein und Leerzeichen egal
+     behandelt — "NOM JA123" findet auch "NOM-JA 123". */
+  function vereinfache(text) {
+    return String(text || "").toLowerCase().replace(/[\s\-.]/g, "");
+  }
+
+  function suche(begriff) {
+    var roh = String(begriff || "").trim();
+    if (roh.length < 2) return { fahrzeuge: [], schaeden: [], staende: [] };
+    var n = vereinfache(roh);
+
+    var fahrzeuge = state.vehicles.filter(function (v) {
+      if (v.deleted) return false;
+      return [v.name, v.plate, v.vin, "nr" + v.nr].some(function (f) {
+        return vereinfache(f).indexOf(n) !== -1;
+      });
+    });
+
+    var schaeden = [];
+    state.vehicles.forEach(function (v) {
+      if (v.deleted) return;
+      (v.damages || []).forEach(function (d) {
+        if (d.deleted) return;
+        var felder = [d.description, d.area, d.vertragsnr,
+          (v.nr || "") + "." + (d.nr || ""), v.name, v.plate];
+        if (felder.some(function (f) { return vereinfache(f).indexOf(n) !== -1; })) {
+          schaeden.push({ vehicle: v, damage: d });
+        }
+      });
+    });
+
+    var staende = state.snapshots.filter(function (s2) {
+      if (s2.deleted) return false;
+      return [s2.code, s2.vehicleName, s2.vehiclePlate, s2.reference]
+        .some(function (f) { return vereinfache(f).indexOf(n) !== -1; });
+    });
+
+    return { fahrzeuge: fahrzeuge, schaeden: schaeden, staende: staende };
   }
 
   // ---------------------------------------------------------------- Kategorien
@@ -651,6 +807,9 @@
         local.plate = rv.plate;
         local.categoryId = rv.categoryId || "";
         local.vin = rv.vin || "";
+        local.hu = rv.hu || "";
+        local.nr = rv.nr || local.nr;
+        local.archived = !!rv.archived;
         local.photo = rv.photo || "";
         local.hidden = !!rv.hidden;
         local.zustand = !!rv.zustand;
@@ -707,6 +866,7 @@
        hereinkommen — die werden hier gleich überführt. */
     if (changed) {
       normalisiereAlles();
+      vergebeNummern();
       /* Das andere Gerät kann eine Löschung schicken, die hiesigen Fotos dazu
          liegen aber noch lokal. */
       entruempele();
@@ -737,12 +897,15 @@
   // ------------------------------------------------- Sicherung als Datei
 
   function exportDownload() {
+    /* Zeitpunkt merken, damit die Einstellungen daran erinnern können. */
+    idbSet("lastExport", now());
     var payload = {
       format: "jansen-fahrzeuge",
       version: 2,
       exportedAt: now(),
       vehicles: state.vehicles,
-      snapshots: state.snapshots
+      snapshots: state.snapshots,
+      categories: state.categories
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -776,8 +939,10 @@
       if (Array.isArray(res[1])) state.snapshots = res[1];
       if (Array.isArray(res[2])) state.categories = res[2];
       normalisiereAlles();
-      /* Einmal beim Start: gibt den Platz früher gelöschter Einträge frei. */
-      if (entruempele()) return persistOnly();
+      /* Einmal beim Start: Nummern nachtragen, abgelaufenen Papierkorb räumen. */
+      var a = vergebeNummern();
+      var b = entruempele();
+      if (a || b) return persistOnly();
     });
   }
 
@@ -792,6 +957,13 @@
 
     vehicles: vehicles,
     versteckteAnzahl: versteckteAnzahl,
+    archivAnzahl: archivAnzahl,
+    archiviere: archiviere,
+    schadenNummer: schadenNummer,
+    restoreDamage: restoreDamage,
+    papierkorb: papierkorb,
+    leerePapierkorb: leerePapierkorb,
+    PAPIERKORB_TAGE: PAPIERKORB_TAGE,
     getVehicle: getVehicle,
     categories: categories,
     getCategory: getCategory,
@@ -804,6 +976,7 @@
     damagesOf: damagesOf,
     damageCount: damageCount,
     bilanz: bilanz,
+    suche: suche,
     zuBetrag: zuBetrag,
     normalisiereSchaden: normalisiereSchaden,
     entruempele: entruempele,

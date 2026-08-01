@@ -99,6 +99,16 @@ alter table public.damages add column if not exists zahlung     numeric;
 alter table public.damages add column if not exists kosten      numeric;
 alter table public.damages add column if not exists vertragsnr  text    not null default '';
 
+-- nr          = durchlaufende Nummer je Fahrzeug bzw. je Schaden ("1.3")
+-- archived    = Fahrzeug ist raus aus dem Bestand, Daten bleiben
+-- hu          = naechste Hauptuntersuchung, Datum als Text (JJJJ-MM-TT)
+-- deleted_at  = Zeitpunkt der Loeschung, steuert den Papierkorb
+alter table public.vehicles add column if not exists nr          integer not null default 0;
+alter table public.vehicles add column if not exists archived    boolean not null default false;
+alter table public.vehicles add column if not exists hu          text    not null default '';
+alter table public.damages  add column if not exists nr          integer not null default 0;
+alter table public.damages  add column if not exists deleted_at  bigint  not null default 0;
+
 -- regulierung = mieter | kasko | teilkasko | haftpflicht | selbst
 -- erstattung  = was die Versicherung bzw. der Gegner gezahlt hat
 alter table public.damages add column if not exists regulierung text    not null default 'mieter';
