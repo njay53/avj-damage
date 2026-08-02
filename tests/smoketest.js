@@ -162,6 +162,15 @@ function kontrast(a, b) {
     check("Homescreen-Name ist Schadenmanager", mani.short_name === "Schadenmanager", mani.short_name);
     const html = fs.readFileSync(path.join(APP, "index.html"), "utf8");
     check("kein alter Name mehr im HTML", !/AVJ Schäden|– damage/.test(html));
+
+    /* Beide Werkzeuge liegen auf derselben Domain — ohne eigenes Symbol
+       sähen sie auf dem Homescreen gleich aus. */
+    const symbole = ["icons/favicon.png", "icons/icon-192.png",
+      "icons/icon-512.png", "icons/icon-maskable-512.png"];
+    symbole.forEach((datei) => {
+      const roh = fs.readFileSync(path.join(APP, datei));
+      check("Symbol vorhanden: " + datei, roh.length > 500, String(roh.length));
+    });
     check("nicht für Suchmaschinen", /name="robots"[^>]*noindex/.test(html));
     check("robots.txt sperrt alles",
       /Disallow: \//.test(fs.readFileSync(path.join(APP, "robots.txt"), "utf8")));

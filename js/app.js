@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v40";
+  var APP_VERSION = "v41";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";

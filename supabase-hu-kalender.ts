@@ -29,7 +29,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
   /* Ohne hinterlegtes Wort bleibt die Funktion zu — sonst waere sie beim
      ersten Fehlgriff in der Einrichtung offen fuer jeden. */
   if (erwartet.length < 16 || !gleich(token, erwartet)) {
-    return new Response("Nicht berechtigt.", { status: 401 });
+    /* Diagnose ohne Preisgabe: nur Laengen und ob die ersten zwei Zeichen
+       passen. Damit laesst sich unterscheiden, ob das Secret ueberhaupt
+       ankommt, ob die Adresse ein Wort mitbringt und ob beide gleich lang
+       sind. Das Wort selbst steht nirgends. */
+    const hinweis = [
+      "Nicht berechtigt.",
+      "",
+      "Secret KALENDER_TOKEN: " +
+        (erwartet.length === 0
+          ? "FEHLT oder ist bei der Funktion nicht angekommen"
+          : erwartet.length + " Zeichen" +
+            (erwartet.length < 16 ? " — zu kurz, mindestens 16 noetig" : "")),
+      "Wort in der Adresse:   " +
+        (token.length === 0 ? "FEHLT (?token=... vergessen?)" : token.length + " Zeichen"),
+      "Anfang gleich:         " +
+        (erwartet.length && token.length
+          ? (erwartet.slice(0, 2) === token.slice(0, 2) ? "ja" : "nein")
+          : "-"),
+      "Laenge gleich:         " +
+        (erwartet.length && token.length
+          ? (erwartet.length === token.length ? "ja" : "nein")
+          : "-"),
+    ].join("\n");
+
+    return new Response(hinweis, {
+      status: 401,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const basis = Deno.env.get("SUPABASE_URL") ?? "";
