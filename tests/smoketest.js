@@ -1439,6 +1439,214 @@ function kontrast(a, b) {
   check("Druckbereich gefüllt", q("print-area").innerHTML.length > 400);
 
   // =====================================================================
+  console.log("\n--- Zurück-Geste: Verlauf ---");
+  {
+    // Sauberer Ausgangspunkt: aus früheren Blöcken kann ein Dialog offen sein
+    w.document.querySelectorAll(".modal-overlay").forEach((o) => o.classList.add("hidden"));
+    App.Nav.go("fleet");
+    await wait(20);
+    const tiefeVorher = w.history.length;
+
+    App.Fleet.openVehicle(v.id);
+    await wait(20);
+    check("Fahrzeug offen", !q("view-vehicle").classList.contains("hidden"));
+    check("Wechsel steht im Verlauf", w.history.state && w.history.state.view === "vehicle",
+      JSON.stringify(w.history.state));
+    check("Verlauf ist gewachsen", w.history.length > tiefeVorher,
+      tiefeVorher + " -> " + w.history.length);
+    check("Fahrzeug ist im Eintrag vermerkt", w.history.state.vid === v.id);
+
+    w.history.back();
+    await wait(80);
+    check("zurück landet im Fuhrpark", !q("view-fleet").classList.contains("hidden"));
+    check("Fahrzeugansicht ist zu", q("view-vehicle").classList.contains("hidden"));
+
+    // Vorwärts wieder hinein, damit der Eintrag wiederhergestellt wird
+    App.Fleet.openVehicle(v.id);
+    await wait(20);
+    q("modal-vehicle").classList.remove("hidden");
+    w.history.back();
+    await wait(80);
+    check("offener Dialog wird zuerst geschlossen",
+      q("modal-vehicle").classList.contains("hidden"));
+    check("Ansicht bleibt dabei stehen", !q("view-vehicle").classList.contains("hidden"));
+
+    w.history.back();
+    await wait(80);
+    check("erst der zweite Schritt verlässt die Ansicht",
+      !q("view-fleet").classList.contains("hidden"));
+
+    // Einstellungen zählen als eigene Ebene
+    q("btn-settings").click();
+    await wait(20);
+    check("Einstellungen offen", !q("view-settings").classList.contains("hidden"));
+    w.history.back();
+    await wait(80);
+    check("zurück aus den Einstellungen", !q("view-fleet").classList.contains("hidden"));
+  }
+
+  console.log("\n--- Zurück-Geste: Wischen vom linken Rand ---");
+  {
+    function wisch(vonX, nachX, y2, dauer) {
+      const start = new w.Event("touchstart", { bubbles: true });
+      start.touches = [{ clientX: vonX, clientY: 300 }];
+      w.document.dispatchEvent(start);
+      const ende = new w.Event("touchend", { bubbles: true });
+      ende.changedTouches = [{ clientX: nachX, clientY: y2 === undefined ? 300 : y2 }];
+      return new Promise((fertig) => {
+        setTimeout(() => { w.document.dispatchEvent(ende); setTimeout(fertig, 80); },
+          dauer === undefined ? 5 : dauer);
+      });
+    }
+
+    App.Fleet.openVehicle(v.id);
+    await wait(20);
+    await wisch(8, 160);
+    check("Wisch vom Rand geht zurück", !q("view-fleet").classList.contains("hidden"));
+
+    // Aus der Mitte heraus ist es Scrollen, kein Zurück
+    App.Fleet.openVehicle(v.id);
+    await wait(20);
+    await wisch(200, 340);
+    check("Wisch aus der Mitte tut nichts", !q("view-vehicle").classList.contains("hidden"));
+
+    // Zu kurz gewischt
+    await wisch(8, 40);
+    check("kurzer Wisch tut nichts", !q("view-vehicle").classList.contains("hidden"));
+
+    // Zu schräg — das war Scrollen
+    await wisch(8, 160, 500);
+    check("schräger Wisch tut nichts", !q("view-vehicle").classList.contains("hidden"));
+
+    // Im Dialog wird gezeichnet, da darf kein Wisch die Arbeit wegnehmen
+    q("modal-vehicle").classList.remove("hidden");
+    await wisch(8, 160);
+    check("im Dialog wird nicht gewischt", !q("view-vehicle").classList.contains("hidden"));
+    check("Dialog bleibt dabei offen", !q("modal-vehicle").classList.contains("hidden"));
+    q("modal-vehicle").classList.add("hidden");
+
+    await wisch(8, 160);
+    await wait(40);
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    await wait(20);
+  }
+
+  console.log("\n--- Mehrere Fotos auf einmal ---");
+  {
+    const alb = q("input-photo-file");
+    const cam = q("input-photo-camera");
+    check("Album nimmt mehrere", alb.hasAttribute("multiple"));
+    check("Kamera bleibt bei einem", !cam.hasAttribute("multiple"));
+    check("Knopf für das nächste Kamerabild vorhanden", !!q("btn-photo-again"));
+    check("Knopf ist zunächst versteckt", q("btn-photo-again").classList.contains("hidden"));
+
+    const echteImage = w.Image, echterReader = w.FileReader;
+
+    /* Die Dateien werden absichtlich in verkehrter Reihenfolge fertig:
+       die dritte zuerst. Am Ende muss die Auswahlreihenfolge stehen. */
+    w.FileReader = class {
+      readAsDataURL(f) {
+        setTimeout(() => {
+          if (this.onload) this.onload({ target: { result: "data:image/jpeg;name," + f.name } });
+        }, f.__warten || 0);
+      }
+    };
+    w.Image = class {
+      constructor() { this.width = 200; this.height = 100; }
+      set src(v) {
+        this._src = v;
+        this.__name = String(v).split(",")[1] || "";
+        setTimeout(() => { if (this.onload) this.onload(); }, 0);
+      }
+      get src() { return this._src; }
+    };
+
+    const dateien = [
+      { type: "image/jpeg", name: "eins", __warten: 40 },
+      { type: "image/jpeg", name: "zwei", __warten: 10 },
+      { type: "image/jpeg", name: "drei", __warten: 0 }
+    ];
+    Object.defineProperty(alb, "files", { value: dateien, configurable: true });
+
+    App.Annotate.open({ title: "Mehrfach", onSave: () => {} });
+    w.__zeichnungen.length = 0;
+    alb.dispatchEvent(new w.Event("change", { bubbles: true }));
+    await wait(250);
+
+    check("drei Fotos im Streifen", q("photo-strip").children.length === 3,
+      String(q("photo-strip").children.length));
+    check("Meldung nennt die Zahl", /3 Fotos/.test(q("photo-status").textContent),
+      q("photo-status").textContent);
+    check("Speichern ist frei", !q("btn-save-damage").disabled);
+
+    const gezeichnet = w.__zeichnungen
+      .filter((z) => z.op === "drawImage" && z.args[0] && z.args[0].__name)
+      .map((z) => z.args[0].__name);
+    const letzteDrei = gezeichnet.slice(-3).join(",");
+    check("Reihenfolge der Auswahl bleibt", letzteDrei === "eins,zwei,drei", letzteDrei);
+    check("Album-Knopf zeigt kein Kamera-Angebot",
+      q("btn-photo-again").classList.contains("hidden"));
+
+    // Eine kaputte Datei darf die anderen nicht mitreissen
+    App.Annotate.close();
+    App.Annotate.open({ title: "Mehrfach", onSave: () => {} });
+    const kaputt = [
+      { type: "image/jpeg", name: "gut" },
+      { type: "image/jpeg", name: "BRUCH" }
+    ];
+    Object.defineProperty(alb, "files", { value: kaputt, configurable: true });
+    w.Image = class {
+      constructor() { this.width = 200; this.height = 100; }
+      set src(v) {
+        this._src = v;
+        const name = String(v).split(",")[1] || "";
+        this.__name = name;
+        setTimeout(() => {
+          if (name === "BRUCH") { if (this.onerror) this.onerror(); }
+          else if (this.onload) this.onload();
+        }, 0);
+      }
+      get src() { return this._src; }
+    };
+    alb.dispatchEvent(new w.Event("change", { bubbles: true }));
+    await wait(150);
+    check("das lesbare Foto kommt an", q("photo-strip").children.length === 1,
+      String(q("photo-strip").children.length));
+    check("die kaputte Datei wird benannt", /nicht lesen/.test(q("photo-status").textContent),
+      q("photo-status").textContent);
+
+    // Kamera: nach der Aufnahme steht der Weg zum nächsten Bild bereit
+    App.Annotate.close();
+    App.Annotate.open({ title: "Kamera", onSave: () => {} });
+    w.Image = class {
+      constructor() { this.width = 200; this.height = 100; }
+      set src(v) { this._src = v; setTimeout(() => { if (this.onload) this.onload(); }, 0); }
+      get src() { return this._src; }
+    };
+    Object.defineProperty(cam, "files", {
+      value: [{ type: "image/jpeg", name: "knipps" }], configurable: true
+    });
+    cam.dispatchEvent(new w.Event("change", { bubbles: true }));
+    await wait(150);
+    check("nach der Aufnahme kommt das Angebot für das nächste Bild",
+      !q("btn-photo-again").classList.contains("hidden"));
+    let wiederAuf = false;
+    cam.click = () => { wiederAuf = true; };
+    q("btn-photo-again").click();
+    check("der Knopf öffnet die Kamera erneut", wiederAuf);
+
+    App.Annotate.close();
+    check("beim Schliessen verschwindet das Angebot",
+      q("btn-photo-again").classList.contains("hidden"));
+
+    w.Image = echteImage;
+    w.FileReader = echterReader;
+    Object.defineProperty(alb, "files", { value: [], configurable: true });
+    Object.defineProperty(cam, "files", { value: [], configurable: true });
+  }
+
+  // =====================================================================
   console.log("\n--- Abgleich: Einrichtung und Anmeldung ---");
   const server = createFakeServer({ email: "chef@jansen.de", password: "geheim" });
   const w2 = macheApp({ fetch: server.fetch });

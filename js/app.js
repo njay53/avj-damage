@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v41";
+  var APP_VERSION = "v42";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -70,9 +70,12 @@
 
   // ---------------------------------------------------------------- Navigation
 
+  /* still = true heisst: der Wechsel kommt aus dem Verlauf zurueck und darf
+     dort keinen neuen Eintrag hinterlassen. Sonst kaeme man nie heraus. */
   var Nav = {
-    go: function (view) {
+    go: function (view, still) {
       if (VIEWS.indexOf(view) === -1) return;
+      var wechsel = view !== currentView;
       currentView = view;
       VIEWS.forEach(function (v) {
         q("view-" + v).classList.toggle("hidden", v !== view);
@@ -80,10 +83,131 @@
       var knopf = document.getElementById("btn-settings");
       if (knopf) knopf.classList.toggle("active", view === "settings");
       window.scrollTo(0, 0);
+      if (!still) merkeAnsicht(wechsel);
     },
     current: function () { return currentView; }
   };
   App.Nav = Nav;
+
+  // ------------------------------------------------------- Zurueck-Geste
+
+  /* Am iPhone wischt man vom linken Rand nach rechts, um zurueckzugehen.
+     Das ist keine Geste der Seite, sondern die des Browsers: er geht einen
+     Schritt im Verlauf zurueck. Unsere Ansichten waren bisher nur ein- und
+     ausgeblendete Abschnitte — im Verlauf stand nichts, also gab es auch
+     nichts, wohin der Wisch haette fuehren koennen.
+     Darum traegt jeder Ansichtswechsel jetzt einen Eintrag ein. */
+
+  var tiefe = 0;
+
+  function ansichtsZustand() {
+    return {
+      sm: true,
+      view: currentView,
+      vid: App.Fleet ? App.Fleet.currentVehicleId() : null,
+      sid: App.Snapshot ? App.Snapshot.aktuelleId() : null,
+      tiefe: tiefe
+    };
+  }
+
+  function merkeAnsicht(neuerEintrag) {
+    if (!window.history || !history.pushState) return;
+    if (neuerEintrag) {
+      tiefe++;
+      history.pushState(ansichtsZustand(), "");
+    } else {
+      /* Gleiche Ansicht, nur anderes Fahrzeug: kein zweiter Eintrag,
+         aber der Verlauf soll das richtige Fahrzeug kennen. */
+      history.replaceState(ansichtsZustand(), "");
+    }
+  }
+
+  function offenerDialog() {
+    return document.querySelector(".modal-overlay:not(.hidden)");
+  }
+
+  function schliesseDialoge() {
+    var offen = false;
+    document.querySelectorAll(".modal-overlay:not(.hidden)").forEach(function (o) {
+      o.classList.add("hidden");
+      offen = true;
+    });
+    return offen;
+  }
+
+  function stelleAnsichtHer(zustand) {
+    if (!zustand || !zustand.sm) {
+      tiefe = 0;
+      Nav.go("fleet", true);
+      App.Fleet.renderFleet();
+      return;
+    }
+    tiefe = zustand.tiefe || 0;
+
+    if (zustand.view === "vehicle" && zustand.vid && App.Store.getVehicle(zustand.vid)) {
+      App.Fleet.openVehicle(zustand.vid, true);
+      return;
+    }
+    if (zustand.view === "snapshot-view" && zustand.sid && App.Store.getSnapshot(zustand.sid)) {
+      App.Snapshot.open(zustand.sid, true);
+      return;
+    }
+    if (zustand.view === "settings") {
+      oeffneEinstellungen(true);
+      return;
+    }
+    Nav.go("fleet", true);
+    App.Fleet.renderFleet();
+  }
+
+  function bindVerlauf() {
+    if (!window.history || !history.pushState) return;
+    history.replaceState(ansichtsZustand(), "");
+
+    window.addEventListener("popstate", function (e) {
+      /* Ein offener Dialog ist die oberste Ebene. Zurueck schliesst erst ihn,
+         die Ansicht darunter bleibt stehen — und der Eintrag wandert wieder
+         in den Verlauf, sonst waere der naechste Wisch einer zu viel. */
+      if (schliesseDialoge()) {
+        history.pushState(ansichtsZustand(), "");
+        return;
+      }
+      stelleAnsichtHer(e.state);
+    });
+
+    bindWischgeste();
+  }
+
+  /* Zusaetzlich eine eigene Geste: in der Web-App vom Home-Bildschirm greift
+     die des Systems nicht ueberall zuverlaessig. Nur vom aeussersten linken
+     Rand, nur ohne offenen Dialog — im Dialog wird gezeichnet, da darf ein
+     Wisch nicht die Arbeit wegnehmen. */
+  function bindWischgeste() {
+    var start = null;
+
+    document.addEventListener("touchstart", function (e) {
+      start = null;
+      if (e.touches.length !== 1) return;
+      if (offenerDialog()) return;
+      var t = e.touches[0];
+      if (t.clientX > 24) return;
+      start = { x: t.clientX, y: t.clientY, zeit: Date.now() };
+    }, { passive: true });
+
+    document.addEventListener("touchend", function (e) {
+      if (!start) return;
+      var t = e.changedTouches[0];
+      var quer = t.clientX - start.x;
+      var hoch = Math.abs(t.clientY - start.y);
+      var dauer = Date.now() - start.zeit;
+      start = null;
+      /* Weit genug nach rechts, nicht zu schraeg, nicht zu bedaechtig —
+         sonst war es Scrollen oder ein liegengebliebener Finger. */
+      if (quer > 70 && hoch < 60 && dauer < 700 && tiefe > 0) history.back();
+    }, { passive: true });
+
+    document.addEventListener("touchcancel", function () { start = null; }, { passive: true });
+  }
 
   // ---------------------------------------------------------------- Statusanzeige
 
@@ -646,6 +770,15 @@
   /* Ein Zahnrad in der Kopfzeile statt einer Reiterleiste: die Einstellungen
      sind einmal eingerichtet und danach selten dran — sie müssen nicht die
      halbe Breite über dem Fuhrpark belegen. */
+  function oeffneEinstellungen(still) {
+    Nav.go("settings", still);
+    refreshCloudUi();
+    renderKategorien();
+    zeigePapierkorb();
+    zeigeSicherung();
+    zeigeSpeicher();
+  }
+
   function bindTabs() {
     q("btn-settings").addEventListener("click", function () {
       if (Nav.current() === "settings") {
@@ -653,12 +786,7 @@
         App.Fleet.renderFleet();
         return;
       }
-      Nav.go("settings");
-      refreshCloudUi();
-      renderKategorien();
-      zeigePapierkorb();
-      zeigeSicherung();
-      zeigeSpeicher();
+      oeffneEinstellungen(false);
     });
     q("input-suche").addEventListener("input", zeigeSuche);
     q("btn-suche-leeren").addEventListener("click", leereSuche);
@@ -747,7 +875,8 @@
         wendeKennungAn();
         wendeBetraegeAn();
         App.Fleet.renderFleet();
-        Nav.go("fleet");
+        Nav.go("fleet", true);
+        bindVerlauf();
         registerServiceWorker();
         return weiter();
       });

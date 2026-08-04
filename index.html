@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=41" />
+<link rel="stylesheet" href="css/app.css?b=42" />
 </head>
 <body>
 
@@ -368,15 +368,18 @@
       <button type="button" class="pick-btn" id="btn-photo-camera">
         <span class="pick-icon" aria-hidden="true">◉</span>
         <span class="pick-label">Kamera</span>
-        <span class="pick-sub">Foto jetzt aufnehmen</span>
+        <span class="pick-sub">Eins nach dem anderen</span>
       </button>
       <button type="button" class="pick-btn" id="btn-photo-file">
         <span class="pick-icon" aria-hidden="true">▣</span>
         <span class="pick-label">Album</span>
-        <span class="pick-sub">Aus Fotos oder Dateien</span>
+        <span class="pick-sub">Mehrere auf einmal</span>
       </button>
     </div>
     <div class="pick-status" id="photo-status"></div>
+    <button type="button" class="secondary nochmal hidden" id="btn-photo-again">
+      ◉ Noch ein Foto
+    </button>
     <div class="photo-strip hidden" id="photo-strip"></div>
     <p class="hint no-top hidden" id="edit-hinweis">
       Ein besseres Foto kommt einfach dazu — oben aufnehmen oder aus dem Album wählen.
@@ -385,7 +388,7 @@
     </p>
 
     <input type="file" id="input-photo-camera" accept="image/*" capture="environment" hidden />
-    <input type="file" id="input-photo-file" accept="image/*" hidden />
+    <input type="file" id="input-photo-file" accept="image/*" multiple hidden />
 
     <div class="toolbar">
       <button type="button" class="tool-btn" data-tool="circle">◯ Kreis</button>
@@ -610,15 +613,15 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=41"></script>
-<script src="js/modelle.js?b=41"></script>
-<script src="js/cloud.js?b=41"></script>
-<script src="js/logo.js?b=41"></script>
-<script src="js/pdf.js?b=41"></script>
-<script src="js/annotate.js?b=41"></script>
-<script src="js/fleet.js?b=41"></script>
-<script src="js/uebersicht.js?b=41"></script>
-<script src="js/snapshot.js?b=41"></script>
-<script src="js/app.js?b=41"></script>
+<script src="js/store.js?b=42"></script>
+<script src="js/modelle.js?b=42"></script>
+<script src="js/cloud.js?b=42"></script>
+<script src="js/logo.js?b=42"></script>
+<script src="js/pdf.js?b=42"></script>
+<script src="js/annotate.js?b=42"></script>
+<script src="js/fleet.js?b=42"></script>
+<script src="js/uebersicht.js?b=42"></script>
+<script src="js/snapshot.js?b=42"></script>
+<script src="js/app.js?b=42"></script>
 </body>
 </html>

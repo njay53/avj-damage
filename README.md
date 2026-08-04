@@ -86,6 +86,22 @@ weiter die alte Fassung:
 
 Der Testlauf prüft das mit, ein Vergessen fällt also sofort auf.
 
+### Muss Supabase mit?
+
+Bei jedem Build gehört die Antwort dazu — ja oder nein, nicht „vielleicht".
+Die Regel dahinter ist einfach:
+
+- **Ja**, wenn sich `supabase-einrichten.sql` geändert hat. Das ist genau dann
+  der Fall, wenn ein **neues Feld pro Datensatz** dazukommt (Beträge, Status,
+  HU-Monat, Kategorien). Dann die Datei komplett in den SQL-Editor einfügen und
+  ausführen — sie ist so gebaut, dass sie beliebig oft laufen darf und nichts
+  überschreibt.
+- **Nein** bei allem, was nur die Bedienung betrifft: Ansichten, Gesten,
+  Knöpfe, Texte, Farben, PDF-Aufbau. Nichts davon wird gespeichert.
+
+Der HU-Kalender ist getrennt davon: die Edge Function muss nur neu deployt
+werden, wenn sich `supabase-hu-kalender.ts` ändert.
+
 ---
 
 ## Auf Handy und Tablet installieren
@@ -420,6 +436,22 @@ Server.
 **Schäden pflegen:** Fuhrpark → Fahrzeug → `+ Schaden hinzufügen` → Foto
 aufnehmen → mit Kreis, Pfeil, Freihand oder Text markieren → Bereich, Notiz und
 Datum → speichern. Fotos werden auf 1400 px verkleinert und als JPEG abgelegt.
+
+**Mehrere Fotos zu einem Schaden:** Über **Album** lassen sich beliebig viele
+Bilder in einem Rutsch auswählen; sie landen in der Reihenfolge im Schaden, in
+der sie ausgewählt wurden. Die **Kamera** liefert im Browser bauartbedingt immer
+nur ein Foto und schliesst sich danach — eine Web-App kann keine Kamerasitzung
+über mehrere Auslöser offen halten. Ersatz: direkt unter dem Foto steht der
+Knopf **◉ Noch ein Foto**, ein Tipp und die Kamera ist wieder auf. Wer lieber
+in einem Zug knipst, macht die Bilder in der Kamera-App des iPhones und holt
+sie danach über **Album** alle auf einmal herein.
+
+**Zurück:** Jeder Wechsel der Ansicht steht im Verlauf des Browsers. Damit
+greift am iPhone der Wisch vom linken Bildschirmrand, in Safari genauso wie in
+der Web-App vom Home-Bildschirm; zusätzlich horcht die App selbst auf diese
+Geste, weil sie im Standalone-Modus nicht überall zuverlässig ankommt. Ist ein
+Dialog offen, schliesst der erste Wisch erst ihn — beim Markieren eines Fotos
+ist die Geste ganz aus, sonst wäre die Zeichnung mit einem Wisch weg.
 
 **Vor der Übergabe:** Fahrzeug öffnen → `Stand festhalten` → optional eine
 interne Referenz eintragen (Mietvertragsnummer, **keine Kundennamen**) →

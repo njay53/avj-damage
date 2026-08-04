@@ -144,13 +144,13 @@
 
   // ---------------------------------------------------------------- Ansehen
 
-  function open(id) {
+  function open(id, still) {
     var s = Store.getSnapshot(id);
     if (!s) return;
     viewingId = id;
     q("snapshot-view-heading").textContent = "Schadensstand " + s.code;
     q("snapshot-view-body").innerHTML = renderHtml(s);
-    App.Nav.go("snapshot-view");
+    App.Nav.go("snapshot-view", still);
   }
 
   function back() {
@@ -268,6 +268,7 @@
     setVehicle: setVehicle,
     renderList: renderList,
     open: open,
+    aktuelleId: function () { return viewingId; },
     transferLine: transferLine
   };
 

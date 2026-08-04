@@ -398,6 +398,11 @@ textarea{line-height:1.5;resize:vertical;}
 .detail-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 .pick-status.ok{color:var(--green);}
 .pick-status.err{color:var(--red);}
+.pick-status.warn{color:var(--gold);}
+
+/* Nach einer Kameraaufnahme: der Weg zum naechsten Foto liegt direkt darunter,
+   ohne dass man wieder nach oben zu den beiden Kacheln zurueck muss. */
+.secondary.nochmal{width:100%;margin:0 0 10px;}
 
 /* ------------------------------------------------------------------ Markier-Werkzeug */
 .toolbar{

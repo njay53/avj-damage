@@ -232,10 +232,10 @@
     grid.appendChild(add);
   }
 
-  function openVehicle(id) {
+  function openVehicle(id, still) {
     currentVehicleId = id;
     App.Snapshot.setVehicle(id);
-    App.Nav.go("vehicle");
+    App.Nav.go("vehicle", still);
     renderVehicle();
   }
 

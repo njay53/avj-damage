@@ -21,7 +21,7 @@
   var JPEG_QUALITY = 0.82;
   var MAX_ZOOM = 6;
 
-  var overlay, canvas, ctx, placeholder, camInput, fileInput, noteInput, dateInput,
+  var overlay, canvas, ctx, placeholder, camInput, fileInput, nochmalBtn, noteInput, dateInput,
       areaInput, saveBtn, titleEl, colorInput, widthInput, statusEl, dateModeSel,
       dateRow, zoomLabel, widthValue, countInput, streifen;
 
@@ -131,10 +131,12 @@
       dateRow.classList.toggle("hidden", dateModeSel.value !== "exact");
     });
 
-    camInput.addEventListener("change", function () { handleFile(camInput); });
-    fileInput.addEventListener("change", function () { handleFile(fileInput); });
+    camInput.addEventListener("change", function () { handleFile(camInput, true); });
+    fileInput.addEventListener("change", function () { handleFile(fileInput, false); });
     q("btn-photo-camera").addEventListener("click", function () { camInput.click(); });
     q("btn-photo-file").addEventListener("click", function () { fileInput.click(); });
+    nochmalBtn = q("btn-photo-again");
+    nochmalBtn.addEventListener("click", function () { camInput.click(); });
 
     q("btn-undo").addEventListener("click", undo);
     q("btn-reset-canvas").addEventListener("click", resetOps);
@@ -267,6 +269,7 @@
     placeholder.classList.remove("hidden");
     camInput.value = "";
     fileInput.value = "";
+    zeigeNochmal(false);
     statusEl.textContent = "";
     statusEl.className = "pick-status";
     saveBtn.disabled = true;
@@ -390,40 +393,107 @@
 
   // ---------------------------------------------------------------- Foto laden
 
-  function handleFile(input) {
-    var file = input.files && input.files[0];
-    if (!file) return;
+  /* Mehrere Fotos auf einmal: aus dem Album lassen sich beliebig viele
+     auswählen. Sie werden nacheinander geladen und in der Reihenfolge
+     angehängt, in der sie in der Auswahl standen. */
+  function handleFile(input, vonKamera) {
+    var dateien = Array.prototype.slice.call(input.files || []);
+    if (!dateien.length) return;
 
-    if (file.type && file.type.indexOf("image/") !== 0) {
-      statusEl.textContent = "Das ist kein Bild — bitte ein Foto auswählen.";
+    var bilddateien = dateien.filter(function (f) {
+      return !f.type || f.type.indexOf("image/") === 0;
+    });
+    if (!bilddateien.length) {
+      statusEl.textContent = "Das ist kein Bild — bitte Fotos auswählen.";
       statusEl.className = "pick-status err";
       input.value = "";
       return;
     }
 
-    statusEl.textContent = "Foto wird geladen …";
+    statusEl.textContent = bilddateien.length === 1
+      ? "Foto wird geladen …"
+      : bilddateien.length + " Fotos werden geladen …";
     statusEl.className = "pick-status";
 
+    var fertig = 0, misslungen = 0;
+    var vorher = bilder.length;
+    sichereAktuelles();
+
+    /* Reihenfolge festhalten: die Dateien werden parallel gelesen, sollen
+       aber so einsortiert werden, wie sie ausgewählt wurden. */
+    var platz = new Array(bilddateien.length);
+
+    function pruefeFertig() {
+      if (fertig + misslungen < bilddateien.length) return;
+      platz.forEach(function (eintrag) {
+        if (eintrag) bilder.push(eintrag);
+      });
+      if (bilder.length > vorher) {
+        aktiv = -1;
+        waehleBild(bilder.length - 1);
+        saveBtn.disabled = false;
+      }
+      zeigeLadeErgebnis(fertig, misslungen);
+      zeigeNochmal(vonKamera && fertig > 0);
+      input.value = "";
+    }
+
+    bilddateien.forEach(function (datei, nr) {
+      var leser = new FileReader();
+      leser.onload = function (e) {
+        var bild = new Image();
+        bild.onload = function () {
+          platz[nr] = { img: bild, ops: [] };
+          fertig++;
+          pruefeFertig();
+        };
+        bild.onerror = function () { misslungen++; pruefeFertig(); };
+        bild.src = e.target.result;
+      };
+      leser.onerror = function () { misslungen++; pruefeFertig(); };
+      leser.readAsDataURL(datei);
+    });
+  }
+
+  /* Die Kamera im Browser gibt genau ein Foto zurueck und schliesst sich
+     danach — mehrere Aufnahmen am Stueck kann eine Web-App nicht anfordern.
+     Ersatz: nach jedem Bild steht der Knopf direkt da, ein Tipp und die
+     Kamera ist wieder auf. */
+  function zeigeNochmal(sichtbar) {
+    if (!nochmalBtn) return;
+    nochmalBtn.classList.toggle("hidden", !sichtbar);
+  }
+
+  function zeigeLadeErgebnis(fertig, misslungen) {
+    if (!fertig) {
+      statusEl.textContent = "Kein Foto konnte gelesen werden. Anderes versuchen.";
+      statusEl.className = "pick-status err";
+      return;
+    }
+    var text = bilder.length === 1
+      ? "Foto geladen — jetzt markieren."
+      : bilder.length + " Fotos in diesem Schaden.";
+    if (misslungen) {
+      text += " " + misslungen + (misslungen === 1 ? " Datei" : " Dateien") +
+        " liess sich nicht lesen.";
+    }
+    statusEl.textContent = text;
+    statusEl.className = "pick-status " + (misslungen ? "warn" : "ok");
+  }
+
+  function handleFileAlt(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
     var reader = new FileReader();
     reader.onload = function (e) {
       var bild = new Image();
       bild.onload = function () {
-        // Foto anhängen statt ersetzen — ein Schaden kann mehrere haben
         sichereAktuelles();
         bilder.push({ img: bild, ops: [] });
         aktiv = -1;
         waehleBild(bilder.length - 1);
-
         saveBtn.disabled = false;
-        statusEl.textContent = bilder.length === 1
-          ? "Foto geladen — jetzt markieren."
-          : bilder.length + " Fotos in diesem Schaden.";
-        statusEl.className = "pick-status ok";
         input.value = "";
-      };
-      bild.onerror = function () {
-        statusEl.textContent = "Bild konnte nicht gelesen werden. Anderes Foto versuchen.";
-        statusEl.className = "pick-status err";
       };
       bild.src = e.target.result;
     };
