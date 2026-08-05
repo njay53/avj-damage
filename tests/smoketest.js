@@ -14,7 +14,7 @@ const { createFakeServer } = require("./fake-server");
 require("fake-indexeddb/auto");
 
 const APP = path.join(__dirname, "..");
-const DATEIEN = ["js/store.js", "js/modelle.js", "js/cloud.js", "js/logo.js", "js/pdf.js", "js/annotate.js",
+const DATEIEN = ["js/store.js", "js/modelle.js", "js/cloud.js", "js/logo.js", "js/skizze.js", "js/skizze-ui.js", "js/pdf.js", "js/annotate.js",
                  "js/fleet.js", "js/uebersicht.js", "js/snapshot.js", "js/app.js"];
 
 /* Ein winziges echtes JPEG (48x36) — gebraucht, um den PDF-Erzeuger
@@ -70,7 +70,8 @@ function macheApp(optionen) {
       arc: log("arc"), closePath: log("closePath"), putImageData: log("putImageData"),
       clearRect: log("clearRect"), save: log("save"), restore: log("restore"),
       translate: log("translate"), scale: log("scale"), clip: log("clip"),
-      quadraticCurveTo: log("quadraticCurveTo"),
+      quadraticCurveTo: log("quadraticCurveTo"), bezierCurveTo: log("bezierCurveTo"),
+      setTransform: log("setTransform"), rect: log("rect"), strokeText: log("strokeText"),
       measureText: () => ({ width: 42 }),
       getImageData: (x, y, a, b) => new w.ImageData(new Uint8ClampedArray(4), a || 1, b || 1)
     };
@@ -1423,6 +1424,227 @@ function kontrast(a, b) {
     } catch (err) {
       check("Probedatei geschrieben", false, String(err.message));
     }
+  }
+
+  console.log("\n--- Schadenskizze: Umrisse ---");
+  {
+    const S = App.Skizze;
+    const ids = S.formen().map((f) => f.id);
+    check("beide Formen vorhanden",
+      ids.includes("pkw-kompakt") && ids.includes("transporter"), ids.join(","));
+    check("jede Form hat einen Namen", S.formen().every((f) => f.name && f.name.length > 2));
+    check("unbekannte Form wird erkannt", !S.kennt("raumschiff") && S.kennt("transporter"));
+
+    let zuegeGesamt = 0, konturen = 0;
+    ids.forEach((id) => {
+      S.ANSICHTEN.forEach((an) => {
+        const a = S.ansicht(id, an.id);
+        check(id + "/" + an.id + " hat eine Größe", a.b > 0 && a.h > 0);
+        check(id + "/" + an.id + " hat Inhalt", a.teile.length > 0);
+        let hatKontur = false;
+        a.teile.forEach((t) => {
+          if (t.stil === "kontur") { hatKontur = true; konturen++; }
+          if (t.kreis) {
+            check(id + "/" + an.id + " Kreis ist eine Zahl",
+              t.kreis.every((z) => typeof z === "number" && !isNaN(z)));
+            return;
+          }
+          const befehle = S._lesePfad(t.d);
+          zuegeGesamt += befehle.length;
+          const kaputt = befehle.find((c) => c.slice(1).some((z) => isNaN(z)));
+          check(id + "/" + an.id + " Pfad ohne Zahlensalat", !kaputt, JSON.stringify(kaputt));
+          const drin = befehle.every((c) =>
+            c[0] === "Z" || c.slice(1).every((z, k) => z >= -3 && z <= (k % 2 === 0 ? a.b : a.h) + 3));
+          check(id + "/" + an.id + " Pfad bleibt im Rahmen", drin);
+        });
+        check(id + "/" + an.id + " hat eine Aussenkontur", hatKontur);
+      });
+    });
+    check("es wurde wirklich etwas gezeichnet", zuegeGesamt > 200, String(zuegeGesamt));
+
+    // Die Seitenansichten sind dieselbe Zeichnung, einmal gespiegelt —
+    // sonst müsste jede Änderung zweimal gemacht werden.
+    check("rechts ist die gespiegelte linke Seite",
+      S.ansicht("pkw-kompakt", "rechts").spiegeln === true &&
+      S.ansicht("pkw-kompakt", "links").teile === S.ansicht("pkw-kompakt", "rechts").teile);
+
+    // Pfade lesen
+    const p = S._lesePfad("M 1,2 L 3,4 C 5,6 7,8 9,10 Z");
+    check("Pfad wird richtig zerlegt",
+      JSON.stringify(p) === JSON.stringify([["M",1,2],["L",3,4],["C",5,6,7,8,9,10],["Z"]]),
+      JSON.stringify(p));
+    check("Wiederholung ohne Buchstabe zählt als Linie",
+      JSON.stringify(S._lesePfad("M 0,0 2,2 4,4")) ===
+      JSON.stringify([["M",0,0],["L",2,2],["L",4,4]]));
+
+    // Einpassen: Seitenverhältnis bleibt, die Zeichnung sitzt mittig
+    const lage = S.passe("pkw-kompakt", "links", 10, 20, 200, 200);
+    const a = S.ansicht("pkw-kompakt", "links");
+    check("Seitenverhältnis bleibt",
+      Math.abs(lage.breite / lage.hoehe - a.b / a.h) < 0.001,
+      (lage.breite / lage.hoehe).toFixed(3));
+    check("Zeichnung sitzt mittig", Math.abs((lage.y - 20) - (200 - lage.hoehe) / 2) < 0.001);
+    check("Zeichnung passt in den Kasten", lage.breite <= 200.001 && lage.hoehe <= 200.001);
+
+    // Vorschlag aus der Kategorie
+    check("Sprinter wird Transporter", S.formVorschlag("Transporter", "Sprinter 316") === "transporter");
+    check("Kasten wird Transporter", S.formVorschlag("", "VW Crafter Kastenwagen") === "transporter");
+    check("Yaris bleibt PKW", S.formVorschlag("PKW", "Toyota Yaris #3") === "pkw-kompakt");
+    check("nichts Bekanntes wird PKW", S.formVorschlag("", "") === "pkw-kompakt");
+
+    // Kreisnäherung
+    const k = S._kreisAlsKurven(0, 0, 10);
+    check("Kreis besteht aus vier Bögen", k.filter((z) => z[0] === "C").length === 4);
+    check("Kreis ist geschlossen", k[k.length - 1][0] === "Z");
+  }
+
+  console.log("\n--- Schadenskizze: Nummern zusammenfassen ---");
+  {
+    const S = App.Skizze;
+    const g = S.gruppiere([
+      { x: 0.50, y: 0.50, nummer: "1" },
+      { x: 0.51, y: 0.51, nummer: "2" },     // praktisch dieselbe Stelle
+      { x: 0.90, y: 0.20, nummer: "3" }
+    ]);
+    check("zwei Gruppen aus drei Marken", g.length === 2, String(g.length));
+    const zusammen = g.find((x) => x.nummern.length === 2);
+    check("die nahen Nummern stehen zusammen",
+      zusammen && zusammen.nummern.join(",") === "1,2",
+      zusammen && zusammen.nummern.join(","));
+    check("die weit entfernte bleibt allein",
+      g.some((x) => x.nummern.length === 1 && x.nummern[0] === "3"));
+    check("der Punkt wandert in die Mitte der Gruppe",
+      zusammen && Math.abs(zusammen.x - 0.505) < 0.001, zusammen && String(zusammen.x));
+    check("nichts rein, nichts raus", S.gruppiere([]).length === 0);
+  }
+
+  console.log("\n--- Schadenskizze: was gespeichert wird ---");
+  {
+    const sv = await App.Store.addVehicle({ name: "Skizzentest", plate: "NOM-JA 77", form: "transporter" });
+    check("Form wird gespeichert", App.Store.getVehicle(sv.id).form === "transporter");
+
+    const gut = await App.Store.addDamage(sv.id, {
+      images: ["x"], description: "Kratzer", date: "2026-08-01",
+      marke: { ansicht: "links", x: 0.4, y: 0.6 }
+    });
+    check("Stelle wird gespeichert", gut.marke && gut.marke.ansicht === "links" && gut.marke.x === 0.4,
+      JSON.stringify(gut.marke));
+
+    // Unfug muss abprallen: eine halb gesetzte Marke wäre im PDF eine Nummer
+    // an einer Stelle, die niemand gemeint hat.
+    const faelle = [
+      ["fehlende Ansicht", { x: 0.5, y: 0.5 }],
+      ["erfundene Ansicht", { ansicht: "unten", x: 0.5, y: 0.5 }],
+      ["Text statt Zahl", { ansicht: "links", x: "hier", y: 0.5 }],
+      ["ausserhalb", { ansicht: "links", x: 1.4, y: 0.5 }],
+      ["negativ", { ansicht: "links", x: -0.2, y: 0.5 }],
+      ["gar nichts", null]
+    ];
+    for (const [name, marke] of faelle) {
+      const d = await App.Store.addDamage(sv.id, { images: ["x"], description: name, marke: marke });
+      check("abgewiesen: " + name, d.marke === null, JSON.stringify(d.marke));
+    }
+
+    await App.Store.updateVehicle(sv.id, {
+      skizze: [{ ansicht: "links", art: "frei", punkte: [[0.1, 0.2], [0.3, 0.4]] }]
+    });
+    check("freie Zeichnung wird gespeichert",
+      App.Store.getVehicle(sv.id).skizze.length === 1);
+    await App.Store.updateVehicle(sv.id, { skizze: [] });
+    check("freie Zeichnung lässt sich leeren",
+      App.Store.getVehicle(sv.id).skizze.length === 0);
+
+    await App.Store.deleteVehicle(sv.id);
+  }
+
+  console.log("\n--- Schadenskizze im PDF ---");
+  {
+    const fzS = Object.assign({}, App.Store.getVehicle(v.id), {
+      form: "pkw-kompakt",
+      skizze: [{ ansicht: "links", art: "kreuz", punkte: [[0.5, 0.5]] }]
+    });
+    const liste = [
+      { area: "Tür", description: "Kratzer", count: 1, dateMode: "exact", date: "2026-07-01",
+        createdAt: Date.now(), images: [MINI_JPEG],
+        marke: { ansicht: "links", x: 0.3, y: 0.5 },
+        // Interne Angaben — dürfen unter keinen Umständen mitkommen
+        schaetzung: 850, zahlung: 500, kosten: 640, vertragsnr: "MV-2026-0418", status: "repariert" },
+      { area: "Heck", description: "Delle", count: 1, dateMode: "exact", date: "2026-07-02",
+        createdAt: Date.now(), images: [MINI_JPEG],
+        marke: { ansicht: "hinten", x: 0.5, y: 0.4 } },
+      { area: "Dach", description: "Hagel", count: 3, dateMode: "exact", date: "2026-07-03",
+        createdAt: Date.now(), images: [MINI_JPEG] }      // ohne Stelle
+    ];
+    const eS = App.Uebersicht.erzeuge(fzS, liste, 5);
+    const rohS = Buffer.from(eS.doc.bauen()).toString("latin1");
+
+    check("Skizze ist überschrieben", rohS.includes("SCHADENSKIZZE"));
+    check("Hinweis auf die Liste", rohS.includes("Nummern entsprechen der Schadensliste"));
+    ["Links", "Rechts", "Vorn", "Hinten", "Draufsicht"].forEach((n) => {
+      check("Ansicht " + n + " beschriftet", rohS.includes(n));
+    });
+    check("Umrisse sind Kurven, kein Bild", /\d+\.\d\d \d+\.\d\d \d+\.\d\d \d+\.\d\d \d+\.\d\d \d+\.\d\d c/.test(rohS));
+
+    // Die Skizze steht vor der Liste — der erste Blick soll sie treffen
+    check("Skizze steht vor der Schadensliste",
+      rohS.indexOf("SCHADENSKIZZE") < rohS.indexOf("SCHADENSLISTE"));
+
+    // Nichts Internes darf über die Skizze ins Kundendokument rutschen
+    ["850", "MV-2026-0418", "repariert", "Selbstbeteiligung"].forEach((w) => {
+      check("nicht im Kundendokument: " + w, !rohS.includes(w));
+    });
+
+    // Ein Fahrzeug ohne jede eingezeichnete Stelle bekommt trotzdem die Skizze,
+    // aber mit ehrlichem Hinweis statt Nummern aus dem Nichts
+    const leer = App.Uebersicht.erzeuge(
+      Object.assign({}, fzS, { skizze: [] }),
+      [{ area: "Tür", description: "Kratzer", count: 1, dateMode: "exact",
+         date: "2026-07-01", createdAt: Date.now(), images: [MINI_JPEG] }], 1);
+    const rohL = Buffer.from(leer.doc.bauen()).toString("latin1");
+    check("ohne Stellen trotzdem eine Skizze", rohL.includes("SCHADENSKIZZE"));
+    check("und ein ehrlicher Hinweis", rohL.includes("keine Stellen eingezeichnet"));
+  }
+
+  console.log("\n--- Schadenskizze: Bedienung ---");
+  {
+    App.Fleet.openVehicle(v.id);
+    await wait(30);
+    check("Skizzenblock in der Fahrzeugansicht", !!q("skizze-block"));
+    check("fünf Ansichten gezeichnet", q("skizze-tafel").children.length === 5,
+      String(q("skizze-tafel").children.length));
+    check("jede Ansicht ist beschriftet",
+      Array.from(q("skizze-tafel").children).every((k) => k.querySelector("figcaption").textContent));
+
+    // Formauswahl im Fahrzeugdialog
+    q("btn-edit-vehicle").click();
+    await wait(20);
+    const formSel = q("input-vehicle-form");
+    check("Formauswahl ist gefüllt", formSel.options.length >= 2, String(formSel.options.length));
+    check("eine Form ist vorbelegt", !!formSel.value, formSel.value);
+    q("modal-vehicle").classList.add("hidden");
+
+    // Stelle im Schadendialog setzen
+    const kontext = App.Fleet.skizzeKontext();
+    check("Kontext nennt die Form", !!kontext.form);
+    check("Kontext liefert eine Markenliste", Array.isArray(kontext.marken));
+
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    check("noch keine Stelle gesetzt", App.Annotate._marke() === null);
+    App.Annotate._setzeMarke("hinten", 0.25, 0.75);
+    const m = App.Annotate._marke();
+    check("Stelle wird übernommen",
+      m && m.ansicht === "hinten" && m.x === 0.25 && m.y === 0.75, JSON.stringify(m));
+    check("Kopfzeile nennt die Ansicht",
+      q("marke-kurz").textContent === "Hinten", q("marke-kurz").textContent);
+    q("btn-marke-weg").click();
+    check("Stelle lässt sich wieder entfernen", App.Annotate._marke() === null);
+    check("Kopfzeile sagt es auch",
+      q("marke-kurz").textContent === "nicht gesetzt", q("marke-kurz").textContent);
+    App.Annotate.close();
+
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    await wait(20);
   }
 
   console.log("\n--- Druckansicht ---");

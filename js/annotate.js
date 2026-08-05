@@ -41,6 +41,11 @@
   var width = 12;
   var imageLoaded = false;
   var onSaveCb = null;
+
+  /* Stelle am Fahrzeug. Wird beim Speichern mitgegeben, ist aber freiwillig —
+     ein Schaden ohne eingezeichnete Stelle bleibt ein gültiger Schaden. */
+  var markeAnsicht = "links";
+  var markeWert = null;
   var kmInput, anlassSel;
   /* Schaden oder Zustandsaufnahme — entscheidet, welche Felder gelten. */
   var aktuelleArt = "schaden";
@@ -137,6 +142,7 @@
     q("btn-photo-file").addEventListener("click", function () { fileInput.click(); });
     nochmalBtn = q("btn-photo-again");
     nochmalBtn.addEventListener("click", function () { camInput.click(); });
+    bindMarke();
 
     q("btn-undo").addEventListener("click", undo);
     q("btn-reset-canvas").addEventListener("click", resetOps);
@@ -175,6 +181,12 @@
 
     var d = opts.damage || null;
     bearbeitet = d;
+
+    markeWert = (d && d.marke) ? { ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y } : null;
+    markeAnsicht = markeWert ? markeWert.ansicht : "links";
+    var markeBlock = document.getElementById("marke-block");
+    if (markeBlock) markeBlock.open = !!markeWert;
+    zeichneMarke();
 
     dateModeSel.value = (d && d.dateMode) || "exact";
     dateRow.classList.toggle("hidden", dateModeSel.value !== "exact");
@@ -868,6 +880,89 @@
     renderView();
   }
 
+  // ------------------------------------------------------- Stelle am Fahrzeug
+
+  /* Die Skizze im Schadendialog zeigt zwei Dinge zugleich: die schon
+     vergebenen Nummern der anderen Schäden — damit man sieht, wo etwas frei
+     ist — und als Ring die Stelle, die man gerade setzt. */
+  function zeichneMarke() {
+    var leinwand = document.getElementById("marke-canvas");
+    if (!leinwand || !App.SkizzeUi) return;
+
+    var k = (App.Fleet && App.Fleet.skizzeKontext) ? App.Fleet.skizzeKontext() : null;
+    var form = k ? k.form : "pkw-kompakt";
+
+    var andere = (k ? k.marken : []).filter(function (m) {
+      return m.ansicht === markeAnsicht && (!bearbeitet || m.id !== bearbeitet.id);
+    });
+
+    var breite = leinwand.parentNode ? (leinwand.parentNode.clientWidth || 300) : 300;
+    App.SkizzeUi.zeichneAnsicht(leinwand, {
+      form: form,
+      ansicht: markeAnsicht,
+      breite: breite,
+      marken: andere,
+      ops: (k && k.ops) || [],
+      aktiv: (markeWert && markeWert.ansicht === markeAnsicht) ? markeWert : null
+    });
+
+    var kurz = document.getElementById("marke-kurz");
+    if (kurz) {
+      kurz.textContent = markeWert
+        ? namenVon(markeWert.ansicht)
+        : "nicht gesetzt";
+    }
+    var weg = document.getElementById("btn-marke-weg");
+    if (weg) weg.disabled = !markeWert;
+  }
+
+  function namenVon(id) {
+    var treffer = App.Skizze.ANSICHTEN.filter(function (a) { return a.id === id; })[0];
+    return treffer ? treffer.name : id;
+  }
+
+  function setzeMarke(ansichtId, x, y) {
+    markeWert = { ansicht: ansichtId, x: x, y: y };
+    markeAnsicht = ansichtId;
+    zeichneMarke();
+  }
+
+  function bindMarke() {
+    var leinwand = document.getElementById("marke-canvas");
+    var reiterEl = document.getElementById("marke-reiter");
+    if (!leinwand || !reiterEl) return;
+
+    function baueReiter() {
+      App.SkizzeUi.reiter(reiterEl, markeAnsicht, function (id) {
+        markeAnsicht = id;
+        baueReiter();
+        zeichneMarke();
+      });
+    }
+    baueReiter();
+
+    leinwand.addEventListener("click", function (e) {
+      var lage = leinwand.__lage;
+      if (!lage) return;
+      var kasten = leinwand.getBoundingClientRect();
+      var anteil = App.SkizzeUi.pixelNachAnteil(lage,
+        e.clientX - kasten.left, e.clientY - kasten.top);
+      setzeMarke(markeAnsicht, anteil.x, anteil.y);
+    });
+
+    document.getElementById("btn-marke-weg").addEventListener("click", function () {
+      markeWert = null;
+      zeichneMarke();
+    });
+
+    /* Erst beim Aufklappen zeichnen: vorher hat die Zeichenfläche im
+       geschlossenen details-Element keine Breite. */
+    var block = document.getElementById("marke-block");
+    if (block) block.addEventListener("toggle", function () {
+      if (block.open) { baueReiter(); zeichneMarke(); }
+    });
+  }
+
   // ---------------------------------------------------------------- Speichern
 
   /* Jedes Foto wird mit seinen Markierungen einzeln ausgegeben. Dafür wird
@@ -903,7 +998,8 @@
       area: areaInput.value.trim(),
       kind: aktuelleArt,
       km: istZustand ? kmInput.value.replace(/[^0-9]/g, "") : "",
-      anlass: istZustand ? anlassSel.value : ""
+      anlass: istZustand ? anlassSel.value : "",
+      marke: markeWert ? { ansicht: markeWert.ansicht, x: markeWert.x, y: markeWert.y } : null
     };
     var cb = onSaveCb;
     var alt = bearbeitet;
@@ -923,7 +1019,10 @@
     _bilder: function () { return bilder; },
     _zoomBy: zoomBy,
     _istHell: istHell,
-    _setzeZugpunkt: setzeZugpunkt
+    _setzeZugpunkt: setzeZugpunkt,
+    _marke: function () { return markeWert; },
+    _setzeMarke: setzeMarke,
+    _zeichneMarke: zeichneMarke
   };
 
 })(window.App = window.App || {});

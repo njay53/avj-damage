@@ -253,6 +253,12 @@
       /* Zustandsaufnahmen sind der Sonderfall (Langzeitmiete), nicht die Regel —
          deshalb je Fahrzeug einzeln einzuschalten. */
       zustand: !!data.zustand,
+      /* Karosserieform für die Schadenskizze. Steht sie nicht drin, wird beim
+         ersten Anzeigen aus Kategorie und Fahrzeugname geraten. */
+      form: data.form || "",
+      /* Freie Zeichnung auf der Skizze, für alles ohne eigene Schadennummer:
+         "Laderaum durchgehend verkratzt" und Ähnliches. */
+      skizze: Array.isArray(data.skizze) ? data.skizze : [],
       damages: [],
       updatedAt: now()
     };
@@ -271,6 +277,8 @@
     if ("photo" in data) v.photo = data.photo || "";
     if ("hidden" in data) v.hidden = !!data.hidden;
     if ("zustand" in data) v.zustand = !!data.zustand;
+    if ("form" in data) v.form = data.form || "";
+    if ("skizze" in data) v.skizze = Array.isArray(data.skizze) ? data.skizze : [];
     v.updatedAt = now();
     return save();
   }
@@ -316,6 +324,20 @@
        selbst      — Kulanz oder zu klein für eine Meldung */
   var REGULIERUNGEN = ["mieter", "kasko", "teilkasko", "haftpflicht", "selbst"];
 
+  var SKIZZE_ANSICHTEN = ["links", "rechts", "vorn", "hinten", "oben"];
+
+  /* Eine Marke ist entweder vollständig und plausibel — oder es gibt keine.
+     Halb gesetzte Werte würden im PDF eine Nummer irgendwo ins Nichts setzen,
+     und das wäre schlimmer als gar keine Skizze. */
+  function zuMarke(m) {
+    if (!m || typeof m !== "object") return null;
+    if (SKIZZE_ANSICHTEN.indexOf(m.ansicht) === -1) return null;
+    var x = parseFloat(m.x), y = parseFloat(m.y);
+    if (isNaN(x) || isNaN(y)) return null;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+    return { ansicht: m.ansicht, x: x, y: y };
+  }
+
   function normalisiereSchaden(d) {
     if (!d) return d;
     if (!Array.isArray(d.images)) {
@@ -338,6 +360,7 @@
     if (typeof d.vertragsnr !== "string") d.vertragsnr = "";
     if (REGULIERUNGEN.indexOf(d.regulierung) === -1) d.regulierung = "mieter";
     d.erstattung = zuBetrag(d.erstattung);
+    d.marke = zuMarke(d.marke);
 
     delete d.image;
     delete d.note;
@@ -468,6 +491,10 @@
       vertragsnr: damage.vertragsnr || "",
       regulierung: REGULIERUNGEN.indexOf(damage.regulierung) === -1 ? "mieter" : damage.regulierung,
       erstattung: zuBetrag(damage.erstattung),
+      /* Stelle am Fahrzeug: { ansicht, x, y } mit x und y als Anteil der
+         Ansicht (0 bis 1). Nicht in Pixeln, damit die Nummer auf jedem
+         Bildschirm und im PDF an derselben Stelle sitzt. */
+      marke: zuMarke(damage.marke),
       /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
          wer den Stand kennt, kann ihn eintragen. */
       km: damage.km || "",

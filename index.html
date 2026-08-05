@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=42" />
+<link rel="stylesheet" href="css/app.css?b=43" />
 </head>
 <body>
 
@@ -92,6 +92,25 @@
     </p>
     <div id="zustand-grid" class="damage-grid"></div>
   </section>
+
+  <details id="skizze-block" class="klappe" open>
+    <summary>
+      <span>Schadenskizze</span>
+      <span class="klappe-zahl" id="skizze-kurz"></span>
+    </summary>
+    <div class="klappe-inhalt">
+      <p class="hint no-top">
+        Jede Nummer steht für einen Schaden aus der Liste oben. Sitzen mehrere
+        dicht beieinander, stehen ihre Nummern nebeneinander an einem Punkt.
+        Die Skizze steht auch auf Seite 1 des PDF.
+      </p>
+      <div class="skizze-tafel" id="skizze-tafel"></div>
+      <div class="btn-row">
+        <button class="secondary" id="btn-skizze-malen">Skizze bemalen …</button>
+        <button class="secondary mini hidden" id="btn-skizze-leeren">Zeichnung löschen</button>
+      </div>
+    </div>
+  </details>
 
   <details id="bilanz-block" class="klappe hidden">
     <summary>
@@ -313,6 +332,14 @@
         <select id="input-vehicle-category"></select>
       </div>
       <div class="field">
+        <label for="input-vehicle-form">Form für die Schadenskizze</label>
+        <select id="input-vehicle-form"></select>
+        <p class="hint">
+          Bestimmt den Umriss, auf dem die Schäden eingezeichnet werden.
+          Vorbelegt anhand der Kategorie — einmal prüfen, danach nie wieder.
+        </p>
+      </div>
+      <div class="field">
         <label for="input-vehicle-hu">Nächste HU <em>(Monat, optional)</em></label>
         <input type="month" id="input-vehicle-hu" placeholder="2027-01" />
         <p class="hint">
@@ -358,6 +385,32 @@
   </div>
 </div>
 
+<!-- ============================================ DIALOG: Skizze bemalen -->
+<div id="modal-skizze" class="modal-overlay hidden">
+  <div class="modal wide">
+    <button class="modal-close" data-close="modal-skizze">✕</button>
+    <h3>Skizze bemalen</h3>
+    <p class="hint no-top">
+      Für alles, was keine eigene Schadennummer hat — ein Bereich, der
+      durchgehend verkratzt ist, eine Anmerkung, eine Klammer. Die
+      Schadennummern liegen darunter und bleiben unberührt.
+    </p>
+    <div class="ansicht-reiter" id="skizze-reiter"></div>
+    <canvas id="skizze-canvas" class="marke-canvas gross"></canvas>
+    <div class="toolbar">
+      <button type="button" class="tool-btn active" data-mal="frei">✎ Freihand</button>
+      <button type="button" class="tool-btn" data-mal="kreuz">✕ Kreuz</button>
+      <button type="button" class="tool-btn" data-mal="kreis">◯ Kreis</button>
+      <hr class="divider-v" />
+      <button type="button" class="tool-btn" id="btn-skizze-undo">↩ Zurück</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" data-close="modal-skizze">Abbrechen</button>
+      <button type="button" class="accent" id="btn-skizze-speichern">Zeichnung speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================ DIALOG: Foto markieren -->
 <div id="modal-annotate" class="modal-overlay hidden">
   <div class="modal wide">
@@ -389,6 +442,24 @@
 
     <input type="file" id="input-photo-camera" accept="image/*" capture="environment" hidden />
     <input type="file" id="input-photo-file" accept="image/*" multiple hidden />
+
+    <details class="klappe skizze-klappe" id="marke-block">
+      <summary>
+        <span>Stelle am Fahrzeug</span>
+        <span class="klappe-zahl" id="marke-kurz">nicht gesetzt</span>
+      </summary>
+      <div class="klappe-inhalt">
+        <p class="hint no-top">
+          Ansicht wählen, dann auf die Stelle tippen. Die Schadennummer sitzt
+          ab da dort — auf der Skizze in der Fahrzeugansicht und im PDF.
+        </p>
+        <div class="ansicht-reiter" id="marke-reiter"></div>
+        <canvas id="marke-canvas" class="marke-canvas"></canvas>
+        <div class="btn-row">
+          <button type="button" class="secondary mini" id="btn-marke-weg">Stelle entfernen</button>
+        </div>
+      </div>
+    </details>
 
     <div class="toolbar">
       <button type="button" class="tool-btn" data-tool="circle">◯ Kreis</button>
@@ -613,15 +684,17 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=42"></script>
-<script src="js/modelle.js?b=42"></script>
-<script src="js/cloud.js?b=42"></script>
-<script src="js/logo.js?b=42"></script>
-<script src="js/pdf.js?b=42"></script>
-<script src="js/annotate.js?b=42"></script>
-<script src="js/fleet.js?b=42"></script>
-<script src="js/uebersicht.js?b=42"></script>
-<script src="js/snapshot.js?b=42"></script>
-<script src="js/app.js?b=42"></script>
+<script src="js/store.js?b=43"></script>
+<script src="js/modelle.js?b=43"></script>
+<script src="js/cloud.js?b=43"></script>
+<script src="js/logo.js?b=43"></script>
+<script src="js/skizze.js?b=43"></script>
+<script src="js/skizze-ui.js?b=43"></script>
+<script src="js/pdf.js?b=43"></script>
+<script src="js/annotate.js?b=43"></script>
+<script src="js/fleet.js?b=43"></script>
+<script src="js/uebersicht.js?b=43"></script>
+<script src="js/snapshot.js?b=43"></script>
+<script src="js/app.js?b=43"></script>
 </body>
 </html>

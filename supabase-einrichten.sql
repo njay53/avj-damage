@@ -114,6 +114,14 @@ alter table public.damages  add column if not exists deleted_at  bigint  not nul
 alter table public.damages add column if not exists regulierung text    not null default 'mieter';
 alter table public.damages add column if not exists erstattung  numeric;
 
+-- Schadenskizze
+-- form   = Karosserieform fuer den Umriss (pkw-kompakt | transporter | ...)
+-- skizze = freie Zeichnung auf der Skizze, Liste von Zuegen
+-- marke  = Stelle am Fahrzeug: { ansicht, x, y }, x und y als Anteil 0..1
+alter table public.vehicles add column if not exists form   text  not null default '';
+alter table public.vehicles add column if not exists skizze jsonb not null default '[]'::jsonb;
+alter table public.damages  add column if not exists marke  jsonb;
+
 -- ------------------------------------------------------------- Indizes
 -- Der Abgleich fragt immer "was ist neuer als ...", das laeuft darueber.
 

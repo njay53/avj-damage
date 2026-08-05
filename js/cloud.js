@@ -182,6 +182,7 @@
         category_id: v.categoryId || "", hidden: !!v.hidden, zustand: !!v.zustand,
         vin: v.vin || "", photo: v.photo || "", hu: v.hu || "",
         nr: parseInt(v.nr, 10) || 0, archived: !!v.archived,
+        form: v.form || "", skizze: Array.isArray(v.skizze) ? v.skizze : [],
         deleted: !!v.deleted, updated_at: v.updatedAt || 0
       });
       (v.damages || []).forEach(function (d) {
@@ -202,6 +203,7 @@
           deleted_at: d.deletedAt || 0,
           regulierung: d.regulierung || "mieter",
           erstattung: typeof d.erstattung === "number" ? d.erstattung : null,
+          marke: d.marke || null,
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -234,6 +236,7 @@
         categoryId: r.category_id || "", hidden: !!r.hidden, zustand: !!r.zustand,
         vin: r.vin || "", photo: r.photo || "", hu: r.hu || "",
         nr: Number(r.nr) || 0, archived: !!r.archived,
+        form: r.form || "", skizze: Array.isArray(r.skizze) ? r.skizze : [],
         deleted: !!r.deleted, updatedAt: Number(r.updated_at) || 0, damages: []
       };
       byId[r.id] = v;
@@ -267,6 +270,7 @@
         deletedAt: Number(r.deleted_at) || 0,
         regulierung: r.regulierung || "mieter",
         erstattung: r.erstattung,
+        marke: r.marke || null,
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

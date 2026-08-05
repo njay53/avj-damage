@@ -751,3 +751,41 @@ input[type=range]{width:104px;height:36px;}
 }
 .kfz-kuerzel button.aktiv{background:var(--ink);color:var(--bg);border-color:var(--ink);}
 #input-vehicle-plate{font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;}
+
+/* ------------------------------------------------------------------ Schadenskizze */
+
+/* Fünf Ansichten wie auf einem Papierprotokoll. Auf dem Telefon rutschen sie
+   untereinander, auf dem iPad stehen die beiden Seiten nebeneinander. */
+.skizze-tafel{
+  display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;
+}
+.skizze-ansicht{
+  margin:0;padding:8px;background:var(--field-bg);
+  border:1px solid var(--field-line);border-radius:10px;
+}
+.skizze-ansicht canvas{display:block;width:100%;height:auto;}
+.skizze-ansicht figcaption{
+  margin-top:4px;font-size:11px;color:var(--muted);letter-spacing:.04em;
+  text-transform:uppercase;
+}
+@media (min-width:640px){
+  .skizze-tafel{grid-template-columns:1fr 1fr;}
+  .skizze-tafel .ansicht-oben{grid-column:1 / -1;}
+}
+
+/* Ansichtswahl: kurze Reiter, damit der Daumen sie ohne Zielen trifft */
+.ansicht-reiter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.ansicht-btn{
+  flex:1 1 auto;min-width:64px;padding:8px 10px;font-size:13px;
+  background:var(--btn-bg);color:var(--btn-fg);border:1px solid var(--field-line);
+  border-radius:8px;min-height:40px;
+}
+.ansicht-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+.marke-canvas{
+  display:block;width:100%;height:auto;background:var(--field-bg);
+  border:1px solid var(--field-line);border-radius:10px;
+  touch-action:none;                 /* beim Zeichnen soll die Seite stillstehen */
+}
+.marke-canvas.gross{margin-bottom:10px;}
+.skizze-klappe{margin:10px 0;}

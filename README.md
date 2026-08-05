@@ -453,6 +453,29 @@ Geste, weil sie im Standalone-Modus nicht überall zuverlässig ankommt. Ist ein
 Dialog offen, schliesst der erste Wisch erst ihn — beim Markieren eines Fotos
 ist die Geste ganz aus, sonst wäre die Zeichnung mit einem Wisch weg.
 
+**Schadenskizze:** Beim Erfassen eines Schadens unter *Stelle am Fahrzeug* die
+Ansicht wählen und auf die Stelle tippen. Ab da steht die Schadennummer dort —
+in der Fahrzeugansicht und auf **Seite 1 des PDF**, direkt unter den Kopfdaten.
+Zwei Ebenen liegen übereinander:
+
+- **Die Nummern** kommen aus den Schäden selbst. Nichts wird doppelt gepflegt:
+  Schaden gelöscht → Nummer weg. Sitzen mehrere dicht beieinander, fasst die
+  Skizze sie zu einem Punkt zusammen und schreibt „1, 2" daneben — genau das,
+  was ein Papierprotokoll an einer Stelle macht.
+- **Die freie Zeichnung** (`Skizze bemalen`) ist für alles ohne eigene Nummer:
+  ein Bereich, der durchgehend verkratzt ist, ein Kreuz, eine Anmerkung. Sie
+  hängt am Fahrzeug und lässt sich einzeln löschen, ohne die Nummern zu
+  berühren.
+
+Die Umrisse sind selbst gezeichnet und liegen als Kurven im PDF, nicht als
+Bild — scharf beim Zoomen und im Ausdruck, und die ganze Skizze kostet weniger
+Platz als ein einziges Vorschaubild. Modellgenaue Umrisse gibt es bewusst
+nicht: für einen wechselnden Bestand ist keine Quelle sauber zu bekommen, und
+gedruckte Übergabeprotokolle machen es genauso — eine Form je Fahrzeugklasse,
+fünf Ansichten. Fertig sind **PKW kompakt** und **Transporter**; Kombi, Van,
+SUV und Koffer mit Ladebordwand folgen. Die Form steht beim Fahrzeug und wird
+aus der Kategorie vorbelegt.
+
 **Vor der Übergabe:** Fahrzeug öffnen → `Stand festhalten` → optional eine
 interne Referenz eintragen (Mietvertragsnummer, **keine Kundennamen**) →
 `Einfrieren` → Zeile kopieren und in rentsoft eintragen.

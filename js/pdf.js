@@ -231,6 +231,30 @@
       return api;
     }
 
+    /* Freier Pfad aus Geraden und Bézier-Kurven. Gebraucht für die
+       Schadenskizze: die Umrisse liegen als Kurven vor, nicht als Bild —
+       damit bleiben sie beim Zoomen und beim Ausdruck scharf und kosten
+       ein paar hundert Byte statt einiger hundert Kilobyte.
+       Züge: ["M",x,y] ["L",x,y] ["C",x1,y1,x2,y2,x,y] ["Z"] */
+    function pfad(zuege, opt) {
+      var s = opt || {};
+      var umgerechnet = zuege.map(function (z) {
+        if (z[0] === "M" || z[0] === "L") return [z[0], z[1] * MM, y2pdf(z[2])];
+        if (z[0] === "C") {
+          return ["C", z[1] * MM, y2pdf(z[2]), z[3] * MM, y2pdf(z[4]), z[5] * MM, y2pdf(z[6])];
+        }
+        return ["Z"];
+      });
+      aktuell.push({
+        art: "pfad",
+        zuege: umgerechnet,
+        staerke: (s.width || 0.2) * MM,
+        farbe: s.color || [0, 0, 0],
+        fuellen: s.fill || null
+      });
+      return api;
+    }
+
     /* Bild einfügen. Gibt die tatsächlich belegte Höhe zurück, weil das
        Seitenverhältnis erhalten bleibt. */
     function bild(dataUrl, x, y, maxBreite, maxHoehe, opt) {
@@ -296,6 +320,23 @@
           teile.push(a.x.toFixed(2) + " " + a.y.toFixed(2) + " " +
             a.b.toFixed(2) + " " + a.h.toFixed(2) + " re");
           teile.push(a.fuellen && a.rand ? "B" : (a.fuellen ? "f" : "S"));
+        } else if (a.art === "pfad") {
+          if (a.fuellen) {
+            teile.push(a.fuellen.map(function (k) { return k.toFixed(3); }).join(" ") + " rg");
+          }
+          teile.push(a.farbe.map(function (k) { return k.toFixed(3); }).join(" ") + " RG");
+          teile.push(a.staerke.toFixed(2) + " w");
+          teile.push("1 J 1 j");                  // runde Enden und Ecken
+          a.zuege.forEach(function (z) {
+            if (z[0] === "M") teile.push(z[1].toFixed(2) + " " + z[2].toFixed(2) + " m");
+            else if (z[0] === "L") teile.push(z[1].toFixed(2) + " " + z[2].toFixed(2) + " l");
+            else if (z[0] === "C") {
+              teile.push(z[1].toFixed(2) + " " + z[2].toFixed(2) + " " +
+                z[3].toFixed(2) + " " + z[4].toFixed(2) + " " +
+                z[5].toFixed(2) + " " + z[6].toFixed(2) + " c");
+            } else teile.push("h");
+          });
+          teile.push(a.fuellen ? "B" : "S");
         } else if (a.art === "bild") {
           teile.push("q");
           teile.push(a.b.toFixed(2) + " 0 0 " + a.h.toFixed(2) + " " +
@@ -419,6 +460,7 @@
       textBreite: textBreite,
       linie: linie,
       rechteck: rechteck,
+      pfad: pfad,
       bild: bild,
       bauen: bauen,
       speichern: speichern,

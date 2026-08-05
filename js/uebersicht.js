@@ -57,6 +57,138 @@
     doc.linie(RAND, FUSS_Y - 4, BREITE - RAND, FUSS_Y - 4, { width: 0.2, color: HELLGRAU });
   }
 
+  // ------------------------------------------------------------ Skizze
+
+  var ROT = [0.776, 0.078, 0.094];
+  var WEISS = [1, 1, 1];
+
+  /* Eine Ansicht mit Nummern und freier Zeichnung. Die Umrisse gehen als
+     Kurven ins PDF, nicht als Bild — beim Hineinzoomen und im Ausdruck bleibt
+     alles scharf, und die ganze Skizze kostet weniger Platz als ein einziges
+     Vorschaubild. */
+  function skizzeAnsicht(doc, form, ansichtId, kasten, marken, ops) {
+    var lage = App.Skizze.zeichnePdf(doc, form, ansichtId, kasten);
+
+    (ops || []).filter(function (o) { return o.ansicht === ansichtId; }).forEach(function (op) {
+      var p = (op.punkte || []).map(function (pt) {
+        return { x: lage.x + pt[0] * lage.breite, y: lage.y + pt[1] * lage.hoehe };
+      });
+      if (!p.length) return;
+      var zuege = [];
+      if (op.art === "kreuz") {
+        var d = 1.8;
+        zuege = [
+          ["M", p[0].x - d, p[0].y - d], ["L", p[0].x + d, p[0].y + d],
+          ["M", p[0].x + d, p[0].y - d], ["L", p[0].x - d, p[0].y + d]
+        ];
+      } else if (op.art === "kreis" && p.length > 1) {
+        var rx = Math.max(Math.abs(p[1].x - p[0].x), 1);
+        var ry = Math.max(Math.abs(p[1].y - p[0].y), 1);
+        zuege = ellipseAlsKurven(p[0].x, p[0].y, rx, ry);
+      } else {
+        zuege = [["M", p[0].x, p[0].y]];
+        for (var i = 1; i < p.length; i++) zuege.push(["L", p[i].x, p[i].y]);
+      }
+      doc.pfad(zuege, { width: 0.5, color: ROT });
+    });
+
+    var eigene = (marken || []).filter(function (m) { return m.ansicht === ansichtId; });
+    App.Skizze.gruppiere(eigene).forEach(function (g) {
+      var mx = lage.x + g.x * lage.breite;
+      var my = lage.y + g.y * lage.hoehe;
+      var text = g.nummern.join(", ");
+      var groesse = 6;
+      var tb = doc.textBreite(text, groesse, true);
+      var h = 4.2;
+      var b = Math.max(h, tb + 2.4);
+
+      doc.pfad(pilleAlsKurven(mx - b / 2, my - h / 2, b, h), {
+        width: 0.25, color: WEISS, fill: ROT
+      });
+      doc.text(text, mx - tb / 2, my + groesse * 0.35 / 2.834645669 + 0.35,
+        { size: groesse, bold: true, color: WEISS });
+    });
+
+    return lage;
+  }
+
+  var KAPPA = 0.5522847498;
+
+  function ellipseAlsKurven(cx, cy, rx, ry) {
+    var kx = rx * KAPPA, ky = ry * KAPPA;
+    return [
+      ["M", cx + rx, cy],
+      ["C", cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry],
+      ["C", cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy],
+      ["C", cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry],
+      ["C", cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy],
+      ["Z"]
+    ];
+  }
+
+  function pilleAlsKurven(x, y, b, h) {
+    var r = h / 2, k = r * KAPPA;
+    return [
+      ["M", x + r, y],
+      ["L", x + b - r, y],
+      ["C", x + b - r + k, y, x + b, y + r - k, x + b, y + r],
+      ["C", x + b, y + r + k, x + b - r + k, y + h, x + b - r, y + h],
+      ["L", x + r, y + h],
+      ["C", x + r - k, y + h, x, y + r + k, x, y + r],
+      ["C", x, y + r - k, x + r - k, y, x + r, y],
+      ["Z"]
+    ];
+  }
+
+  /* Fünf Ansichten wie auf einem Papierprotokoll: die beiden Seiten oben
+     nebeneinander, darunter Front, Heck und die Draufsicht. */
+  function skizzenblock(doc, form, marken, ops, y) {
+    doc.text("SCHADENSKIZZE", RAND, y, { size: 8, bold: true, color: GRAU });
+    var hinweis = marken.length
+      ? "Nummern entsprechen der Schadensliste"
+      : "keine Stellen eingezeichnet";
+    var hb = doc.textBreite(hinweis, 7, false);
+    doc.text(hinweis, BREITE - RAND - hb, y, { size: 7, color: GRAU });
+    y += 3;
+
+    var luft = 4;
+    var halb = (INHALT - luft) / 2;
+    var reiheEins = 34;
+
+    beschrifte(doc, "Links", RAND, y);
+    skizzeAnsicht(doc, form, "links",
+      { x: RAND, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops);
+
+    beschrifte(doc, "Rechts", RAND + halb + luft, y);
+    skizzeAnsicht(doc, form, "rechts",
+      { x: RAND + halb + luft, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops);
+
+    y += reiheEins + 6;
+
+    var schmal = 38;
+    var reiheZwei = 36;
+    var obenBreite = INHALT - 2 * (schmal + luft);
+
+    beschrifte(doc, "Vorn", RAND, y);
+    skizzeAnsicht(doc, form, "vorn",
+      { x: RAND, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops);
+
+    beschrifte(doc, "Hinten", RAND + schmal + luft, y);
+    skizzeAnsicht(doc, form, "hinten",
+      { x: RAND + schmal + luft, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops);
+
+    beschrifte(doc, "Draufsicht", RAND + 2 * (schmal + luft), y);
+    skizzeAnsicht(doc, form, "oben",
+      { x: RAND + 2 * (schmal + luft), y: y + 3, breite: obenBreite, hoehe: reiheZwei },
+      marken, ops);
+
+    return y + reiheZwei + 7;
+  }
+
+  function beschrifte(doc, text, x, y) {
+    doc.text(text, x, y, { size: 6.5, color: GRAU });
+  }
+
   function baue(fahrzeug, schaeden, gesamt) {
     var doc = App.PDF.neu();
     var seitenAnfang = [];      // für die spätere Seitenzählung
@@ -85,7 +217,24 @@
       y += 6;
     });
 
-    y += 6;
+    y += 5;
+
+    // ---------------------------------------------------------- Skizze
+    /* Die Nummern richten sich nach der Reihenfolge in diesem Dokument, nicht
+       nach der internen Schadennummer — der Kunde hat nur dieses Blatt vor
+       sich, und darauf soll "3" auf der Skizze auch "3" in der Liste sein. */
+    var marken = [];
+    schaeden.forEach(function (d, i) {
+      if (d.marke) {
+        marken.push({
+          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y, nummer: String(i + 1)
+        });
+      }
+    });
+    var form = (fahrzeug.form && App.Skizze.kennt(fahrzeug.form))
+      ? fahrzeug.form
+      : App.Skizze.formVorschlag("", fahrzeug.name);
+    y = skizzenblock(doc, form, marken, fahrzeug.skizze || [], y);
 
     // ---------------------------------------------------------- Schadensliste
     if (!schaeden.length) {

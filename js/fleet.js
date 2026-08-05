@@ -66,6 +66,7 @@
       openVehicleModal(currentVehicleId);
     });
     q("btn-delete-vehicle").addEventListener("click", deleteCurrentVehicle);
+    bindMalen();
     q("form-vehicle").addEventListener("submit", submitVehicle);
     q("btn-save-note").addEventListener("click", saveDetailNote);
     q("detail-regulierung").addEventListener("change", zeigeErstattungsfeld);
@@ -267,6 +268,7 @@
     q("zustand-block").classList.toggle("hidden", !v.zustand);
     if (v.zustand) fuelleRaster(q("zustand-grid"), v, "zustand");
 
+    zeigeSkizze(v);
     zeigeBilanz(v);
 
     /* Schadensstände hängen am Kennungsschalter: aus heisst zugeklappt und
@@ -279,6 +281,165 @@
       ? staende + (staende === 1 ? " Stand" : " Stände")
       : "noch keiner";
     App.Snapshot.renderList();
+  }
+
+  /* Die Skizze baut sich aus den Schäden selbst zusammen. Nichts wird
+     zusätzlich gepflegt: Schaden gelöscht, Nummer weg. */
+  function markenVon(v) {
+    return Store.damagesOf(v.id, "schaden")
+      .filter(function (d) { return d.marke; })
+      .map(function (d) {
+        return {
+          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
+          nummer: String(d.nr || "?")
+        };
+      });
+  }
+
+  function zeigeSkizze(v) {
+    var marken = markenVon(v);
+    var ohne = Store.damagesOf(v.id, "schaden").length - marken.length;
+
+    q("skizze-kurz").textContent = marken.length
+      ? marken.length + (marken.length === 1 ? " Stelle" : " Stellen") +
+        (ohne ? " · " + ohne + " ohne" : "")
+      : (ohne ? ohne + (ohne === 1 ? " Schaden ohne Stelle" : " Schäden ohne Stelle")
+              : "noch nichts eingezeichnet");
+
+    App.SkizzeUi.tafel(q("skizze-tafel"), {
+      form: formVon(v),
+      marken: marken,
+      ops: v.skizze || []
+    });
+
+    q("btn-skizze-leeren").classList.toggle("hidden", !(v.skizze && v.skizze.length));
+  }
+
+  // ------------------------------------------------- Freie Ebene auf der Skizze
+
+  /* Die zweite Ebene: alles, was keine eigene Schadennummer hat. Ein Bereich,
+     der durchgehend verkratzt ist, eine Klammer, ein Kreuz an einer Stelle,
+     die man sich merken will. Die Nummern liegen darunter und bleiben
+     unberührt — gelöscht wird hier nur die Zeichnung.
+
+     Gespeichert werden Züge, keine Bilder: ein paar hundert Byte statt eines
+     Fotos, und beim nächsten Öffnen lässt sich der letzte Strich zurücknehmen. */
+  var malAnsicht = "links";
+  var malArt = "frei";
+  var malOps = [];
+  var malZug = null;
+
+  function oeffneMalen() {
+    var v = Store.getVehicle(currentVehicleId);
+    if (!v) return;
+    malOps = (v.skizze || []).map(function (o) {
+      return { ansicht: o.ansicht, art: o.art, punkte: (o.punkte || []).slice() };
+    });
+    malAnsicht = "links";
+    malArt = "frei";
+    document.querySelectorAll("#modal-skizze .tool-btn[data-mal]").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-mal") === "frei");
+    });
+    q("modal-skizze").classList.remove("hidden");
+    baueMalReiter();
+    zeichneMalen();
+  }
+
+  function baueMalReiter() {
+    App.SkizzeUi.reiter(q("skizze-reiter"), malAnsicht, function (id) {
+      malAnsicht = id;
+      baueMalReiter();
+      zeichneMalen();
+    });
+  }
+
+  function zeichneMalen() {
+    var v = Store.getVehicle(currentVehicleId);
+    if (!v) return;
+    var leinwand = q("skizze-canvas");
+    var breite = leinwand.parentNode ? (leinwand.parentNode.clientWidth || 320) : 320;
+    App.SkizzeUi.zeichneAnsicht(leinwand, {
+      form: formVon(v),
+      ansicht: malAnsicht,
+      breite: Math.min(breite, 520),
+      marken: markenVon(v).filter(function (m) { return m.ansicht === malAnsicht; }),
+      ops: malOps.filter(function (o) { return o.ansicht === malAnsicht; })
+    });
+  }
+
+  function malPunkt(e) {
+    var leinwand = q("skizze-canvas");
+    var lage = leinwand.__lage;
+    if (!lage) return null;
+    var kasten = leinwand.getBoundingClientRect();
+    return App.SkizzeUi.pixelNachAnteil(lage, e.clientX - kasten.left, e.clientY - kasten.top);
+  }
+
+  function bindMalen() {
+    var leinwand = q("skizze-canvas");
+
+    document.querySelectorAll("#modal-skizze .tool-btn[data-mal]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        malArt = b.getAttribute("data-mal");
+        document.querySelectorAll("#modal-skizze .tool-btn[data-mal]").forEach(function (x) {
+          x.classList.remove("active");
+        });
+        b.classList.add("active");
+      });
+    });
+
+    leinwand.addEventListener("pointerdown", function (e) {
+      var p = malPunkt(e);
+      if (!p) return;
+      e.preventDefault();
+      leinwand.setPointerCapture(e.pointerId);
+      if (malArt === "kreuz") {
+        malOps.push({ ansicht: malAnsicht, art: "kreuz", punkte: [[p.x, p.y]] });
+        malZug = null;
+        zeichneMalen();
+        return;
+      }
+      malZug = { ansicht: malAnsicht, art: malArt, punkte: [[p.x, p.y]] };
+      if (malArt === "kreis") malZug.punkte.push([p.x, p.y]);
+      malOps.push(malZug);
+    });
+
+    leinwand.addEventListener("pointermove", function (e) {
+      if (!malZug) return;
+      var p = malPunkt(e);
+      if (!p) return;
+      if (malZug.art === "kreis") malZug.punkte[1] = [p.x, p.y];
+      else malZug.punkte.push([p.x, p.y]);
+      zeichneMalen();
+    });
+
+    function fertig() { malZug = null; }
+    leinwand.addEventListener("pointerup", fertig);
+    leinwand.addEventListener("pointercancel", fertig);
+
+    q("btn-skizze-undo").addEventListener("click", function () {
+      /* Nur in der gerade sichtbaren Ansicht zurücknehmen — sonst verschwände
+         plötzlich etwas auf einer Seite, die man gar nicht sieht. */
+      for (var i = malOps.length - 1; i >= 0; i--) {
+        if (malOps[i].ansicht === malAnsicht) { malOps.splice(i, 1); break; }
+      }
+      zeichneMalen();
+    });
+
+    q("btn-skizze-speichern").addEventListener("click", function () {
+      Store.updateVehicle(currentVehicleId, { skizze: malOps }).then(function () {
+        q("modal-skizze").classList.add("hidden");
+        renderVehicle();
+      });
+    });
+
+    q("btn-skizze-malen").addEventListener("click", oeffneMalen);
+
+    q("btn-skizze-leeren").addEventListener("click", function () {
+      if (!confirm("Die freie Zeichnung auf der Skizze löschen?\n\n" +
+        "Die Schadennummern bleiben — die kommen aus den Schäden selbst.")) return;
+      Store.updateVehicle(currentVehicleId, { skizze: [] }).then(renderVehicle);
+    });
   }
 
   /* Was das Fahrzeug an Schäden eingebracht und gekostet hat. Erscheint nur,
@@ -615,6 +776,28 @@
     sel.value = gewaehlt || "";
   }
 
+  /* Welche Form gilt für dieses Fahrzeug? Steht nichts drin — bei allem, was
+     vor der Skizze angelegt wurde — wird aus Kategorie und Bezeichnung
+     geraten. Geraten, nicht gespeichert: sobald er das Fahrzeug einmal
+     bearbeitet, steht die Form fest. */
+  function formVon(v) {
+    if (!v) return "pkw-kompakt";
+    if (v.form && App.Skizze.kennt(v.form)) return v.form;
+    return App.Skizze.formVorschlag(Store.categoryName(v.categoryId), v.name);
+  }
+
+  function fuelleFormAuswahl(gewaehlt) {
+    var sel = q("input-vehicle-form");
+    sel.innerHTML = "";
+    App.Skizze.formen().forEach(function (f) {
+      var opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = f.name + (f.hinweis ? " — " + f.hinweis : "");
+      sel.appendChild(opt);
+    });
+    sel.value = App.Skizze.kennt(gewaehlt) ? gewaehlt : "pkw-kompakt";
+  }
+
   function openVehicleModal(editId) {
     editingVehicleId = editId;
     var nameInput = q("input-vehicle-name");
@@ -630,6 +813,7 @@
       bildEntwurf = v.photo || "";
       q("input-vehicle-hidden").checked = !!v.hidden;
       q("input-vehicle-zustand").checked = !!v.zustand;
+      fuelleFormAuswahl(formVon(v));
     } else {
       q("vehicle-modal-title").textContent = "Fahrzeug hinzufügen";
       nameInput.value = "";
@@ -642,6 +826,7 @@
       bildEntwurf = "";
       q("input-vehicle-hidden").checked = false;
       q("input-vehicle-zustand").checked = false;
+      fuelleFormAuswahl(App.Skizze.formVorschlag(Store.categoryName(filterKategorie), ""));
     }
     zeigeFahrzeugbild();
     /* Beim Bearbeiten steht die Bezeichnung schon — die Schnellauswahl fängt
@@ -671,7 +856,8 @@
       photo: bildEntwurf,
       categoryId: q("input-vehicle-category").value,
       hidden: q("input-vehicle-hidden").checked,
-      zustand: q("input-vehicle-zustand").checked
+      zustand: q("input-vehicle-zustand").checked,
+      form: q("input-vehicle-form").value
     };
     var op = editingVehicleId
       ? Store.updateVehicle(editingVehicleId, daten)
@@ -1020,6 +1206,24 @@
     _huLetzterTag: huLetzterTag,
     loescheFahrzeugEndgueltig: loescheFahrzeugEndgueltig,
     renderVehicle: renderVehicle,
+    /* Alles, was der Schadendialog über die Skizze des aktuellen Fahrzeugs
+       wissen muss — ohne dass er im Fuhrpark herumwühlen muss. */
+    skizzeKontext: function () {
+      var v = Store.getVehicle(currentVehicleId);
+      if (!v) return { form: "pkw-kompakt", marken: [], ops: [] };
+      return {
+        form: formVon(v),
+        marken: Store.damagesOf(v.id, "schaden")
+          .filter(function (d) { return d.marke; })
+          .map(function (d) {
+            return {
+              id: d.id, ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
+              nummer: String(d.nr || "?")
+            };
+          }),
+        ops: v.skizze || []
+      };
+    },
     openVehicle: openVehicle,
     _openDetail: openDetail,
     currentVehicleId: function () { return currentVehicleId; },
