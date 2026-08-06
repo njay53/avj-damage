@@ -40,7 +40,12 @@
     linie: { staerke: 0.45 },
     glas: { staerke: 0.45, fuellung: 0.92 },
     rad: { staerke: 0.6 },
-    fein: { staerke: 0.3 }
+    fein: { staerke: 0.3 },
+    /* Uebernommene Vorlagen sind viel feiner gezeichnet als die von Hand
+       gesetzten Formen. Mit denselben Staerken wuerde die Zeichnung auf dem
+       Protokoll zulaufen — vier Zentimeter breit ist wenig Platz. */
+    vorlage: { staerke: 0.18 },
+    vorlage_kontur: { staerke: 0.34 }
   };
 
   // ================================================================ PKW kompakt
@@ -276,13 +281,140 @@
     }
   };
 
-  var FORMEN = { "pkw-kompakt": PKW, "transporter": VAN };
+  // ============================================================= 9-Sitzer
+
+  /* Nach einem eigenen Foto des Fahrzeugs abgemessen: Sprinter Tourer,
+     Flachdach, 9-Sitzer. Die Maße stammen aus der Seitenansicht — Radstand,
+     Höhe der Gürtellinie, Lage der Scheiben und der Radläufe wurden am Bild
+     abgegriffen und in dieses Raster umgerechnet.
+
+     Länge zu Höhe liegt hier bei etwa 2,2 : 1. Das ist deutlich gedrungener
+     als beim langen Kastenwagen und der Grund, warum dieselbe Zeichnung für
+     beide nicht funktioniert. */
+  var BUS_SEITE = [
+    { stil: "kontur", d:
+      "M 3.1,30 " +
+      "C 3.1,26 4.4,23.8 8.6,22.7 " +
+      "L 19.8,17.9 " +
+      "L 29.5,5.7 " +
+      "C 30.4,4.4 31.8,3.6 33.6,3.5 " +
+      "L 95.2,3.6 " +
+      "C 96.4,3.7 96.9,4.3 96.9,5.6 " +
+      "L 96.9,38 " +
+      "C 96.9,39.6 96.4,40.3 95,40.3 " +
+      "L 84.5,40.3 " +
+      "C 84.5,33.6 81.3,30.6 77.3,30.6 " +
+      "C 73.3,30.6 70.1,33.6 70.1,40.3 " +
+      "L 22.5,40.3 " +
+      "C 22.5,33.6 19.3,30.6 15.3,30.6 " +
+      "C 11.3,30.6 8.1,33.6 8.1,38.8 " +
+      "L 5.6,38.8 " +
+      "C 3.8,38.8 3.1,37.6 3.1,35.4 Z" },
+    /* Die Windschutzscheibe bekommt keine eigene Fläche: von der Seite sieht
+       man davon fast nichts, gezeichnet lag sie über der Türscheibe. Die
+       A-Säule ist ohnehin schon die Aussenkontur. */
+    { stil: "glas", d: "M 29.6,8.2 L 39,7.6 L 39,21.8 L 25.8,21.8 Z" },
+    /* Das durchgehende Fensterband hinten ist das, was den 9-Sitzer vom
+       Kastenwagen unterscheidet — beim Kastenwagen ist dort Blech. */
+    { stil: "glas", d: "M 43.8,7 L 65.4,6.6 L 65.4,20.8 L 43.8,20.8 Z" },
+    { stil: "glas", d: "M 66.8,6.6 L 88.6,6.8 L 88.6,20.8 L 66.8,20.8 Z" },
+    { stil: "linie", d: "M 20.6,17.8 L 20.6,40.3" },
+    { stil: "linie", d: "M 42,5.6 L 42,40.3" },
+    { stil: "linie", d: "M 43.4,6.4 L 43.4,40.3" },
+    { stil: "linie", d: "M 66.2,5.4 L 66.2,40.3" },
+    { stil: "fein", d: "M 24,34.2 L 87,34.2" },
+    { stil: "fein", d: "M 35,23 L 38.6,23" },
+    { stil: "fein", d: "M 60,23.2 L 63.6,23.2" },
+    { stil: "linie", d: "M 92.8,21.4 L 95.2,21.4 L 95.2,29.4 L 92.8,29.4 Z" },
+    { stil: "linie", d: "M 20.6,14.4 L 16.6,13.6 L 16.2,19.4 L 20.4,19.8 Z" },
+    { stil: "rad", kreis: [15.3, 39.5, 7.2] },
+    { stil: "fein", kreis: [15.3, 39.5, 3.8] },
+    { stil: "rad", kreis: [77.3, 39.5, 7.2] },
+    { stil: "fein", kreis: [77.3, 39.5, 3.8] }
+  ];
+
+  var BUS = {
+    name: "9-Sitzer",
+    hinweis: "Tourer mit Flachdach",
+    ansichten: {
+      links: { b: 100, h: 48, teile: BUS_SEITE },
+      rechts: { b: 100, h: 48, teile: BUS_SEITE, spiegeln: true },
+      vorn: { b: 48, h: 48, teile: [
+        { stil: "kontur", d:
+          "M 5,43 " +
+          "C 3.6,42.8 3,41.8 3,39.8 " +
+          "L 3,12.4 " +
+          "C 3,10 4,9 6.2,8.8 " +
+          "L 41.8,8.8 " +
+          "C 44,9 45,10 45,12.4 " +
+          "L 45,39.8 " +
+          "C 45,41.8 44.4,42.8 43,43 Z" },
+        { stil: "glas", d: "M 6.6,11.2 L 41.4,11.2 L 41.4,22 L 6.6,22 Z" },
+        { stil: "linie", d: "M 4,23.8 L 44,23.8" },
+        { stil: "linie", d: "M 5.4,25.4 L 15.4,25.4 L 15.4,30.2 L 5.4,30.2 Z" },
+        { stil: "linie", d: "M 32.6,25.4 L 42.6,25.4 L 42.6,30.2 L 32.6,30.2 Z" },
+        { stil: "linie", d: "M 17,25 L 31,25 L 31,29 L 17,29 Z" },
+        { stil: "fein", d: "M 3.4,32.4 L 44.6,32.4" },
+        { stil: "linie", d: "M 17,33.6 L 31,33.6 L 31,37.6 L 17,37.6 Z" },
+        { stil: "fein", d: "M 3.4,38.4 L 44.6,38.4" },
+        { stil: "rad", d: "M 3.4,37.6 L 8.4,37.6 L 8.4,46.8 L 3.4,46.8 Z" },
+        { stil: "rad", d: "M 39.6,37.6 L 44.6,37.6 L 44.6,46.8 L 39.6,46.8 Z" },
+        { stil: "linie", d: "M 0.8,12.8 L 4.2,12.8 L 4.2,18.8 L 0.8,18.8 Z" },
+        { stil: "linie", d: "M 43.8,12.8 L 47.2,12.8 L 47.2,18.8 L 43.8,18.8 Z" }
+      ] },
+      hinten: { b: 48, h: 48, teile: [
+        { stil: "kontur", d:
+          "M 5,43 " +
+          "C 3.6,42.8 3,41.8 3,39.8 " +
+          "L 3,11.4 " +
+          "C 3,9.4 3.8,8.6 5.8,8.6 " +
+          "L 42.2,8.6 " +
+          "C 44.2,8.6 45,9.4 45,11.4 " +
+          "L 45,39.8 " +
+          "C 45,41.8 44.4,42.8 43,43 Z" },
+        { stil: "linie", d: "M 5.4,10.2 L 42.6,10.2 L 42.6,37 L 5.4,37 Z" },
+        { stil: "kontur", d: "M 24,10.2 L 24,37" },
+        { stil: "glas", d: "M 8,12.2 L 22.4,12.2 L 22.4,21.4 L 8,21.4 Z" },
+        { stil: "glas", d: "M 25.6,12.2 L 40,12.2 L 40,21.4 L 25.6,21.4 Z" },
+        { stil: "linie", d: "M 4.2,23 L 7.6,23 L 7.6,32.4 L 4.2,32.4 Z" },
+        { stil: "linie", d: "M 40.4,23 L 43.8,23 L 43.8,32.4 L 40.4,32.4 Z" },
+        { stil: "fein", d: "M 3.2,38.4 L 44.8,38.4" },
+        { stil: "linie", d: "M 17,39 L 31,39 L 31,42.4 L 17,42.4 Z" },
+        { stil: "rad", d: "M 3.4,37.6 L 8.4,37.6 L 8.4,46.8 L 3.4,46.8 Z" },
+        { stil: "rad", d: "M 39.6,37.6 L 44.6,37.6 L 44.6,46.8 L 39.6,46.8 Z" }
+      ] },
+      oben: { b: 100, h: 46, teile: [
+        { stil: "kontur", d:
+          "M 5.4,23 " +
+          "C 5.4,15.4 6.8,10.6 9.6,8.8 " +
+          "C 11.8,7.4 15,6.8 20,6.7 " +
+          "L 93,6.7 " +
+          "C 95.6,6.8 96.8,7.6 96.8,9.6 " +
+          "L 96.8,36.4 " +
+          "C 96.8,38.4 95.6,39.2 93,39.3 " +
+          "L 20,39.3 " +
+          "C 15,39.2 11.8,38.6 9.6,37.2 " +
+          "C 6.8,35.4 5.4,30.6 5.4,23 Z" },
+        { stil: "glas", d: "M 13.6,10.4 L 21,8.8 L 21,37.2 L 13.6,35.6 Z" },
+        { stil: "linie", d: "M 22.6,8.6 L 22.6,37.4" },
+        { stil: "glas", d: "M 24,8.8 L 42,8.8 L 42,37.2 L 24,37.2 Z" },
+        { stil: "glas", d: "M 44,8.8 L 66,8.8 L 66,37.2 L 44,37.2 Z" },
+        { stil: "glas", d: "M 68,8.8 L 88,8.8 L 88,37.2 L 68,37.2 Z" },
+        { stil: "linie", d: "M 94.4,8.8 L 94.4,37.2" },
+        { stil: "linie", d: "M 10.4,5.8 L 15.4,2.6 L 17,4.4 L 12,7.2 Z" },
+        { stil: "linie", d: "M 10.4,40.2 L 15.4,43.4 L 17,41.6 L 12,38.8 Z" }
+      ] }
+    }
+  };
+
+  var FORMEN = { "pkw-kompakt": PKW, "transporter": VAN, "neunsitzer": BUS };
 
   /* Vorbelegung anhand des Kategorienamens. Trifft nicht immer, muss es auch
      nicht — beim Fahrzeug lässt sich die Form mit einem Griff ändern. */
   function formVorschlag(kategorieName, fahrzeugName) {
     var text = String(kategorieName || "") + " " + String(fahrzeugName || "");
     var k = text.toLowerCase();
+    if (/9.?sitzer|neunsitzer|tourer|kombi bus|\bbus\b|minibus/.test(k)) return "neunsitzer";
     if (/transporter|kasten|sprinter|crafter|ducato|boxer|jumper|transit|master|movano|koffer|pritsche|lkw|3,5|3\.5/.test(k)) {
       return "transporter";
     }
@@ -463,6 +595,10 @@
     formName: function (id) { return (FORMEN[id] || FORMEN["pkw-kompakt"]).name; },
     kennt: function (id) { return !!FORMEN[id]; },
     formVorschlag: formVorschlag,
+    /* Uebernommene Vorlagen tragen sich hier ein. Eine Vorlage mit derselben
+       Kennung ersetzt die von Hand gezeichnete Form — die bleibt als Notnagel
+       stehen, falls eine Vorlagendatei einmal fehlt. */
+    ergaenze: function (id, form) { FORMEN[id] = form; },
     ansicht: ansicht,
     passe: passe,
     zeichneCanvas: zeichneCanvas,

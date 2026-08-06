@@ -14,7 +14,7 @@ const { createFakeServer } = require("./fake-server");
 require("fake-indexeddb/auto");
 
 const APP = path.join(__dirname, "..");
-const DATEIEN = ["js/store.js", "js/modelle.js", "js/cloud.js", "js/logo.js", "js/skizze.js", "js/skizze-ui.js", "js/pdf.js", "js/annotate.js",
+const DATEIEN = ["js/store.js", "js/modelle.js", "js/cloud.js", "js/logo.js", "js/skizze.js", "js/skizze-ui.js", "js/formen-vorlagen.js", "js/pdf.js", "js/annotate.js",
                  "js/fleet.js", "js/uebersicht.js", "js/snapshot.js", "js/app.js"];
 
 /* Ein winziges echtes JPEG (48x36) — gebraucht, um den PDF-Erzeuger
@@ -1441,26 +1441,37 @@ function kontrast(a, b) {
         const a = S.ansicht(id, an.id);
         check(id + "/" + an.id + " hat eine Größe", a.b > 0 && a.h > 0);
         check(id + "/" + an.id + " hat Inhalt", a.teile.length > 0);
-        let hatKontur = false;
+        /* Nicht je Pfad melden — eine übernommene Vorlage bringt hunderte
+           mit, und dreihundert grüne Zeilen sagen nicht mehr als eine. */
+        let hatKontur = false, salat = null, draussen = null;
         a.teile.forEach((t) => {
-          if (t.stil === "kontur") { hatKontur = true; konturen++; }
+          if (/kontur$/.test(t.stil)) { hatKontur = true; konturen++; }
           if (t.kreis) {
-            check(id + "/" + an.id + " Kreis ist eine Zahl",
-              t.kreis.every((z) => typeof z === "number" && !isNaN(z)));
+            if (!t.kreis.every((z) => typeof z === "number" && !isNaN(z))) salat = t.kreis;
             return;
           }
           const befehle = S._lesePfad(t.d);
           zuegeGesamt += befehle.length;
-          const kaputt = befehle.find((c) => c.slice(1).some((z) => isNaN(z)));
-          check(id + "/" + an.id + " Pfad ohne Zahlensalat", !kaputt, JSON.stringify(kaputt));
-          const drin = befehle.every((c) =>
-            c[0] === "Z" || c.slice(1).every((z, k) => z >= -3 && z <= (k % 2 === 0 ? a.b : a.h) + 3));
-          check(id + "/" + an.id + " Pfad bleibt im Rahmen", drin);
+          if (!salat) {
+            const k = befehle.find((c) => c.slice(1).some((z) => isNaN(z)));
+            if (k) salat = k;
+          }
+          if (!draussen) {
+            const k = befehle.find((c) => c[0] !== "Z" &&
+              c.slice(1).some((z, i) => z < -3 || z > (i % 2 === 0 ? a.b : a.h) + 3));
+            if (k) draussen = k;
+          }
         });
+        check(id + "/" + an.id + " alle Pfade sind Zahlen", !salat, JSON.stringify(salat));
+        check(id + "/" + an.id + " alle Pfade bleiben im Rahmen", !draussen, JSON.stringify(draussen));
         check(id + "/" + an.id + " hat eine Aussenkontur", hatKontur);
       });
     });
     check("es wurde wirklich etwas gezeichnet", zuegeGesamt > 200, String(zuegeGesamt));
+    /* Mindestens eine kräftige Linie je Ansicht — mehr ist erlaubt, die
+       Hecktürfuge eines Kastenwagens ist genauso eine Hauptlinie. */
+    check("jede Ansicht hat mindestens eine Aussenkontur",
+      konturen >= S.formen().length * S.ANSICHTEN.length, String(konturen));
 
     // Die Seitenansichten sind dieselbe Zeichnung, einmal gespiegelt —
     // sonst müsste jede Änderung zweimal gemacht werden.
@@ -1488,6 +1499,12 @@ function kontrast(a, b) {
 
     // Vorschlag aus der Kategorie
     check("Sprinter wird Transporter", S.formVorschlag("Transporter", "Sprinter 316") === "transporter");
+    // Eine uebernommene Vorlage muss die von Hand gezeichnete ersetzen
+    check("übernommene Vorlage ist eingetragen",
+      S.ansicht("transporter", "links").teile.length > 100,
+      String(S.ansicht("transporter", "links").teile.length));
+    check("und trägt die Umrisse aller fünf Ansichten",
+      S.ANSICHTEN.every((an) => S.ansicht("transporter", an.id).teile.length > 40));
     check("Kasten wird Transporter", S.formVorschlag("", "VW Crafter Kastenwagen") === "transporter");
     check("Yaris bleibt PKW", S.formVorschlag("PKW", "Toyota Yaris #3") === "pkw-kompakt");
     check("nichts Bekanntes wird PKW", S.formVorschlag("", "") === "pkw-kompakt");

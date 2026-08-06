@@ -467,14 +467,23 @@ Zwei Ebenen liegen übereinander:
   hängt am Fahrzeug und lässt sich einzeln löschen, ohne die Nummern zu
   berühren.
 
-Die Umrisse sind selbst gezeichnet und liegen als Kurven im PDF, nicht als
-Bild — scharf beim Zoomen und im Ausdruck, und die ganze Skizze kostet weniger
-Platz als ein einziges Vorschaubild. Modellgenaue Umrisse gibt es bewusst
-nicht: für einen wechselnden Bestand ist keine Quelle sauber zu bekommen, und
-gedruckte Übergabeprotokolle machen es genauso — eine Form je Fahrzeugklasse,
-fünf Ansichten. Fertig sind **PKW kompakt** und **Transporter**; Kombi, Van,
-SUV und Koffer mit Ladebordwand folgen. Die Form steht beim Fahrzeug und wird
-aus der Kategorie vorbelegt.
+Die Umrisse liegen als Kurven im PDF, nicht als Bild — scharf beim Zoomen und
+im Ausdruck. Es gibt sie in zwei Sorten:
+
+- **Übernommene Vorlagen** in `js/formen-vorlagen.js`. Fertig gezeichnete
+  Fahrzeugvorlagen werden mit `werkzeuge/vorlage-uebernehmen.py` eingelesen:
+  Beschriftung, Maßlinien und Markenzeichen fliegen raus, die fünf Ansichten
+  werden auseinandersortiert und auf ein gemeinsames Raster gerechnet. Woher
+  eine Vorlage stammt und was damit erlaubt ist, steht in
+  `werkzeuge/HERKUNFT.md` — **da gehört jede neue Form eingetragen.**
+- **Von Hand gezeichnete Formen** in `js/skizze.js`. Sie bleiben als Notnagel
+  stehen, solange für eine Klasse noch keine Vorlage da ist. Sie sehen
+  deutlich einfacher aus; das ist die Grenze dessen, was sich als
+  Zahlenkolonne setzen lässt.
+
+Übernommen ist bisher der **Transporter**. Von Hand gezeichnet sind
+**PKW kompakt** und **9-Sitzer**. Kombi, Van, SUV und Koffer mit Ladebordwand
+folgen. Die Form steht beim Fahrzeug und wird aus der Kategorie vorbelegt.
 
 **Vor der Übergabe:** Fahrzeug öffnen → `Stand festhalten` → optional eine
 interne Referenz eintragen (Mietvertragsnummer, **keine Kundennamen**) →
