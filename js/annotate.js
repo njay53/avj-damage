@@ -184,9 +184,6 @@
 
     markeWert = (d && d.marke) ? { ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y } : null;
     markeAnsicht = markeWert ? markeWert.ansicht : "links";
-    var markeBlock = document.getElementById("marke-block");
-    if (markeBlock) markeBlock.open = !!markeWert;
-    zeichneMarke();
 
     dateModeSel.value = (d && d.dateMode) || "exact";
     dateRow.classList.toggle("hidden", dateModeSel.value !== "exact");
@@ -201,6 +198,14 @@
     var art = opts.art || (d && d.kind) || "schaden";
     var istZustand = art === "zustand";
     aktuelleArt = art;
+
+    /* Die Skizze steht bei einem Schaden offen, nicht zugeklappt: sie zeigt,
+       wo die schon erfassten Schäden sitzen, und genau das will man beim
+       Erfassen sehen. Eine Zustandsaufnahme braucht keine Stelle — dort
+       bleibt der Block zu und im Weg ist er nicht. */
+    var markeBlock = document.getElementById("marke-block");
+    if (markeBlock) markeBlock.open = !istZustand;
+    zeichneMarke();
 
     document.getElementById("count-row").classList.toggle("hidden", istZustand);
     document.getElementById("datemode-row").classList.toggle("hidden", istZustand);

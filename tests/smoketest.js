@@ -1647,6 +1647,12 @@ function kontrast(a, b) {
 
     App.Annotate.open({ title: "t", onSave: () => {} });
     check("noch keine Stelle gesetzt", App.Annotate._marke() === null);
+    /* Beim Erfassen soll die Skizze offen stehen — sie zeigt, wo die schon
+       erfassten Schäden sitzen. Bei einer Zustandsaufnahme nicht. */
+    check("Skizze steht beim Schaden offen", q("marke-block").open);
+    App.Annotate.open({ title: "z", art: "zustand", onSave: () => {} });
+    check("bei einer Zustandsaufnahme bleibt sie zu", !q("marke-block").open);
+    App.Annotate.open({ title: "t", onSave: () => {} });
     App.Annotate._setzeMarke("hinten", 0.25, 0.75);
     const m = App.Annotate._marke();
     check("Stelle wird übernommen",
