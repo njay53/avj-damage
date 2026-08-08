@@ -60,6 +60,7 @@
   // ------------------------------------------------------------ Skizze
 
   var ROT = [0.776, 0.078, 0.094];
+  var GRAU_MARKE = [0.42, 0.42, 0.40];   // Gebrauchsspuren
   var WEISS = [1, 1, 1];
 
   /* Eine Ansicht mit Nummern und freier Zeichnung. Die Umrisse gehen als
@@ -103,7 +104,7 @@
       var b = Math.max(h, tb + 2.4);
 
       doc.pfad(pilleAlsKurven(mx - b / 2, my - h / 2, b, h), {
-        width: 0.25, color: WEISS, fill: ROT
+        width: 0.25, color: WEISS, fill: g.spur ? GRAU_MARKE : ROT
       });
       doc.text(text, mx - tb / 2, my + groesse * 0.35 / 2.834645669 + 0.35,
         { size: groesse, bold: true, color: WEISS });
@@ -189,7 +190,16 @@
     doc.text(text, x, y, { size: 6.5, color: GRAU });
   }
 
-  function baue(fahrzeug, schaeden, gesamt) {
+  /* Tausendertrennung wie sonst auch: 84.320 statt 84320. */
+  function kmText(wert) {
+    var zahl = String(wert || "").replace(/[^0-9]/g, "");
+    return zahl.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+
+  function baue(fahrzeug, schaeden, gesamt, opt) {
+    var o = opt || {};
+    var spuren = o.spuren || [];
+    var mitKm = !!o.mitKm;
     var doc = App.PDF.neu();
     var seitenAnfang = [];      // für die spätere Seitenzählung
 
@@ -227,7 +237,16 @@
     schaeden.forEach(function (d, i) {
       if (d.marke) {
         marken.push({
-          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y, nummer: String(i + 1)
+          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
+          nummer: String(i + 1), spur: false
+        });
+      }
+    });
+    spuren.forEach(function (d, i) {
+      if (d.marke) {
+        marken.push({
+          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
+          nummer: String(i + 1), spur: true
         });
       }
     });
@@ -261,7 +280,35 @@
         doc.text(inhalt, kante - b, yy, opt);
       }
 
-      // Kopfzeile der Tabelle
+      /* Dieselbe Tabelle zweimal: einmal fuer die Schaeden, einmal fuer die
+         Gebrauchsspuren. Getrennt, damit man beim Ueberfliegen nicht das eine
+         fuer das andere haelt. */
+      tabelle(schaeden);
+
+      if (spuren.length) {
+        y += 7;
+        if (y + 22 > UNTERKANTE) y = neueSeite();
+        doc.text("GEBRAUCHSSPUREN", RAND, y, { size: 8, bold: true, color: GRAU });
+        var nachsatz = "Erfasst und im Einzelfall bewertet";
+        var nb = doc.textBreite(nachsatz, 7, false);
+        doc.text(nachsatz, BREITE - RAND - nb, y, { size: 7, color: GRAU });
+        y += 5;
+        tabelle(spuren);
+      }
+    }
+
+    function tabelle(eintraege) {
+      var sp = {
+        nr: RAND, bereich: RAND + 9, text: RAND + 50,
+        anzahlRechts: RAND + 141, wann: RAND + 146
+      };
+      var spaltenBreite = { bereich: 39, text: 80, wann: 34 };
+
+      function rechts(inhalt, kante, yy, opt) {
+        var b = doc.textBreite(inhalt, (opt && opt.size) || 8.5, opt && opt.bold);
+        doc.text(inhalt, kante - b, yy, opt);
+      }
+
       var kopfY = y + 3;
       doc.text("Nr.", sp.nr, kopfY, { size: 7, bold: true, color: GRAU });
       doc.text("Bereich", sp.bereich, kopfY, { size: 7, bold: true, color: GRAU });
@@ -271,11 +318,15 @@
       y = kopfY + 2.5;
       doc.linie(RAND, y, BREITE - RAND, y, { width: 0.4, color: SCHWARZ });
 
-      schaeden.forEach(function (d, i) {
+      eintraege.forEach(function (d, i) {
         var bereichZeilen = doc.umbrechen(d.area || "—", spaltenBreite.bereich, 8.5, false);
         var textZeilen = doc.umbrechen(d.description || "keine Beschreibung",
           spaltenBreite.text, 8.5, false);
-        var wannZeilen = doc.umbrechen(App.Fleet.fmtDamageDate(d), spaltenBreite.wann, 8, false);
+        /* Der Kilometerstand hängt an "Wann" — er sagt dasselbe, nur genauer.
+           Eine eigene Spalte wäre bei den meisten Einträgen leer. */
+        var wann = App.Fleet.fmtDamageDate(d);
+        if (mitKm && d.km) wann += " · " + kmText(d.km) + " km";
+        var wannZeilen = doc.umbrechen(wann, spaltenBreite.wann, 8, false);
         var zeilenZahl = Math.max(bereichZeilen.length, textZeilen.length, wannZeilen.length);
         var hoehe = zeilenZahl * 4.2 + 3.4;
 
@@ -306,13 +357,19 @@
     var fotos = [];
     schaeden.forEach(function (d, i) {
       (d.images || []).forEach(function (src, j) {
-        fotos.push({ src: src, schaden: i + 1, bild: j + 1, d: d });
+        fotos.push({ src: src, schaden: i + 1, bild: j + 1, d: d, spur: false });
+      });
+    });
+    spuren.forEach(function (d, i) {
+      (d.images || []).forEach(function (src, j) {
+        fotos.push({ src: src, schaden: i + 1, bild: j + 1, d: d, spur: true });
       });
     });
 
     if (fotos.length) {
       y = neueSeite() - 1;                 // Überschrift dicht unter die Trennlinie
-      doc.text("SCHADENSFOTOS", RAND, y, { size: 8, bold: true, color: GRAU });
+      doc.text(spuren.length ? "FOTOS" : "SCHADENSFOTOS", RAND, y,
+        { size: 8, bold: true, color: GRAU });
       y += 5;
 
       /* Nicht in ein starres Zweierraster zwängen: Handyfotos vom Schaden sind
@@ -366,12 +423,14 @@
             unterkante = lage.y + lage.hoehe;
           }
 
-          var kopf = "Schaden " + f.schaden + " · Bild " + f.schaden + "." + f.bild;
+          var wort = f.spur ? "Gebrauchsspur " : "Schaden ";
+          var kopf = wort + f.schaden + " · Bild " + f.schaden + "." + f.bild;
           doc.text(kopf, x, unterkante + 4.5, { size: 8, bold: true });
 
           var unten = (f.d.area ? f.d.area : "ohne Bereichsangabe");
           if (f.d.description) unten += " — " + f.d.description;
-          if ((f.d.count || 1) > 1) unten += " (" + f.d.count + " Schäden)";
+          if (!f.spur && (f.d.count || 1) > 1) unten += " (" + f.d.count + " Schäden)";
+          if (mitKm && f.d.km) unten += " · " + kmText(f.d.km) + " km";
           doc.textBlock(unten, x, unterkante + 8.6, eintrag.breite,
             { size: 7.5, color: GRAU, maxZeilen: 2 });
 
@@ -404,8 +463,8 @@
     return "Schadenuebersicht_" + teil + "_" + new Date().toISOString().slice(0, 10) + ".pdf";
   }
 
-  function erzeuge(fahrzeug, schaeden, gesamt) {
-    var doc = baue(fahrzeug, schaeden, gesamt);
+  function erzeuge(fahrzeug, schaeden, gesamt, opt) {
+    var doc = baue(fahrzeug, schaeden, gesamt, opt);
     return { doc: doc, name: dateiname(fahrzeug) };
   }
 

@@ -269,6 +269,15 @@
     q("zustand-block").classList.toggle("hidden", !v.zustand);
     if (v.zustand) fuelleRaster(q("zustand-grid"), v, "zustand");
 
+    var spurliste = Store.spuren(v.id);
+    var sblock = q("spur-block");
+    sblock.classList.toggle("hidden", spurliste.length === 0);
+    if (spurliste.length) {
+      q("spur-kurz").textContent = spurliste.length +
+        (spurliste.length === 1 ? " Spur" : " Spuren");
+      fuelleRaster(q("spur-grid"), v, "spur");
+    }
+
     /* Reparierte Schäden: nur da, wenn es welche gibt, und zugeklappt.
        Sie sind Vergangenheit, nicht Tagesgeschäft. */
     var repariert = Store.reparierteSchaeden(v.id);
@@ -298,19 +307,21 @@
   /* Die Skizze baut sich aus den Schäden selbst zusammen. Nichts wird
      zusätzlich gepflegt: Schaden gelöscht, Nummer weg. */
   function markenVon(v) {
-    return Store.aktuelleSchaeden(v.id)
+    var liste = Store.aktuelleSchaeden(v.id);
+    if (App.Einstellungen.spurenSichtbar()) liste = liste.concat(Store.spuren(v.id));
+    return liste
       .filter(function (d) { return d.marke; })
       .map(function (d) {
         return {
           ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
-          nummer: String(d.nr || "?")
+          nummer: String(d.nr || "?"), spur: !!d.spur
         };
       });
   }
 
   function zeigeSkizze(v) {
     var marken = markenVon(v);
-    var ohne = Store.aktuelleSchaeden(v.id).length - marken.length;
+    var ohne = Store.aktuelleSchaeden(v.id).filter(function (d) { return !d.marke; }).length;
 
     q("skizze-kurz").textContent = marken.length
       ? marken.length + (marken.length === 1 ? " Stelle" : " Stellen") +
@@ -498,6 +509,7 @@
     grid.innerHTML = "";
 
     var liste = art === "repariert" ? Store.reparierteSchaeden(v.id)
+      : art === "spur" ? Store.spuren(v.id)
       : art === "zustand" ? Store.damagesOf(v.id, "zustand")
       : Store.aktuelleSchaeden(v.id);
 
@@ -526,7 +538,7 @@
 
     /* Ins Archiv legt man nichts hinein — dort landet nur, was den Stand
        "repariert" bekommen hat. Also auch keine Kachel zum Hinzufügen. */
-    if (art === "repariert") return;
+    if (art === "repariert" || art === "spur") return;
 
     var add = document.createElement("div");
     add.className = "add-tile";
@@ -1044,6 +1056,7 @@
     if (!istZustand) {
       q("detail-status").value = d.status || "offen";
       q("detail-repariert-am").value = d.repariertAm || "";
+      q("detail-spur").checked = !!d.spur;
       zeigeReparaturdatum();
       q("detail-schaetzung").value = d.schaetzung === null ? "" : String(d.schaetzung);
       q("detail-zahlung").value = d.zahlung === null ? "" : String(d.zahlung);
@@ -1117,7 +1130,8 @@
       kosten: q("detail-kosten").value,
       vertragsnr: q("detail-vertrag").value.trim(),
       repariertAm: q("detail-status").value === "repariert"
-        ? q("detail-repariert-am").value : ""
+        ? q("detail-repariert-am").value : "",
+      spur: q("detail-spur").checked
     }).then(function () {
       zeigeSaldo(findeEintrag(currentDamageId));
       renderVehicle();
@@ -1217,7 +1231,11 @@
 
     setTimeout(function () {
       try {
-        var ergebnis = App.Uebersicht.erzeuge(v, Store.aktuelleSchaeden(v.id), Store.damageCount(v.id));
+        var ergebnis = App.Uebersicht.erzeuge(v, Store.aktuelleSchaeden(v.id),
+          Store.damageCount(v.id), {
+            spuren: App.Einstellungen.spurenSichtbar() ? Store.spuren(v.id) : [],
+            mitKm: App.Einstellungen.kmImDokument()
+          });
         ergebnis.doc.speichern(ergebnis.name);
       } catch (err) {
         alert("Die PDF-Datei konnte nicht erzeugt werden.\n\n" + (err.message || err));
@@ -1248,12 +1266,12 @@
       if (!v) return { form: "pkw-kompakt", marken: [], ops: [] };
       return {
         form: formVon(v),
-        marken: Store.aktuelleSchaeden(v.id)
+        marken: Store.aktuelleSchaeden(v.id).concat(Store.spuren(v.id))
           .filter(function (d) { return d.marke; })
           .map(function (d) {
             return {
               id: d.id, ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
-              nummer: String(d.nr || "?")
+              nummer: String(d.nr || "?"), spur: !!d.spur
             };
           }),
         ops: v.skizze || []

@@ -485,6 +485,35 @@ im Ausdruck. Es gibt sie in zwei Sorten:
 **PKW kompakt** und **9-Sitzer**. Kombi, Van, SUV und Koffer mit Ladebordwand
 folgen. Die Form steht beim Fahrzeug und wird aus der Kategorie vorbelegt.
 
+**Gebrauchsspuren:** Im Schadendetail gibt es den Kippschalter *Gebrauchsspur*
+— für Oberflächliches ausserhalb der Schadensrechnung: Kratzer am Ladeboden,
+Abrieb im Radkasten, Schrammen an Türkanten. Es bleibt derselbe Eintrag mit
+derselben Nummer, nur die Einsortierung ändert sich. Umschalten geht in beide
+Richtungen, weil sich die Einschätzung ändert.
+
+Gebrauchsspuren zählen nicht in die Schadenszahl, stehen im eigenen Block beim
+Fahrzeug, auf der Skizze in Grau und im PDF in einem eigenen Abschnitt unter
+der Schadensliste.
+
+**Zum Wortlaut im PDF, bewusst so:** Der Abschnitt heisst *Gebrauchsspuren* und
+sagt nur *„Erfasst und im Einzelfall bewertet."* Kein Wort über Kosten. Jeder
+Satz mit „wird nicht berechnet" wäre eine Einladung, unvorsichtig zu sein — und
+er würde binden: Wer beim nächsten Mieter doch kassieren will, hält sonst sein
+eigenes Dokument in der Hand, auf dem das Gegenteil steht.
+
+**Was zusammengehört, gehört in einen Eintrag.** Ein Radkasten mit zwanzig
+Kratzern ist eine Gebrauchsspur, nicht zwanzig. Dafür gibt es die Anzahl und
+mehrere Fotos je Eintrag.
+
+Ein Schalter in den Einstellungen blendet Gebrauchsspuren komplett aus —
+Skizze und PDF zugleich, damit beim Verschicken keine Überraschung wartet.
+Erfasst bleiben sie trotzdem.
+
+**Kilometerstand:** Beim Erfassen freiwillig anzugeben, bei Schäden wie bei
+Zustandsaufnahmen. Er steht **nicht** im Kundendokument, solange der Schalter
+in den Einstellungen aus ist — bei einem älteren Schaden weiss man ihn ohnehin
+nicht, und ein leeres Feld auf dem Blatt wirft mehr Fragen auf, als es klärt.
+
 **Reparierte Schäden:** Im Schadendetail unter *Interne Angaben* steht der
 Stand. Wird er auf **repariert** gesetzt, verschwindet der Schaden aus der
 Liste, aus der Skizze, aus der Schadenszahl und aus dem Kunden-PDF — er ist ja

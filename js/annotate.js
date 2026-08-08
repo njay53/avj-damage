@@ -210,7 +210,11 @@
     document.getElementById("count-row").classList.toggle("hidden", istZustand);
     document.getElementById("datemode-row").classList.toggle("hidden", istZustand);
     document.getElementById("anlass-row").classList.toggle("hidden", !istZustand);
-    document.getElementById("km-row").classList.toggle("hidden", !istZustand);
+    /* Der Kilometerstand steht jetzt bei beiden Arten zur Verfügung. Bei einem
+       frischen Schaden weiss man ihn — bei einem alten nicht, deshalb bleibt
+       das Feld freiwillig und wird nicht vorbelegt. */
+    document.getElementById("km-row").classList.remove("hidden");
+    kmInput.value = (d && d.km) || "";
     document.getElementById("label-area").textContent = istZustand
       ? "Motiv (optional)"
       : "Bereich (optional)";
@@ -225,7 +229,6 @@
       countInput.value = "1";
       dateModeSel.value = "exact";
       dateRow.classList.remove("hidden");
-      kmInput.value = (d && d.km) || "";
       anlassSel.value = (d && d.anlass) || "uebergabe";
     }
 
@@ -1002,7 +1005,7 @@
       date: (istZustand || modus === "exact") ? (dateInput.value || todayStr()) : "",
       area: areaInput.value.trim(),
       kind: aktuelleArt,
-      km: istZustand ? kmInput.value.replace(/[^0-9]/g, "") : "",
+      km: kmInput.value.replace(/[^0-9]/g, ""),
       anlass: istZustand ? anlassSel.value : "",
       marke: markeWert ? { ansicht: markeWert.ansicht, x: markeWert.x, y: markeWert.y } : null
     };

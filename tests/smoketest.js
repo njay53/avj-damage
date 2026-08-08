@@ -983,7 +983,10 @@ function kontrast(a, b) {
 
     App.Annotate.open({ title: "t", onSave: () => {} });
     check("beim Schaden wieder die Anzahl", !q("count-row").classList.contains("hidden"));
-    check("beim Schaden kein Kilometerstand", q("km-row").classList.contains("hidden"));
+    /* Der Kilometerstand steht bei beiden Arten zur Verfügung — bei einem
+       frischen Schaden weiss man ihn, bei einem alten nicht. Freiwillig. */
+    check("Kilometerstand auch beim Schaden", !q("km-row").classList.contains("hidden"));
+    check("und nicht vorbelegt", q("input-km").value === "", q("input-km").value);
     check("beim Schaden wieder 'Bereich'", q("label-area").textContent === "Bereich (optional)");
     App.Annotate.close();
 
@@ -1434,6 +1437,119 @@ function kontrast(a, b) {
     } catch (err) {
       check("Probedatei geschrieben", false, String(err.message));
     }
+  }
+
+  console.log("\n--- Kilometerstand ---");
+  {
+    const kv = await App.Store.addVehicle({ name: "km-Test", plate: "NOM-JA 44" });
+    const mit = await App.Store.addDamage(kv.id, {
+      images: [MINI_JPEG], description: "Steinschlag", date: "2026-07-01",
+      km: "84500", count: 1
+    });
+    const ohne = await App.Store.addDamage(kv.id, {
+      images: [MINI_JPEG], description: "Alter Kratzer", date: "2026-01-01", count: 1
+    });
+    check("Stand am Schaden gespeichert", mit.km === "84500", mit.km);
+    check("ohne Angabe bleibt leer", ohne.km === "", JSON.stringify(ohne.km));
+
+    // Standardmässig steht er NICHT im Kundendokument
+    check("Schalter ist aus", App.Einstellungen.kmImDokument() === false);
+    const zu = App.Uebersicht.erzeuge(App.Store.getVehicle(kv.id),
+      App.Store.aktuelleSchaeden(kv.id), App.Store.damageCount(kv.id), {});
+    const rohZu = Buffer.from(zu.doc.bauen()).toString("latin1");
+    check("aus: kein Kilometerstand im PDF", !/84\.500|84500/.test(rohZu));
+
+    const auf = App.Uebersicht.erzeuge(App.Store.getVehicle(kv.id),
+      App.Store.aktuelleSchaeden(kv.id), App.Store.damageCount(kv.id), { mitKm: true });
+    const rohAuf = Buffer.from(auf.doc.bauen()).toString("latin1");
+    check("an: Kilometerstand steht drin", rohAuf.includes("84.500 km"));
+    check("mit Tausenderpunkt", !rohAuf.includes("84500 km"));
+
+    await App.Einstellungen.setzeKm(true);
+    check("Schalter lässt sich umlegen", App.Einstellungen.kmImDokument() === true);
+    await App.Einstellungen.setzeKm(false);
+
+    await App.Store.deleteVehicle(kv.id);
+  }
+
+  console.log("\n--- Gebrauchsspuren ---");
+  {
+    const gv = await App.Store.addVehicle({ name: "Spurentest", plate: "NOM-JA 66" });
+    const echt = await App.Store.addDamage(gv.id, {
+      images: ["a"], description: "Delle Schiebetür", count: 1,
+      marke: { ansicht: "links", x: 0.5, y: 0.5 }
+    });
+    const spur = await App.Store.addDamage(gv.id, {
+      images: ["b"], description: "Radkasten innen, umlaufend Abrieb", count: 1,
+      spur: true, marke: { ansicht: "oben", x: 0.6, y: 0.4 }
+    });
+    check("Häkchen wird gespeichert", spur.spur === true);
+    check("ein Schaden zählt", App.Store.damageCount(gv.id) === 1,
+      String(App.Store.damageCount(gv.id)));
+    check("die Spur zählt nicht mit",
+      !App.Store.aktuelleSchaeden(gv.id).some((d) => d.id === spur.id));
+    check("sie steht in den Spuren", App.Store.spuren(gv.id).length === 1);
+
+    App.Fleet.openVehicle(gv.id);
+    await wait(30);
+    check("eigener Block erscheint", !q("spur-block").classList.contains("hidden"));
+    check("Block ist zugeklappt", q("spur-block").open === false);
+    check("Block zählt", /1 Spur/.test(q("spur-kurz").textContent), q("spur-kurz").textContent);
+    check("Spur nicht in der Schadensliste", q("damage-grid").children.length === 2,
+      String(q("damage-grid").children.length));
+
+    // Auf der Skizze: getrennte Marken, Spur als Spur gekennzeichnet
+    const kontext = App.Fleet.skizzeKontext();
+    check("Skizze kennt beide", kontext.marken.length === 2, String(kontext.marken.length));
+    check("eine davon ist eine Spur", kontext.marken.filter((m) => m.spur).length === 1);
+
+    // Schaden und Spur an derselben Stelle bleiben getrennte Marken
+    const gemischt = App.Skizze.gruppiere([
+      { x: 0.5, y: 0.5, nummer: "1", spur: false },
+      { x: 0.5, y: 0.5, nummer: "1", spur: true }
+    ]);
+    check("Schaden und Spur werden nicht zusammengefasst", gemischt.length === 2,
+      String(gemischt.length));
+
+    // PDF: eigener Abschnitt, eigene Beschriftung
+    const mitSpur = App.Uebersicht.erzeuge(App.Store.getVehicle(gv.id),
+      App.Store.aktuelleSchaeden(gv.id), App.Store.damageCount(gv.id),
+      { spuren: App.Store.spuren(gv.id).map((d) => Object.assign({}, d, { images: [MINI_JPEG] })) });
+    const rohS = Buffer.from(mitSpur.doc.bauen()).toString("latin1");
+    check("PDF hat den Abschnitt", rohS.includes("GEBRAUCHSSPUREN"));
+    check("PDF nennt keinen Preis dazu", !/nicht berechnet|kostenlos|ohne Abzug/i.test(rohS));
+    check("Nachsatz hält sich offen", rohS.includes("Einzelfall bewertet"));
+    check("Foto heisst Gebrauchsspur", rohS.includes("Gebrauchsspur 1"));
+    check("Abschnitt steht unter der Schadensliste",
+      rohS.indexOf("SCHADENSLISTE") < rohS.indexOf("GEBRAUCHSSPUREN"));
+
+    // Ausgeschaltet: nichts davon im Dokument
+    const ohne = App.Uebersicht.erzeuge(App.Store.getVehicle(gv.id),
+      App.Store.aktuelleSchaeden(gv.id), App.Store.damageCount(gv.id), { spuren: [] });
+    const rohO = Buffer.from(ohne.doc.bauen()).toString("latin1");
+    check("ausgeschaltet: kein Abschnitt", !rohO.includes("GEBRAUCHSSPUREN"));
+    check("ausgeschaltet: kein Foto davon", !rohO.includes("Gebrauchsspur"));
+
+    // Der Schalter selbst
+    check("Schalter ist an", App.Einstellungen.spurenSichtbar() === true);
+    await App.Einstellungen.setzeSpuren(false);
+    check("lässt sich ausschalten", App.Einstellungen.spurenSichtbar() === false);
+    App.Fleet.renderVehicle();
+    check("Spur verschwindet von der Skizze",
+      App.Fleet.skizzeKontext().marken.length === 2);   // Dialog zeigt weiter beide
+    await App.Einstellungen.setzeSpuren(true);
+
+    // Umschalten in beide Richtungen, ohne dass die Nummer wandert
+    await App.Store.updateDamage(gv.id, spur.id, { spur: false });
+    check("zurück zum Schaden",
+      App.Store.aktuelleSchaeden(gv.id).some((d) => d.id === spur.id));
+    check("Nummer bleibt dieselbe",
+      App.Store.damagesOf(gv.id).find((d) => d.id === spur.id).nr === spur.nr);
+
+    await App.Store.deleteVehicle(gv.id);
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    await wait(20);
   }
 
   console.log("\n--- Reparierte Schäden wandern ins Archiv ---");

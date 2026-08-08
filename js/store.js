@@ -234,7 +234,18 @@
   }
 
   function aktuelleSchaeden(vehicleId) {
-    return damagesOf(vehicleId, "schaden").filter(function (d) { return !istRepariert(d); });
+    return damagesOf(vehicleId, "schaden").filter(function (d) {
+      return !istRepariert(d) && !d.spur;
+    });
+  }
+
+  /* Gebrauchsspuren laufen getrennt: eigener Block, eigener Abschnitt im PDF,
+     graue Punkte auf der Skizze. Sie zaehlen nicht in die Schadenszahl —
+     sonst saehe ein Transporter nach zwei Jahren aus wie ein Totalschaden. */
+  function spuren(vehicleId) {
+    return damagesOf(vehicleId, "schaden").filter(function (d) {
+      return !istRepariert(d) && !!d.spur;
+    });
   }
 
   function reparierteSchaeden(vehicleId) {
@@ -382,6 +393,7 @@
     d.erstattung = zuBetrag(d.erstattung);
     d.marke = zuMarke(d.marke);
     if (typeof d.repariertAm !== "string") d.repariertAm = "";
+    d.spur = !!d.spur;
     /* Das Datum haengt am Stand "repariert". Steht der Stand wieder auf offen,
        gehoert kein Reparaturdatum mehr dazu — sonst behauptet der Datensatz
        zwei Dinge gleichzeitig. */
@@ -523,6 +535,11 @@
       /* Wann repariert wurde. Freiwillig — aber beim Verkauf des Fahrzeugs
          oder bei einer Rueckfrage der Versicherung will man es wissen. */
       repariertAm: damage.repariertAm || "",
+      /* Gebrauchsspur statt Schaden: oberflaechlich, ausserhalb der
+         Schadensrechnung. Ein Schalter, kein eigener Eintragstyp — die
+         Einschaetzung aendert sich manchmal, und dann soll ein Tipp reichen
+         und nicht Loeschen und Neuanlegen. Nummer und Fotos bleiben. */
+      spur: !!damage.spur,
       /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
          wer den Stand kennt, kann ihn eintragen. */
       km: damage.km || "",
@@ -789,7 +806,7 @@
       reference: (reference || "").trim(),
       createdAt: now(),
       updatedAt: now(),
-      damages: aktuelleSchaeden(v.id).map(function (d) {
+      damages: aktuelleSchaeden(v.id).concat(spuren(v.id)).map(function (d) {
         return {
           id: d.id,
           images: (d.images || []).slice(),
@@ -1050,6 +1067,7 @@
     deleteCategory: deleteCategory,
     damagesOf: damagesOf,
     aktuelleSchaeden: aktuelleSchaeden,
+    spuren: spuren,
     reparierteSchaeden: reparierteSchaeden,
     istRepariert: istRepariert,
     damageCount: damageCount,

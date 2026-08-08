@@ -570,6 +570,10 @@
       var passend = null;
       for (var i = 0; i < gruppen.length; i++) {
         var g = gruppen[i];
+        /* Ein Schaden und eine Gebrauchsspur an derselben Stelle bleiben
+           getrennt — sie haben verschiedene Farben, und eine gemischte
+           Marke koennte keine davon richtig zeigen. */
+        if (!!g.spur !== !!m.spur) continue;
         if (Math.abs(g.x - m.x) < NAH && Math.abs(g.y - m.y) < NAH) { passend = g; break; }
       }
       if (passend) {
@@ -579,7 +583,7 @@
         passend.x = (passend.x * (passend.nummern.length - 1) + m.x) / passend.nummern.length;
         passend.y = (passend.y * (passend.nummern.length - 1) + m.y) / passend.nummern.length;
       } else {
-        gruppen.push({ x: m.x, y: m.y, nummern: [m.nummer] });
+        gruppen.push({ x: m.x, y: m.y, nummern: [m.nummer], spur: !!m.spur });
       }
     });
     return gruppen;

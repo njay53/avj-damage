@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=47" />
+<link rel="stylesheet" href="css/app.css?b=48" />
 </head>
 <body>
 
@@ -92,6 +92,22 @@
     </p>
     <div id="zustand-grid" class="damage-grid"></div>
   </section>
+
+  <details id="spur-block" class="klappe hidden">
+    <summary>
+      <span>Gebrauchsspuren</span>
+      <span class="klappe-zahl" id="spur-kurz"></span>
+    </summary>
+    <div class="klappe-inhalt">
+      <p class="hint no-top">
+        Oberflächliches ausserhalb der Schadensrechnung. Es zählt nicht in die
+        Schadenszahl, steht auf der Skizze in Grau und im PDF in einem eigenen
+        Abschnitt. Was zusammengehört, gehört in einen Eintrag — ein Radkasten
+        mit zwanzig Kratzern ist eine Gebrauchsspur, nicht zwanzig.
+      </p>
+      <div id="spur-grid" class="damage-grid"></div>
+    </div>
+  </details>
 
   <details id="repariert-block" class="klappe hidden">
     <summary>
@@ -240,6 +256,33 @@
              style="flex:1;min-width:140px" />
       <button id="btn-kategorie-add">Hinzufügen</button>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">Gebrauchsspuren</div>
+    <label class="schalter kipp">
+      <input type="checkbox" id="input-spuren-sichtbar" />
+      <span class="kippschalter" aria-hidden="true"></span>
+      <span>
+        Gebrauchsspuren anzeigen
+        <em>Grau auf der Skizze, eigener Abschnitt im PDF. Aus heisst: weder
+        Skizze noch Kundendokument zeigen sie — erfasst bleiben sie trotzdem.</em>
+      </span>
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="tool-title">Kilometerstand</div>
+    <label class="schalter kipp">
+      <input type="checkbox" id="input-km-dokument" />
+      <span class="kippschalter" aria-hidden="true"></span>
+      <span>
+        Kilometerstand ins PDF
+        <em>Aus heisst: der Stand bleibt intern. Bei älteren Schäden ist er
+        ohnehin nicht bekannt, und ein leeres Feld auf dem Blatt wirft mehr
+        Fragen auf, als es klärt.</em>
+      </span>
+    </label>
   </div>
 
   <div class="card">
@@ -537,7 +580,7 @@
         <label for="input-date">Datum</label>
         <input type="date" id="input-date" />
       </div>
-      <div class="field hidden" id="km-row">
+      <div class="field" id="km-row">
         <label for="input-km">Kilometerstand (optional)</label>
         <input type="text" id="input-km" inputmode="numeric" placeholder="z. B. 84500" />
       </div>
@@ -590,6 +633,16 @@
         <span class="klappe-zahl">erscheint auf keinem Kundendokument</span>
       </summary>
       <div class="klappe-inhalt">
+        <label class="schalter kipp" id="detail-spur-zeile">
+          <input type="checkbox" id="detail-spur" />
+          <span class="kippschalter" aria-hidden="true"></span>
+          <span>
+            Gebrauchsspur
+            <em>Oberflächlich, ausserhalb der Schadensrechnung — Kratzer am
+            Ladeboden, Abrieb, Schrammen an Türkanten. Zählt nicht in die
+            Schadenszahl und steht im eigenen Abschnitt.</em>
+          </span>
+        </label>
         <div class="field">
           <label for="detail-status">Stand</label>
           <select id="detail-status">
@@ -709,18 +762,18 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=47"></script>
-<script src="js/modelle.js?b=47"></script>
-<script src="js/cloud.js?b=47"></script>
-<script src="js/logo.js?b=47"></script>
-<script src="js/skizze.js?b=47"></script>
-<script src="js/skizze-ui.js?b=47"></script>
-<script src="js/formen-vorlagen.js?b=47"></script>
-<script src="js/pdf.js?b=47"></script>
-<script src="js/annotate.js?b=47"></script>
-<script src="js/fleet.js?b=47"></script>
-<script src="js/uebersicht.js?b=47"></script>
-<script src="js/snapshot.js?b=47"></script>
-<script src="js/app.js?b=47"></script>
+<script src="js/store.js?b=48"></script>
+<script src="js/modelle.js?b=48"></script>
+<script src="js/cloud.js?b=48"></script>
+<script src="js/logo.js?b=48"></script>
+<script src="js/skizze.js?b=48"></script>
+<script src="js/skizze-ui.js?b=48"></script>
+<script src="js/formen-vorlagen.js?b=48"></script>
+<script src="js/pdf.js?b=48"></script>
+<script src="js/annotate.js?b=48"></script>
+<script src="js/fleet.js?b=48"></script>
+<script src="js/uebersicht.js?b=48"></script>
+<script src="js/snapshot.js?b=48"></script>
+<script src="js/app.js?b=48"></script>
 </body>
 </html>

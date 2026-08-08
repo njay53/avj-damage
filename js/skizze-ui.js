@@ -12,6 +12,9 @@
   "use strict";
 
   var ROT = "#C61418";
+  /* Gebrauchsspuren in Grau: auf einen Blick unterscheidbar, ohne dass sie
+     wie ein zweiter Schadenstyp aussehen. */
+  var GRAU = "#6b6b66";
   var MARKE_R = 3.4;          // Radius der Nummernscheibe in Ansichtseinheiten
 
   function q(id) { return document.getElementById(id); }
@@ -89,7 +92,7 @@
          "1, 3" an einem Punkt lesbar, ohne dass Nummern übereinanderliegen. */
       ctx.beginPath();
       rundesRechteck(ctx, p.x - w / 2, p.y - h / 2, w, h, h / 2);
-      ctx.fillStyle = ROT;
+      ctx.fillStyle = g.spur ? GRAU : ROT;
       ctx.fill();
       ctx.lineWidth = Math.max(1, lage.faktor * 0.35);
       ctx.strokeStyle = "#fff";

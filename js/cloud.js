@@ -205,6 +205,7 @@
           erstattung: typeof d.erstattung === "number" ? d.erstattung : null,
           marke: d.marke || null,
           repariert_am: d.repariertAm || "",
+          spur: !!d.spur,
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -273,6 +274,7 @@
         erstattung: r.erstattung,
         marke: r.marke || null,
         repariertAm: r.repariert_am || "",
+        spur: !!r.spur,
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

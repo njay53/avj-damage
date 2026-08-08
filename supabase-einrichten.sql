@@ -127,6 +127,10 @@ alter table public.damages  add column if not exists marke  jsonb;
 -- und aus dem Kundendokument, bleibt aber beim Fahrzeug erhalten.
 alter table public.damages add column if not exists repariert_am text not null default '';
 
+-- spur = Gebrauchsspur statt Schaden. Oberflaechlich, ausserhalb der
+-- Schadensrechnung: eigener Abschnitt, zaehlt nicht in die Schadenszahl.
+alter table public.damages add column if not exists spur boolean not null default false;
+
 -- ------------------------------------------------------------- Indizes
 -- Der Abgleich fragt immer "was ist neuer als ...", das laeuft darueber.
 

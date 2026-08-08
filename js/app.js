@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v47";
+  var APP_VERSION = "v48";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -309,6 +309,12 @@
       });
     });
 
+    q("input-km-dokument").addEventListener("change", function () {
+      Einstellungen.setzeKm(q("input-km-dokument").checked);
+    });
+    q("input-spuren-sichtbar").addEventListener("change", function () {
+      Einstellungen.setzeSpuren(q("input-spuren-sichtbar").checked);
+    });
     q("input-kennung-aktiv").addEventListener("change", function () {
       Einstellungen.setzeKennung(q("input-kennung-aktiv").checked);
     });
@@ -356,17 +362,32 @@
      Kunden und geht die Schäden durch — da soll nicht danebenstehen, was der
      letzte Mieter gezahlt hat. Wie in einer Banking-App: ein Tipp aufs Auge. */
   var betraegeSichtbar = false;
+  /* Gebrauchsspuren erscheinen standardmässig — wer sie erfasst, will sie
+     auch sehen. Der Schalter wirkt auf App und PDF zugleich: sonst hätte man
+     eine Skizze ohne Spuren und ein Dokument mit welchen, und das fällt
+     erst beim Verschicken auf. */
+  var spurenSichtbar = true;
+  /* Der Kilometerstand steht standardmässig NICHT im Kundendokument. Er ist
+     eine interne Angabe: bei einem alten Schaden weiss man ihn ohnehin nicht,
+     und ein leeres Feld auf dem Blatt wirft mehr Fragen auf, als es klärt. */
+  var kmImDokument = false;
 
   var Einstellungen = {
     kennungAktiv: function () { return kennungAktiv; },
     betraegeSichtbar: function () { return betraegeSichtbar; },
+    spurenSichtbar: function () { return spurenSichtbar; },
+    kmImDokument: function () { return kmImDokument; },
     laden: function () {
       return Promise.all([
         App.Store.idbGet("kennungAktiv"),
-        App.Store.idbGet("betraegeSichtbar")
+        App.Store.idbGet("betraegeSichtbar"),
+        App.Store.idbGet("spurenSichtbar"),
+        App.Store.idbGet("kmImDokument")
       ]).then(function (werte) {
         kennungAktiv = werte[0] === true;
         betraegeSichtbar = werte[1] === true;
+        spurenSichtbar = werte[2] !== false;
+        kmImDokument = werte[3] === true;
         return kennungAktiv;
       });
     },
@@ -377,6 +398,21 @@
     setzeBetraege: function (an) {
       betraegeSichtbar = !!an;
       return App.Store.idbSet("betraegeSichtbar", betraegeSichtbar).then(wendeBetraegeAn);
+    },
+    setzeKm: function (an) {
+      kmImDokument = !!an;
+      return App.Store.idbSet("kmImDokument", kmImDokument).then(function () {
+        var schalter = document.getElementById("input-km-dokument");
+        if (schalter) schalter.checked = kmImDokument;
+      });
+    },
+    setzeSpuren: function (an) {
+      spurenSichtbar = !!an;
+      return App.Store.idbSet("spurenSichtbar", spurenSichtbar).then(function () {
+        var schalter = document.getElementById("input-spuren-sichtbar");
+        if (schalter) schalter.checked = spurenSichtbar;
+        if (App.Nav.current() === "vehicle") App.Fleet.renderVehicle();
+      });
     }
   };
 
@@ -395,6 +431,10 @@
   function wendeKennungAn() {
     var feld = document.getElementById("card-code-search");
     if (feld) feld.classList.toggle("hidden", !kennungAktiv);
+    var kmSchalter = document.getElementById("input-km-dokument");
+    if (kmSchalter) kmSchalter.checked = kmImDokument;
+    var spurSchalter = document.getElementById("input-spuren-sichtbar");
+    if (spurSchalter) spurSchalter.checked = spurenSichtbar;
     var schalter = document.getElementById("input-kennung-aktiv");
     if (schalter) schalter.checked = kennungAktiv;
     if (Nav.current() === "vehicle") App.Fleet.renderVehicle();
