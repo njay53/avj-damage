@@ -67,7 +67,7 @@
      Kurven ins PDF, nicht als Bild — beim Hineinzoomen und im Ausdruck bleibt
      alles scharf, und die ganze Skizze kostet weniger Platz als ein einziges
      Vorschaubild. */
-  function skizzeAnsicht(doc, form, ansichtId, kasten, marken, ops) {
+  function skizzeAnsicht(doc, form, ansichtId, kasten, marken, ops, felder) {
     var lage = App.Skizze.zeichnePdf(doc, form, ansichtId, kasten);
 
     (ops || []).filter(function (o) { return o.ansicht === ansichtId; }).forEach(function (op) {
@@ -108,6 +108,15 @@
       });
       doc.text(text, mx - tb / 2, my + groesse * 0.35 / 2.834645669 + 0.35,
         { size: groesse, bold: true, color: WEISS });
+
+      /* Wohin dieses Klickfeld später springt, steht noch nicht fest — die
+         Fotoseiten kommen erst danach. Vorerst nur Lage und Nummern merken. */
+      if (felder) {
+        felder.push({
+          x: mx - b / 2 - 0.6, y: my - h / 2 - 0.6, b: b + 1.2, h: h + 1.2,
+          nummern: g.nummern.slice(), spur: !!g.spur
+        });
+      }
     });
 
     return lage;
@@ -143,7 +152,7 @@
 
   /* Fünf Ansichten wie auf einem Papierprotokoll: die beiden Seiten oben
      nebeneinander, darunter Front, Heck und die Draufsicht. */
-  function skizzenblock(doc, form, marken, ops, y) {
+  function skizzenblock(doc, form, marken, ops, y, felder) {
     doc.text("SCHADENSKIZZE", RAND, y, { size: 8, bold: true, color: GRAU });
     var hinweis = marken.length
       ? "Nummern entsprechen der Schadensliste"
@@ -158,11 +167,11 @@
 
     beschrifte(doc, "Links", RAND, y);
     skizzeAnsicht(doc, form, "links",
-      { x: RAND, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops);
+      { x: RAND, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops, felder);
 
     beschrifte(doc, "Rechts", RAND + halb + luft, y);
     skizzeAnsicht(doc, form, "rechts",
-      { x: RAND + halb + luft, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops);
+      { x: RAND + halb + luft, y: y + 3, breite: halb, hoehe: reiheEins }, marken, ops, felder);
 
     y += reiheEins + 6;
 
@@ -172,16 +181,16 @@
 
     beschrifte(doc, "Vorn", RAND, y);
     skizzeAnsicht(doc, form, "vorn",
-      { x: RAND, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops);
+      { x: RAND, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops, felder);
 
     beschrifte(doc, "Hinten", RAND + schmal + luft, y);
     skizzeAnsicht(doc, form, "hinten",
-      { x: RAND + schmal + luft, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops);
+      { x: RAND + schmal + luft, y: y + 3, breite: schmal, hoehe: reiheZwei }, marken, ops, felder);
 
     beschrifte(doc, "Draufsicht", RAND + 2 * (schmal + luft), y);
     skizzeAnsicht(doc, form, "oben",
       { x: RAND + 2 * (schmal + luft), y: y + 3, breite: obenBreite, hoehe: reiheZwei },
-      marken, ops);
+      marken, ops, felder);
 
     return y + reiheZwei + 7;
   }
@@ -200,6 +209,8 @@
     var o = opt || {};
     var spuren = o.spuren || [];
     var mitKm = !!o.mitKm;
+    var klickfelder = [];      // Sprungmarken auf der Skizze, Ziel folgt später
+    var zielseiten = {};       // Nummer -> Fotoseite
     var doc = App.PDF.neu();
     var seitenAnfang = [];      // für die spätere Seitenzählung
 
@@ -253,7 +264,7 @@
     var form = (fahrzeug.form && App.Skizze.kennt(fahrzeug.form))
       ? fahrzeug.form
       : App.Skizze.formVorschlag("", fahrzeug.name);
-    y = skizzenblock(doc, form, marken, fahrzeug.skizze || [], y);
+    y = skizzenblock(doc, form, marken, fahrzeug.skizze || [], y, klickfelder);
 
     // ---------------------------------------------------------- Schadensliste
     if (!schaeden.length) {
@@ -423,6 +434,11 @@
             unterkante = lage.y + lage.hoehe;
           }
 
+          if (f.bild === 1) {
+            zielseiten[(f.spur ? "s" : "d") + f.schaden] = {
+              seite: doc.seiten() - 1, y: Math.max(0, y - 6)
+            };
+          }
           var wort = f.spur ? "Gebrauchsspur " : "Schaden ";
           var kopf = wort + f.schaden + " · Bild " + f.schaden + "." + f.bild;
           doc.text(kopf, x, unterkante + 4.5, { size: 8, bold: true });
@@ -440,6 +456,22 @@
         y += zeilenHoehe;
       });
     }
+
+    // ------------------------------------------------------- Sprungmarken
+    /* Jetzt stehen die Fotoseiten fest. Über jede Nummer der Skizze kommt ein
+       Klickfeld, das dorthin springt. Eine Marke mit mehreren Nummern führt
+       zur ersten davon — mehr geht mit einem Feld nicht, und die Fotos der
+       anderen liegen ohnehin gleich daneben.
+
+       Wer das Blatt ausdruckt, merkt davon nichts. Wer es am Bildschirm liest,
+       spart sich das Blättern. */
+    doc.aufSeite(0, function () {
+      klickfelder.forEach(function (f) {
+        var ziel = zielseiten[(f.spur ? "s" : "d") + f.nummern[0]];
+        if (!ziel) return;
+        doc.sprung(f.x, f.y, f.b, f.h, ziel.seite, ziel.y);
+      });
+    });
 
     // ---------------------------------------------------------- Seitenzahlen
     /* Erst jetzt bekannt: wie viele Seiten es geworden sind. */

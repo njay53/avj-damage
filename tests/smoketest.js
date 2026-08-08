@@ -1439,6 +1439,58 @@ function kontrast(a, b) {
     }
   }
 
+  console.log("\n--- Sprungmarken im PDF ---");
+  {
+    const sv = await App.Store.addVehicle({ name: "Sprungtest", plate: "NOM-JA 33", form: "transporter" });
+    const eins = await App.Store.addDamage(sv.id, {
+      images: [MINI_JPEG], description: "Kratzer", date: "2026-07-01",
+      marke: { ansicht: "links", x: 0.4, y: 0.5 }
+    });
+    await App.Store.addDamage(sv.id, {
+      images: [MINI_JPEG], description: "Delle", date: "2026-07-02",
+      marke: { ansicht: "hinten", x: 0.5, y: 0.5 }
+    });
+    await App.Store.addDamage(sv.id, {
+      images: [MINI_JPEG], description: "Abrieb", date: "2026-07-03", spur: true,
+      marke: { ansicht: "oben", x: 0.6, y: 0.4 }
+    });
+
+    const e = App.Uebersicht.erzeuge(App.Store.getVehicle(sv.id),
+      App.Store.aktuelleSchaeden(sv.id), App.Store.damageCount(sv.id),
+      { spuren: App.Store.spuren(sv.id) });
+    const roh = Buffer.from(e.doc.bauen()).toString("latin1");
+
+    check("gültige PDF-Datei", roh.slice(0, 5) === "%PDF-" && /%%EOF\s*$/.test(roh));
+    check("drei Sprungfelder", (roh.match(/\/Type \/Annot/g) || []).length === 3,
+      String((roh.match(/\/Type \/Annot/g) || []).length));
+    check("jedes springt im Dokument", (roh.match(/\/S \/GoTo/g) || []).length === 3);
+    check("Felder hängen an der Seite mit der Skizze",
+      (roh.match(/\/Annots \[/g) || []).length === 1);
+    check("ohne sichtbaren Rahmen", roh.includes("/Border [0 0 0]"));
+    /* Ohne Marke gibt es nichts zum Antippen — und kein Feld, das ins Leere
+       führt. */
+    await App.Store.updateDamage(sv.id, eins.id, { marke: null });
+    const e2 = App.Uebersicht.erzeuge(App.Store.getVehicle(sv.id),
+      App.Store.aktuelleSchaeden(sv.id), App.Store.damageCount(sv.id),
+      { spuren: App.Store.spuren(sv.id) });
+    const roh2 = Buffer.from(e2.doc.bauen()).toString("latin1");
+    check("Schaden ohne Stelle bekommt kein Feld",
+      (roh2.match(/\/Type \/Annot/g) || []).length === 2,
+      String((roh2.match(/\/Type \/Annot/g) || []).length));
+
+    // Ein Dokument ganz ohne Fotos darf keine Felder ins Nichts anlegen
+    const e3 = App.Uebersicht.erzeuge(App.Store.getVehicle(sv.id),
+      [{ area: "Tür", description: "ohne Foto", count: 1, dateMode: "exact",
+         date: "2026-07-01", createdAt: Date.now(), images: [],
+         marke: { ansicht: "links", x: 0.4, y: 0.5 } }], 1, {});
+    const roh3 = Buffer.from(e3.doc.bauen()).toString("latin1");
+    check("ohne Foto kein Sprungfeld", !/\/Type \/Annot/.test(roh3));
+    check("und die Datei bleibt gültig",
+      roh3.slice(0, 5) === "%PDF-" && /%%EOF\s*$/.test(roh3));
+
+    await App.Store.deleteVehicle(sv.id);
+  }
+
   console.log("\n--- Kilometerstand ---");
   {
     const kv = await App.Store.addVehicle({ name: "km-Test", plate: "NOM-JA 44" });

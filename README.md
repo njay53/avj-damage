@@ -485,6 +485,16 @@ im Ausdruck. Es gibt sie in zwei Sorten:
 **PKW kompakt** und **9-Sitzer**. Kombi, Van, SUV und Koffer mit Ladebordwand
 folgen. Die Form steht beim Fahrzeug und wird aus der Kategorie vorbelegt.
 
+**Sprungmarken im PDF:** Jede Nummer auf der Skizze ist ein Klickfeld. Ein Tipp
+darauf springt zur Fotoseite dieses Schadens. Sichtbar ist davon nichts — kein
+Rahmen, keine Farbe —, und beim Ausdruck passiert schlicht nichts. Wer das
+Dokument am Bildschirm liest, spart sich das Blättern.
+
+Eine Marke mit mehreren Nummern („1, 2") führt zur ersten davon; die Fotos der
+anderen liegen ohnehin gleich daneben. Schäden ohne Foto oder ohne
+eingezeichnete Stelle bekommen kein Feld — lieber nichts als ein Feld, das ins
+Leere führt.
+
 **Gebrauchsspuren:** Im Schadendetail gibt es den Kippschalter *Gebrauchsspur*
 — für Oberflächliches ausserhalb der Schadensrechnung: Kratzer am Ladeboden,
 Abrieb im Radkasten, Schrammen an Türkanten. Es bleibt derselbe Eintrag mit

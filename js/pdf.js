@@ -255,6 +255,24 @@
       return api;
     }
 
+    /* Sprungmarke: ein unsichtbares Klickfeld, das im selben Dokument auf
+       eine andere Seite springt. Gebraucht für die Schadenskizze — Nummer
+       antippen, und man ist beim Foto.
+
+       Die Marke wird beim Zeichnen noch nicht aufgelöst: welche Seite das
+       Foto bekommt, steht erst fest, wenn alle Fotos gesetzt sind. Deshalb
+       merkt sich die Seite nur den Wunsch, und bauen() macht daraus die
+       Verknüpfung. */
+    function sprung(x, y, b, h, zielSeite, zielY) {
+      aktuell.push({
+        art: "sprung",
+        x: x * MM, y: y2pdf(y + h), b: b * MM, h: h * MM,
+        zielSeite: zielSeite,
+        zielY: y2pdf(zielY === undefined ? 0 : zielY)
+      });
+      return api;
+    }
+
     /* Bild einfügen. Gibt die tatsächlich belegte Höhe zurück, weil das
        Seitenverhältnis erhalten bleibt. */
     function bild(dataUrl, x, y, maxBreite, maxHoehe, opt) {
@@ -368,8 +386,16 @@
         ]);
       });
 
+      /* Erst die Nummern für alle Sprungmarken reservieren: die Seite muss
+         sie nennen, sie selbst muss aber die Zielseite nennen — und die kennt
+         man erst, wenn alle Seiten angelegt sind. */
+      var markenNummern = seiten.map(function (anweisungen) {
+        return anweisungen.filter(function (a) { return a.art === "sprung"; })
+          .map(function () { return obj(null); });
+      });
+
       var seitenNummern = [];
-      seiten.forEach(function (anweisungen) {
+      seiten.forEach(function (anweisungen, seitenIndex) {
         var inhalt = inhaltFuer(anweisungen);
         var inhaltNr = obj([
           "<< /Length " + nachLatin1(inhalt).length + " >>\nstream\n" + inhalt + "\nendstream"
@@ -380,14 +406,43 @@
           return "/Im" + i + " " + bildNummern[i] + " 0 R";
         }).join(" ");
 
+        var meine = markenNummern[seitenIndex];
+        var annots = meine.length
+          ? " /Annots [" + meine.map(function (n) { return n + " 0 R"; }).join(" ") + "]"
+          : "";
+
         var seitenNr = obj([
           "<< /Type /Page /Parent " + seitenBaumNr + " 0 R" +
           " /MediaBox [0 0 " + (seiteBreite * MM).toFixed(2) + " " + (seiteHoehe * MM).toFixed(2) + "]" +
           " /Resources << /Font << /F1 " + fontNr + " 0 R /F2 " + fontFettNr + " 0 R >>" +
           (xobj ? " /XObject << " + xobj + " >>" : "") + " >>" +
-          " /Contents " + inhaltNr + " 0 R >>"
+          " /Contents " + inhaltNr + " 0 R >>" + annots
         ]);
         seitenNummern.push(seitenNr);
+      });
+
+      /* Jetzt sind alle Seitennummern bekannt — die Sprungmarken lassen sich
+         auflösen. Ein Ziel ausserhalb bleibt einfach ohne Verknüpfung: lieber
+         ein Feld, das nichts tut, als eine Datei, die kein Leser öffnet. */
+      seiten.forEach(function (anweisungen, seitenIndex) {
+        var meine = markenNummern[seitenIndex];
+        var i = 0;
+        anweisungen.forEach(function (a) {
+          if (a.art !== "sprung") return;
+          var nr = meine[i++];
+          var ziel = seitenNummern[a.zielSeite];
+          if (ziel === undefined) {
+            objekte[nr - 1] = ["<< /Type /Annot /Subtype /Link /Rect [0 0 0 0] /Border [0 0 0] >>"];
+            return;
+          }
+          objekte[nr - 1] = [
+            "<< /Type /Annot /Subtype /Link" +
+            " /Rect [" + a.x.toFixed(2) + " " + a.y.toFixed(2) + " " +
+            (a.x + a.b).toFixed(2) + " " + (a.y + a.h).toFixed(2) + "]" +
+            " /Border [0 0 0] /F 4" +
+            " /A << /S /GoTo /D [" + ziel + " 0 R /XYZ null " + a.zielY.toFixed(2) + " null] >> >>"
+          ];
+        });
       });
 
       objekte[katalogNr - 1] = ["<< /Type /Catalog /Pages " + seitenBaumNr + " 0 R >>"];
@@ -461,6 +516,7 @@
       linie: linie,
       rechteck: rechteck,
       pfad: pfad,
+      sprung: sprung,
       bild: bild,
       bauen: bauen,
       speichern: speichern,
