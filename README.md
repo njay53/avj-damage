@@ -485,6 +485,25 @@ im Ausdruck. Es gibt sie in zwei Sorten:
 **PKW kompakt** und **9-Sitzer**. Kombi, Van, SUV und Koffer mit Ladebordwand
 folgen. Die Form steht beim Fahrzeug und wird aus der Kategorie vorbelegt.
 
+**Reparierte Schäden:** Im Schadendetail unter *Interne Angaben* steht der
+Stand. Wird er auf **repariert** gesetzt, verschwindet der Schaden aus der
+Liste, aus der Skizze, aus der Schadenszahl und aus dem Kunden-PDF — er ist ja
+nicht mehr am Fahrzeug. Er landet beim Fahrzeug im zugeklappten Block
+**Reparierte Schäden**, mit Fotos, Beträgen und optionalem Reparaturdatum.
+Stand zurück auf *offen* holt ihn wieder nach vorn.
+
+Nur *repariert* archiviert. *Ausgebessert* heißt, es sieht besser aus, ist aber
+noch da; *bleibt so* heißt, es bleibt. Beide gehören weiter auf jedes Dokument.
+
+Das Geld bleibt in jedem Fall in der Bilanz — es ist geflossen. Und ein
+eingefrorener Schadensstand ändert sich nicht rückwirkend.
+
+**Warum Schadennummern Lücken haben dürfen:** Eine gelöschte Nummer wird nie
+neu vergeben. Sonst würde eine Notiz im rentsoft-Protokoll oder ein
+verschicktes PDF, in dem „1.3" steht, plötzlich auf einen anderen Schaden
+zeigen — und das merkt niemand. Auf dem Kundendokument sieht man die Lücken
+nicht: dort zählt die Reihenfolge des Blattes, 1, 2, 3.
+
 **Vor der Übergabe:** Fahrzeug öffnen → `Stand festhalten` → optional eine
 interne Referenz eintragen (Mietvertragsnummer, **keine Kundennamen**) →
 `Einfrieren` → Zeile kopieren und in rentsoft eintragen.

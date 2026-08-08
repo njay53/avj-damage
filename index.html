@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=46" />
+<link rel="stylesheet" href="css/app.css?b=47" />
 </head>
 <body>
 
@@ -92,6 +92,22 @@
     </p>
     <div id="zustand-grid" class="damage-grid"></div>
   </section>
+
+  <details id="repariert-block" class="klappe hidden">
+    <summary>
+      <span>Reparierte Schäden</span>
+      <span class="klappe-zahl" id="repariert-kurz"></span>
+    </summary>
+    <div class="klappe-inhalt">
+      <p class="hint no-top">
+        Fachgerecht instandgesetzt und damit nicht mehr am Fahrzeug. Sie zählen
+        nicht mehr mit und stehen auf keinem Kundendokument — Fotos, Beträge und
+        Datum bleiben aber erhalten. Stand wieder auf <em>offen</em> setzen holt
+        einen Schaden zurück in die Liste.
+      </p>
+      <div id="repariert-grid" class="damage-grid"></div>
+    </div>
+  </details>
 
   <details id="skizze-block" class="klappe" open>
     <summary>
@@ -582,6 +598,15 @@
             <option value="repariert">Repariert</option>
             <option value="bleibt">Bleibt so</option>
           </select>
+          <p class="hint" id="hinweis-repariert">
+            <strong>Repariert</strong> nimmt den Schaden aus der Liste, aus der Skizze
+            und aus dem Kunden-PDF — er steht danach beim Fahrzeug unter
+            <em>Reparierte Schäden</em>, mit allem was dazugehört.
+          </p>
+        </div>
+        <div class="field hidden" id="detail-repariert-row">
+          <label for="detail-repariert-am">Repariert am <em>(optional)</em></label>
+          <input type="date" id="detail-repariert-am" />
         </div>
         <div class="two-col">
           <div class="field">
@@ -684,18 +709,18 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=46"></script>
-<script src="js/modelle.js?b=46"></script>
-<script src="js/cloud.js?b=46"></script>
-<script src="js/logo.js?b=46"></script>
-<script src="js/skizze.js?b=46"></script>
-<script src="js/skizze-ui.js?b=46"></script>
-<script src="js/formen-vorlagen.js?b=46"></script>
-<script src="js/pdf.js?b=46"></script>
-<script src="js/annotate.js?b=46"></script>
-<script src="js/fleet.js?b=46"></script>
-<script src="js/uebersicht.js?b=46"></script>
-<script src="js/snapshot.js?b=46"></script>
-<script src="js/app.js?b=46"></script>
+<script src="js/store.js?b=47"></script>
+<script src="js/modelle.js?b=47"></script>
+<script src="js/cloud.js?b=47"></script>
+<script src="js/logo.js?b=47"></script>
+<script src="js/skizze.js?b=47"></script>
+<script src="js/skizze-ui.js?b=47"></script>
+<script src="js/formen-vorlagen.js?b=47"></script>
+<script src="js/pdf.js?b=47"></script>
+<script src="js/annotate.js?b=47"></script>
+<script src="js/fleet.js?b=47"></script>
+<script src="js/uebersicht.js?b=47"></script>
+<script src="js/snapshot.js?b=47"></script>
+<script src="js/app.js?b=47"></script>
 </body>
 </html>

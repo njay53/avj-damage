@@ -821,7 +821,11 @@ function kontrast(a, b) {
     check("Bilanz ist zugeklappt", q("bilanz-block").open === false);
     check("Kopfzeile fasst zusammen", q("bilanz-kurz").textContent.length > 0,
       q("bilanz-kurz").textContent);
-    check("Stand steht auf der Kachel", /repariert/i.test(q("damage-grid").innerHTML));
+    /* Ein reparierter Schaden steht nicht mehr in der aktiven Liste, sondern
+       im eigenen Block darunter. Der Stand "ausgebessert" bleibt oben. */
+    check("repariert ist aus der Liste raus", !/repariert/i.test(q("damage-grid").innerHTML));
+    check("Stand steht auf der Kachel", /ausgebessert/i.test(q("damage-grid").innerHTML) ||
+      /repariert/i.test(q("repariert-grid").innerHTML));
 
     await App.Store.deleteDamage(v.id, zweit.id);
   }
@@ -926,10 +930,16 @@ function kontrast(a, b) {
   console.log("\n--- Nichts davon beim Kunden ---");
   {
     const geld = App.Store.damagesOf(v.id, "schaden").find((d) => d.zahlung === 500);
+    check("Zahlung gefunden", !!geld);
 
     // Schadensstand friert keine Beträge ein
     const stand2 = await App.Store.createSnapshot(v.id, "");
-    const drin = stand2.damages.find((d) => d.id === geld.id);
+    /* Der Schaden mit der Zahlung steht auf "repariert" — der gehört nicht
+       mehr in einen neuen Stand. Geprüft wird an einem offenen Schaden. */
+    check("reparierter Schaden nicht im neuen Stand",
+      !stand2.damages.some((d) => d.id === geld.id));
+    const offen = App.Store.aktuelleSchaeden(v.id)[0];
+    const drin = stand2.damages.find((d) => d.id === offen.id);
     check("Stand ohne Zahlung", drin.zahlung === undefined, JSON.stringify(Object.keys(drin)));
     check("Stand ohne Schätzung", drin.schaetzung === undefined);
     check("Stand ohne Reparaturkosten", drin.kosten === undefined);
@@ -1424,6 +1434,88 @@ function kontrast(a, b) {
     } catch (err) {
       check("Probedatei geschrieben", false, String(err.message));
     }
+  }
+
+  console.log("\n--- Reparierte Schäden wandern ins Archiv ---");
+  {
+    const rv = await App.Store.addVehicle({ name: "Reparaturtest", plate: "NOM-JA 88" });
+    const bleibt = await App.Store.addDamage(rv.id, {
+      images: ["x"], description: "Kratzer Heck", date: "2026-06-01",
+      marke: { ansicht: "hinten", x: 0.4, y: 0.5 }, count: 2
+    });
+    const weg = await App.Store.addDamage(rv.id, {
+      images: ["y"], description: "Delle Tür", date: "2026-06-02",
+      marke: { ansicht: "links", x: 0.5, y: 0.5 },
+      schaetzung: "900", zahlung: "500", kosten: "740"
+    });
+
+    check("beide zählen zuerst mit", App.Store.damageCount(rv.id) === 3,
+      String(App.Store.damageCount(rv.id)));
+
+    await App.Store.updateDamage(rv.id, weg.id, { status: "repariert", repariertAm: "2026-08-14" });
+
+    check("aus der aktiven Liste raus",
+      !App.Store.aktuelleSchaeden(rv.id).some((d) => d.id === weg.id));
+    check("im Archiv drin",
+      App.Store.reparierteSchaeden(rv.id).some((d) => d.id === weg.id));
+    check("zählt nicht mehr mit", App.Store.damageCount(rv.id) === 2,
+      String(App.Store.damageCount(rv.id)));
+    check("der andere bleibt", App.Store.aktuelleSchaeden(rv.id).some((d) => d.id === bleibt.id));
+    check("Reparaturdatum gespeichert",
+      App.Store.reparierteSchaeden(rv.id)[0].repariertAm === "2026-08-14");
+
+    // Das Geld bleibt in der Bilanz — es ist ja geflossen
+    const bil = App.Store.bilanz(rv.id);
+    check("Zahlung bleibt in der Bilanz", bil.zahlungen === 500, String(bil.zahlungen));
+    check("Kosten bleiben in der Bilanz", bil.kosten === 740, String(bil.kosten));
+
+    // Nicht mehr auf der Skizze und nicht im Kundendokument
+    App.Fleet.openVehicle(rv.id);
+    await wait(30);
+    check("Archivblock erscheint", !q("repariert-block").classList.contains("hidden"));
+    check("Archivblock ist zugeklappt", q("repariert-block").open === false);
+    check("Archivblock zählt", /1 Schaden/.test(q("repariert-kurz").textContent),
+      q("repariert-kurz").textContent);
+    check("eine Kachel im Archiv", q("repariert-grid").children.length === 1,
+      String(q("repariert-grid").children.length));
+    check("im Archiv nichts zum Hinzufügen",
+      !/add-tile/.test(q("repariert-grid").innerHTML));
+    // Oben: der offene Schaden plus die Kachel zum Hinzufügen
+    check("eine Kachel oben", q("damage-grid").children.length === 2,
+      String(q("damage-grid").children.length));
+    check("nicht mehr auf der Skizze",
+      App.Fleet.skizzeKontext().marken.every((m) => m.id !== weg.id));
+
+    const doc = App.Uebersicht.erzeuge(App.Store.getVehicle(rv.id),
+      App.Store.aktuelleSchaeden(rv.id), App.Store.damageCount(rv.id));
+    const rohR = Buffer.from(doc.doc.bauen()).toString("latin1");
+    check("nicht im Kundendokument", !rohR.includes("Delle T"));
+    check("der offene Schaden schon", rohR.includes("Kratzer Heck"));
+
+    // Zurückholen
+    await App.Store.updateDamage(rv.id, weg.id, { status: "offen" });
+    check("kommt zurück in die Liste",
+      App.Store.aktuelleSchaeden(rv.id).some((d) => d.id === weg.id));
+    check("Reparaturdatum fällt dabei weg",
+      App.Store.damagesOf(rv.id).find((d) => d.id === weg.id).repariertAm === "",
+      App.Store.damagesOf(rv.id).find((d) => d.id === weg.id).repariertAm);
+
+    // Nummern bleiben stehen, auch wenn dazwischen gelöscht wird
+    const dritt = await App.Store.addDamage(rv.id, { images: ["z"], description: "Dritter" });
+    check("dritter bekommt Nr. 3", dritt.nr === 3, String(dritt.nr));
+    await App.Store.deleteDamage(rv.id, dritt.id);
+    const viert = await App.Store.addDamage(rv.id, { images: ["q"], description: "Vierter" });
+    check("nach dem Löschen geht es bei 4 weiter", viert.nr === 4, String(viert.nr));
+    /* Die 3 liegt im Papierkorb und behält ihre Nummer — deshalb darf sie
+       auch nicht neu vergeben werden. */
+    check("die 3 bleibt einmalig",
+      App.Store.damagesOf(rv.id).filter((d) => d.nr === 3).length === 0 &&
+      !App.Store.damagesOf(rv.id).some((d) => d.nr === 4 && d.id === dritt.id));
+
+    await App.Store.deleteVehicle(rv.id);
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    await wait(20);
   }
 
   console.log("\n--- Schadenskizze: Umrisse ---");

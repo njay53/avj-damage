@@ -122,6 +122,11 @@ alter table public.vehicles add column if not exists form   text  not null defau
 alter table public.vehicles add column if not exists skizze jsonb not null default '[]'::jsonb;
 alter table public.damages  add column if not exists marke  jsonb;
 
+-- repariert_am = Datum der Reparatur (JJJJ-MM-TT), gehoert zum Stand
+-- "repariert". Ein reparierter Schaden verschwindet aus der aktiven Liste
+-- und aus dem Kundendokument, bleibt aber beim Fahrzeug erhalten.
+alter table public.damages add column if not exists repariert_am text not null default '';
+
 -- ------------------------------------------------------------- Indizes
 -- Der Abgleich fragt immer "was ist neuer als ...", das laeuft darueber.
 

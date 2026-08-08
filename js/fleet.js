@@ -70,6 +70,7 @@
     q("form-vehicle").addEventListener("submit", submitVehicle);
     q("btn-save-note").addEventListener("click", saveDetailNote);
     q("detail-regulierung").addEventListener("change", zeigeErstattungsfeld);
+    q("detail-status").addEventListener("change", zeigeReparaturdatum);
     q("btn-delete-damage").addEventListener("click", deleteCurrentDamage);
     q("btn-edit-damage").addEventListener("click", editCurrentDamage);
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
@@ -188,7 +189,7 @@
 
     list.forEach(function (v) {
       var anzahl = Store.damageCount(v.id);       // Summe, nicht Einträge
-      var eintraege = Store.damagesOf(v.id, "schaden").length;
+      var eintraege = Store.aktuelleSchaeden(v.id).length;
       var staende = Store.snapshots(v.id).length;
       var kat = Store.categoryName(v.categoryId);
       var card = document.createElement("div");
@@ -268,6 +269,17 @@
     q("zustand-block").classList.toggle("hidden", !v.zustand);
     if (v.zustand) fuelleRaster(q("zustand-grid"), v, "zustand");
 
+    /* Reparierte Schäden: nur da, wenn es welche gibt, und zugeklappt.
+       Sie sind Vergangenheit, nicht Tagesgeschäft. */
+    var repariert = Store.reparierteSchaeden(v.id);
+    var rblock = q("repariert-block");
+    rblock.classList.toggle("hidden", repariert.length === 0);
+    if (repariert.length) {
+      q("repariert-kurz").textContent = repariert.length +
+        (repariert.length === 1 ? " Schaden" : " Schäden");
+      fuelleRaster(q("repariert-grid"), v, "repariert");
+    }
+
     zeigeSkizze(v);
     zeigeBilanz(v);
 
@@ -286,7 +298,7 @@
   /* Die Skizze baut sich aus den Schäden selbst zusammen. Nichts wird
      zusätzlich gepflegt: Schaden gelöscht, Nummer weg. */
   function markenVon(v) {
-    return Store.damagesOf(v.id, "schaden")
+    return Store.aktuelleSchaeden(v.id)
       .filter(function (d) { return d.marke; })
       .map(function (d) {
         return {
@@ -298,7 +310,7 @@
 
   function zeigeSkizze(v) {
     var marken = markenVon(v);
-    var ohne = Store.damagesOf(v.id, "schaden").length - marken.length;
+    var ohne = Store.aktuelleSchaeden(v.id).length - marken.length;
 
     q("skizze-kurz").textContent = marken.length
       ? marken.length + (marken.length === 1 ? " Stelle" : " Stellen") +
@@ -480,11 +492,16 @@
   }
 
   /* Ein Raster für beide Arten — sie unterscheiden sich nur im Wortlaut. */
+  /* art: "schaden" (aktuelle), "zustand" oder "repariert" */
   function fuelleRaster(grid, v, art) {
     var istSchaden = art !== "zustand";
     grid.innerHTML = "";
 
-    Store.damagesOf(v.id, art).forEach(function (d) {
+    var liste = art === "repariert" ? Store.reparierteSchaeden(v.id)
+      : art === "zustand" ? Store.damagesOf(v.id, "zustand")
+      : Store.aktuelleSchaeden(v.id);
+
+    liste.forEach(function (d) {
       var bilder = d.images || [];
       var card = document.createElement("div");
       card.className = "damage-card";
@@ -506,6 +523,10 @@
       card.addEventListener("click", function () { openDetail(d.id); });
       grid.appendChild(card);
     });
+
+    /* Ins Archiv legt man nichts hinein — dort landet nur, was den Stand
+       "repariert" bekommen hat. Also auch keine Kachel zum Hinzufügen. */
+    if (art === "repariert") return;
 
     var add = document.createElement("div");
     add.className = "add-tile";
@@ -1022,6 +1043,8 @@
     q("detail-intern").classList.toggle("hidden", istZustand);
     if (!istZustand) {
       q("detail-status").value = d.status || "offen";
+      q("detail-repariert-am").value = d.repariertAm || "";
+      zeigeReparaturdatum();
       q("detail-schaetzung").value = d.schaetzung === null ? "" : String(d.schaetzung);
       q("detail-zahlung").value = d.zahlung === null ? "" : String(d.zahlung);
       q("detail-kosten").value = d.kosten === null ? "" : String(d.kosten);
@@ -1040,6 +1063,16 @@
   /* Bei mehreren Fotos: Streifen unter dem grossen Bild zum Umschalten. */
   /* Das Erstattungsfeld erscheint nur, wenn überhaupt eine Versicherung im
      Spiel ist. Im Regelfall — Mieter zahlt — ist es nur im Weg. */
+  /* Das Reparaturdatum taucht erst auf, wenn der Stand auf "repariert" steht.
+     Vorher wäre es ein Feld, das man nicht ausfüllen kann. */
+  function zeigeReparaturdatum() {
+    var repariert = q("detail-status").value === "repariert";
+    q("detail-repariert-row").classList.toggle("hidden", !repariert);
+    if (repariert && !q("detail-repariert-am").value) {
+      q("detail-repariert-am").value = App.Annotate.todayStr();
+    }
+  }
+
   function zeigeErstattungsfeld() {
     var art = q("detail-regulierung").value;
     var mitVersicherung = art === "kasko" || art === "teilkasko" || art === "haftpflicht";
@@ -1082,7 +1115,9 @@
       schaetzung: q("detail-schaetzung").value,
       zahlung: q("detail-zahlung").value,
       kosten: q("detail-kosten").value,
-      vertragsnr: q("detail-vertrag").value.trim()
+      vertragsnr: q("detail-vertrag").value.trim(),
+      repariertAm: q("detail-status").value === "repariert"
+        ? q("detail-repariert-am").value : ""
     }).then(function () {
       zeigeSaldo(findeEintrag(currentDamageId));
       renderVehicle();
@@ -1182,7 +1217,7 @@
 
     setTimeout(function () {
       try {
-        var ergebnis = App.Uebersicht.erzeuge(v, Store.damagesOf(v.id, "schaden"), Store.damageCount(v.id));
+        var ergebnis = App.Uebersicht.erzeuge(v, Store.aktuelleSchaeden(v.id), Store.damageCount(v.id));
         ergebnis.doc.speichern(ergebnis.name);
       } catch (err) {
         alert("Die PDF-Datei konnte nicht erzeugt werden.\n\n" + (err.message || err));
@@ -1213,7 +1248,7 @@
       if (!v) return { form: "pkw-kompakt", marken: [], ops: [] };
       return {
         form: formVon(v),
-        marken: Store.damagesOf(v.id, "schaden")
+        marken: Store.aktuelleSchaeden(v.id)
           .filter(function (d) { return d.marke; })
           .map(function (d) {
             return {

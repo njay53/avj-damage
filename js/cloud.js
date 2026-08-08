@@ -204,6 +204,7 @@
           regulierung: d.regulierung || "mieter",
           erstattung: typeof d.erstattung === "number" ? d.erstattung : null,
           marke: d.marke || null,
+          repariert_am: d.repariertAm || "",
           deleted: !!d.deleted, updated_at: d.updatedAt || 0
         });
       });
@@ -271,6 +272,7 @@
         regulierung: r.regulierung || "mieter",
         erstattung: r.erstattung,
         marke: r.marke || null,
+        repariertAm: r.repariert_am || "",
         deleted: !!r.deleted,
         updatedAt: Number(r.updated_at) || 0
       });

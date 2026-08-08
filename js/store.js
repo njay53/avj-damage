@@ -221,6 +221,26 @@
     return state.vehicles.find(function (v) { return v.id === id; }) || null;
   }
 
+  /* Ein reparierter Schaden ist nicht mehr am Fahrzeug. Er verschwindet aus
+     der Liste, aus der Skizze, aus der Zahl und aus dem Kundendokument — aber
+     nicht aus den Daten: Fotos, Betraege und Datum bleiben, sie stehen im
+     Block "Reparierte Schaeden" beim Fahrzeug.
+
+     Bewusst NICHT betroffen: die Bilanz (das Geld ist geflossen), die Suche
+     (man will ihn wiederfinden) und eingefrorene Schadensstaende (die sind
+     eingefroren, ein spaeterer Stand aendert sie nicht rueckwirkend). */
+  function istRepariert(d) {
+    return !!d && d.status === "repariert";
+  }
+
+  function aktuelleSchaeden(vehicleId) {
+    return damagesOf(vehicleId, "schaden").filter(function (d) { return !istRepariert(d); });
+  }
+
+  function reparierteSchaeden(vehicleId) {
+    return damagesOf(vehicleId, "schaden").filter(istRepariert);
+  }
+
   function damagesOf(vehicleId, art) {
     var v = getVehicle(vehicleId);
     if (!v) return [];
@@ -361,6 +381,11 @@
     if (REGULIERUNGEN.indexOf(d.regulierung) === -1) d.regulierung = "mieter";
     d.erstattung = zuBetrag(d.erstattung);
     d.marke = zuMarke(d.marke);
+    if (typeof d.repariertAm !== "string") d.repariertAm = "";
+    /* Das Datum haengt am Stand "repariert". Steht der Stand wieder auf offen,
+       gehoert kein Reparaturdatum mehr dazu — sonst behauptet der Datensatz
+       zwei Dinge gleichzeitig. */
+    if (d.status !== "repariert") d.repariertAm = "";
 
     delete d.image;
     delete d.note;
@@ -457,7 +482,7 @@
   /* Ein Fahrzeug kann mehr Schäden haben als Einträge — ein Foto vom Heck mit
      drei Kratzern ist ein Eintrag mit Anzahl 3. */
   function damageCount(vehicleId) {
-    return damagesOf(vehicleId, "schaden").reduce(function (summe, d) {
+    return aktuelleSchaeden(vehicleId).reduce(function (summe, d) {
       return summe + (parseInt(d.count, 10) || 1);
     }, 0);
   }
@@ -495,6 +520,9 @@
          Ansicht (0 bis 1). Nicht in Pixeln, damit die Nummer auf jedem
          Bildschirm und im PDF an derselben Stelle sitzt. */
       marke: zuMarke(damage.marke),
+      /* Wann repariert wurde. Freiwillig — aber beim Verkauf des Fahrzeugs
+         oder bei einer Rueckfrage der Versicherung will man es wissen. */
+      repariertAm: damage.repariertAm || "",
       /* Nur bei Zustandsaufnahmen gefragt, aber am Schaden nicht verboten:
          wer den Stand kennt, kann ihn eintragen. */
       km: damage.km || "",
@@ -761,7 +789,7 @@
       reference: (reference || "").trim(),
       createdAt: now(),
       updatedAt: now(),
-      damages: damagesOf(v.id, "schaden").map(function (d) {
+      damages: aktuelleSchaeden(v.id).map(function (d) {
         return {
           id: d.id,
           images: (d.images || []).slice(),
@@ -1021,6 +1049,9 @@
     moveCategory: moveCategory,
     deleteCategory: deleteCategory,
     damagesOf: damagesOf,
+    aktuelleSchaeden: aktuelleSchaeden,
+    reparierteSchaeden: reparierteSchaeden,
+    istRepariert: istRepariert,
     damageCount: damageCount,
     bilanz: bilanz,
     suche: suche,
