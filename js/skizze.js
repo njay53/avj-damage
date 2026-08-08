@@ -578,12 +578,16 @@
       }
       if (passend) {
         passend.nummern.push(m.nummer);
+        if (m.id) passend.ids.push(m.id);
         /* Der Punkt wandert in die Mitte der Gruppe, damit die Nummern nicht
            am Rand der Ansammlung kleben. */
         passend.x = (passend.x * (passend.nummern.length - 1) + m.x) / passend.nummern.length;
         passend.y = (passend.y * (passend.nummern.length - 1) + m.y) / passend.nummern.length;
       } else {
-        gruppen.push({ x: m.x, y: m.y, nummern: [m.nummer], spur: !!m.spur });
+        gruppen.push({
+          x: m.x, y: m.y, nummern: [m.nummer], spur: !!m.spur,
+          ids: m.id ? [m.id] : []
+        });
       }
     });
     return gruppen;

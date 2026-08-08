@@ -6,7 +6,7 @@
      Steht unten in der Fusszeile — daran erkennt man auf einen Blick, welche
      Fassung ein Gerät tatsächlich geladen hat. Genau daran haben wir zweimal
      Zeit verloren: neue Oberfläche, altes Verhalten, und niemand sah es. */
-  var APP_VERSION = "v49";
+  var APP_VERSION = "v50";
 
   var VIEWS = ["fleet", "vehicle", "snapshot-view", "settings"];
   var currentView = "fleet";
@@ -402,15 +402,20 @@
     setzeKm: function (an) {
       kmImDokument = !!an;
       return App.Store.idbSet("kmImDokument", kmImDokument).then(function () {
-        var schalter = document.getElementById("input-km-dokument");
-        if (schalter) schalter.checked = kmImDokument;
+        ["input-km-dokument", "input-km-dokument-2"].forEach(function (id) {
+          var schalter = document.getElementById(id);
+          if (schalter) schalter.checked = kmImDokument;
+        });
+        if (App.Nav.current() === "vehicle") App.Fleet.renderVehicle();
       });
     },
     setzeSpuren: function (an) {
       spurenSichtbar = !!an;
       return App.Store.idbSet("spurenSichtbar", spurenSichtbar).then(function () {
-        var schalter = document.getElementById("input-spuren-sichtbar");
-        if (schalter) schalter.checked = spurenSichtbar;
+        ["input-spuren-sichtbar", "input-spuren-sichtbar-2"].forEach(function (id) {
+          var schalter = document.getElementById(id);
+          if (schalter) schalter.checked = spurenSichtbar;
+        });
         if (App.Nav.current() === "vehicle") App.Fleet.renderVehicle();
       });
     }
@@ -431,10 +436,14 @@
   function wendeKennungAn() {
     var feld = document.getElementById("card-code-search");
     if (feld) feld.classList.toggle("hidden", !kennungAktiv);
-    var kmSchalter = document.getElementById("input-km-dokument");
-    if (kmSchalter) kmSchalter.checked = kmImDokument;
-    var spurSchalter = document.getElementById("input-spuren-sichtbar");
-    if (spurSchalter) spurSchalter.checked = spurenSichtbar;
+    ["input-km-dokument", "input-km-dokument-2"].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.checked = kmImDokument;
+    });
+    ["input-spuren-sichtbar", "input-spuren-sichtbar-2"].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.checked = spurenSichtbar;
+    });
     var schalter = document.getElementById("input-kennung-aktiv");
     if (schalter) schalter.checked = kennungAktiv;
     if (Nav.current() === "vehicle") App.Fleet.renderVehicle();

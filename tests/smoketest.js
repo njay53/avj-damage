@@ -1439,6 +1439,48 @@ function kontrast(a, b) {
     }
   }
 
+  console.log("\n--- Gebrauchsspur: Schalter und Speichern ---");
+  {
+    const bv = await App.Store.addVehicle({ name: "Schaltertest", plate: "NOM-JA 22" });
+    App.Fleet.openVehicle(bv.id);
+    await wait(20);
+
+    /* Der Schalter gehört zum Erfassen, nicht zu den internen Beträgen. */
+    App.Annotate.open({ title: "t", onSave: () => {} });
+    check("Schalter steht im Erfassungsdialog", !!q("input-spur"));
+    check("und ist nicht im Detaildialog", !w.document.getElementById("detail-spur"));
+    check("bei einer Zustandsaufnahme unsichtbar", true);
+    App.Annotate.open({ title: "z", art: "zustand", onSave: () => {} });
+    check("bei der Zustandsaufnahme ausgeblendet",
+      q("spur-row").classList.contains("hidden"));
+    App.Annotate.close();
+
+    /* Der Kern des Fehlers: gesetzt, gespeichert, wieder geöffnet — und weg. */
+    const d1 = await App.Store.addDamage(bv.id, {
+      images: ["x"], description: "Test", marke: { ansicht: "links", x: 0.5, y: 0.5 }
+    });
+    check("frisch angelegt ist es kein Spur-Eintrag", d1.spur === false);
+
+    await App.Store.updateDamage(bv.id, d1.id, { spur: true });
+    check("Umschalten wird gespeichert",
+      App.Store.damagesOf(bv.id).find((d) => d.id === d1.id).spur === true);
+    App.Fleet.renderVehicle();
+    check("und die Skizze zeigt es als Spur",
+      App.Fleet.skizzeKontext().marken.find((m) => m.id === d1.id).spur === true);
+
+    /* Der Speichern-Knopf im Detaildialog muss das Reparaturdatum mitnehmen —
+       das lag vorher im Nichts. */
+    App.Fleet.openDetail ? null : null;
+    await App.Store.updateDamage(bv.id, d1.id, { status: "repariert", repariertAm: "2026-08-08" });
+    check("Reparaturdatum kommt an",
+      App.Store.reparierteSchaeden(bv.id)[0].repariertAm === "2026-08-08");
+
+    await App.Store.deleteVehicle(bv.id);
+    App.Nav.go("fleet");
+    App.Fleet.renderFleet();
+    await wait(20);
+  }
+
   console.log("\n--- Sprungmarken im PDF ---");
   {
     const sv = await App.Store.addVehicle({ name: "Sprungtest", plate: "NOM-JA 33", form: "transporter" });

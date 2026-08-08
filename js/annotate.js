@@ -213,6 +213,13 @@
     /* Der Kilometerstand steht jetzt bei beiden Arten zur Verfügung. Bei einem
        frischen Schaden weiss man ihn — bei einem alten nicht, deshalb bleibt
        das Feld freiwillig und wird nicht vorbelegt. */
+    /* Die Gebrauchsspur gehört zur Einschätzung des Schadens, nicht zu den
+       internen Beträgen — deshalb steht sie hier oben bei Datum und
+       Kilometerstand und nicht im zugeklappten Kasten. */
+    var spurZeile = document.getElementById("spur-row");
+    if (spurZeile) spurZeile.classList.toggle("hidden", istZustand);
+    document.getElementById("input-spur").checked = !!(d && d.spur);
+
     document.getElementById("km-row").classList.remove("hidden");
     kmInput.value = (d && d.km) || "";
     document.getElementById("label-area").textContent = istZustand
@@ -1006,6 +1013,7 @@
       area: areaInput.value.trim(),
       kind: aktuelleArt,
       km: kmInput.value.replace(/[^0-9]/g, ""),
+      spur: !istZustand && document.getElementById("input-spur").checked,
       anlass: istZustand ? anlassSel.value : "",
       marke: markeWert ? { ansicht: markeWert.ansicht, x: markeWert.x, y: markeWert.y } : null
     };

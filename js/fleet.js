@@ -75,6 +75,17 @@
     q("btn-edit-damage").addEventListener("click", editCurrentDamage);
     q("btn-add-vehicle").addEventListener("click", function () { openVehicleModal(null); });
     q("btn-vehicle-doc").addEventListener("click", function () { druckeAkte(); });
+    q("btn-pdf-optionen").addEventListener("click", function () {
+      var kasten = q("pdf-optionen");
+      var zu = kasten.classList.toggle("hidden");
+      q("btn-pdf-optionen").setAttribute("aria-expanded", String(!zu));
+    });
+    q("input-spuren-sichtbar-2").addEventListener("change", function () {
+      App.Einstellungen.setzeSpuren(q("input-spuren-sichtbar-2").checked);
+    });
+    q("input-km-dokument-2").addEventListener("change", function () {
+      App.Einstellungen.setzeKm(q("input-km-dokument-2").checked);
+    });
     q("btn-vehicle-hu-cal").addEventListener("click", function () {
       var v = Store.getVehicle(currentVehicleId);
       if (v) huKalender(v);
@@ -313,7 +324,7 @@
       .filter(function (d) { return d.marke; })
       .map(function (d) {
         return {
-          ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
+          id: d.id, ansicht: d.marke.ansicht, x: d.marke.x, y: d.marke.y,
           nummer: String(d.nr || "?"), spur: !!d.spur
         };
       });
@@ -332,7 +343,10 @@
     App.SkizzeUi.tafel(q("skizze-tafel"), {
       form: formVon(v),
       marken: marken,
-      ops: v.skizze || []
+      ops: v.skizze || [],
+      /* Nummer antippen führt zum Schaden — dasselbe, was die Sprungmarken
+         im PDF machen. */
+      beiTipp: function (t) { if (t.ids.length) openDetail(t.ids[0]); }
     });
 
     q("btn-skizze-leeren").classList.toggle("hidden", !(v.skizze && v.skizze.length));
@@ -1056,7 +1070,6 @@
     if (!istZustand) {
       q("detail-status").value = d.status || "offen";
       q("detail-repariert-am").value = d.repariertAm || "";
-      q("detail-spur").checked = !!d.spur;
       zeigeReparaturdatum();
       q("detail-schaetzung").value = d.schaetzung === null ? "" : String(d.schaetzung);
       q("detail-zahlung").value = d.zahlung === null ? "" : String(d.zahlung);
@@ -1119,25 +1132,6 @@
     kasten.textContent = teile.join(" · ");
   }
 
-  function speichereIntern() {
-    var d = findeEintrag(currentDamageId);
-    if (!d) return;
-    Store.updateDamage(currentVehicleId, d.id, {
-      description: q("detail-note-input").value.trim(),
-      status: q("detail-status").value,
-      schaetzung: q("detail-schaetzung").value,
-      zahlung: q("detail-zahlung").value,
-      kosten: q("detail-kosten").value,
-      vertragsnr: q("detail-vertrag").value.trim(),
-      repariertAm: q("detail-status").value === "repariert"
-        ? q("detail-repariert-am").value : "",
-      spur: q("detail-spur").checked
-    }).then(function () {
-      zeigeSaldo(findeEintrag(currentDamageId));
-      renderVehicle();
-      q("modal-detail").classList.add("hidden");
-    });
-  }
 
   function zeigeMiniaturen(bilder) {
     var wrap = q("detail-thumbs");
@@ -1195,6 +1189,11 @@
       patch.vertragsnr = q("detail-vertrag").value.trim();
       patch.regulierung = q("detail-regulierung").value;
       patch.erstattung = q("detail-erstattung").value;
+      /* Gehörte von Anfang an hierher: der Knopf im Detaildialog ist der
+         einzige, der speichert. Ohne diese Zeile blieb das Reparaturdatum
+         beim Schliessen des Dialogs liegen. */
+      patch.repariertAm = q("detail-status").value === "repariert"
+        ? q("detail-repariert-am").value : "";
     }
     Store.updateDamage(currentVehicleId, currentDamageId, patch).then(function () {
       q("modal-detail").classList.add("hidden");

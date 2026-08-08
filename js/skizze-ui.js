@@ -54,7 +54,8 @@
       });
 
     if (o.ops && o.ops.length) zeichneOps(ctx, o.ops, lage);
-    if (o.marken && o.marken.length) zeichneMarken(ctx, o.marken, lage);
+    canvas.__treffer = [];
+    if (o.marken && o.marken.length) zeichneMarken(ctx, o.marken, lage, canvas.__treffer);
     if (o.aktiv) zeichneAktiv(ctx, o.aktiv, lage);
 
     canvas.__lage = lage;
@@ -77,7 +78,7 @@
     };
   }
 
-  function zeichneMarken(ctx, marken, lage) {
+  function zeichneMarken(ctx, marken, lage, treffer) {
     var gruppen = App.Skizze.gruppiere(marken);
     var r = MARKE_R * lage.faktor;
     gruppen.forEach(function (g) {
@@ -98,11 +99,44 @@
       ctx.strokeStyle = "#fff";
       ctx.stroke();
 
+      /* Mittig heisst hier: optisch mittig. "middle" richtet an der halben
+         Schrifthoehe aus, nicht an der Mitte der Ziffern — Ziffern haben keine
+         Unterlaengen, dadurch sitzt die Zahl zu tief. Deshalb wird die
+         tatsaechliche Hoehe der Zeichen gemessen und danach ausgerichtet. */
       ctx.fillStyle = "#fff";
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, p.x, p.y + 0.5);
+      ctx.textBaseline = "alphabetic";
+      var mass = ctx.measureText(text);
+      var oben = mass.actualBoundingBoxAscent;
+      var unten = mass.actualBoundingBoxDescent;
+      var versatz = (typeof oben === "number" && typeof unten === "number" && oben > 0)
+        ? (oben - unten) / 2
+        : r * 0.55;                       // Notnagel, falls der Browser nicht misst
+      ctx.fillText(text, p.x, p.y + versatz);
+
+      /* Wo die Marke sitzt, wird mitgeschrieben — damit ein Tipp darauf zum
+         Schaden führen kann. Etwas grosszügiger als gezeichnet: eine
+         Fingerkuppe ist breiter als eine Zahl. */
+      if (treffer) {
+        var luft = Math.max(6, r * 0.8);
+        treffer.push({
+          x1: p.x - w / 2 - luft, y1: p.y - h / 2 - luft,
+          x2: p.x + w / 2 + luft, y2: p.y + h / 2 + luft,
+          ids: g.ids || [], nummern: g.nummern.slice(), spur: !!g.spur
+        });
+      }
     });
+  }
+
+  /* Welche Marke liegt unter diesem Punkt? Bei Überschneidung gewinnt die
+     zuletzt gezeichnete — die liegt auch optisch oben. */
+  function markeBei(canvas, px, py) {
+    var treffer = canvas.__treffer || [];
+    for (var i = treffer.length - 1; i >= 0; i--) {
+      var t = treffer[i];
+      if (px >= t.x1 && px <= t.x2 && py >= t.y1 && py <= t.y2) return t;
+    }
+    return null;
   }
 
   /* Die Stelle, die gerade gesetzt wird: ein Ring, damit sie sich von den
@@ -192,6 +226,15 @@
       el.appendChild(kasten);
 
       /* Erst anhängen, dann messen: vorher hat das Element keine Breite. */
+      if (o.beiTipp) {
+        c.style.cursor = "pointer";
+        c.addEventListener("click", function (e) {
+          var kasten = c.getBoundingClientRect();
+          var t = markeBei(c, e.clientX - kasten.left, e.clientY - kasten.top);
+          if (t) o.beiTipp(t);
+        });
+      }
+
       var breite = c.parentNode.clientWidth || 150;
       zeichneAnsicht(c, {
         form: o.form,
@@ -223,6 +266,7 @@
     tafel: tafel,
     reiter: reiter,
     pixelNachAnteil: pixelNachAnteil,
+    markeBei: markeBei,
     anteilNachPixel: anteilNachPixel,
     q: q
   };

@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" href="icons/favicon.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="stylesheet" href="css/app.css?b=49" />
+<link rel="stylesheet" href="css/app.css?b=50" />
 </head>
 <body>
 
@@ -74,10 +74,26 @@
     </div>
     <div class="btn-row">
       <button class="secondary" id="btn-vehicle-doc">PDF erstellen</button>
+      <button class="secondary mini" id="btn-pdf-optionen" aria-expanded="false">Was ins PDF …</button>
       <button class="secondary" id="btn-vehicle-hu-cal">HU in Kalender</button>
       <button class="secondary mini" id="btn-delete-vehicle">Archivieren …</button>
     </div>
   </div>
+  <div class="pdf-optionen hidden" id="pdf-optionen">
+    <label class="schalter kipp">
+      <input type="checkbox" id="input-spuren-sichtbar-2" />
+      <span class="kippschalter" aria-hidden="true"></span>
+      <span>Gebrauchsspuren zeigen</span>
+    </label>
+    <label class="schalter kipp">
+      <input type="checkbox" id="input-km-dokument-2" />
+      <span class="kippschalter" aria-hidden="true"></span>
+      <span>Kilometerstand zeigen</span>
+    </label>
+    <p class="hint no-top">Gilt für alle PDF und auch für die Skizze in der App.
+      Dieselben Schalter stehen in den Einstellungen.</p>
+  </div>
+
   <div class="plate-big" id="vehicle-plate"></div>
   <div class="fz-meta hidden" id="vehicle-meta"></div>
 
@@ -580,6 +596,16 @@
         <label for="input-date">Datum</label>
         <input type="date" id="input-date" />
       </div>
+      <label class="schalter kipp" id="spur-row">
+        <input type="checkbox" id="input-spur" />
+        <span class="kippschalter" aria-hidden="true"></span>
+        <span>
+          Gebrauchsspur
+          <em>Oberflächlich, ausserhalb der Schadensrechnung — Kratzer am
+          Ladeboden, Abrieb, Schrammen an Türkanten. Zählt nicht in die
+          Schadenszahl und steht im eigenen Abschnitt.</em>
+        </span>
+      </label>
       <div class="field" id="km-row">
         <label for="input-km">Kilometerstand (optional)</label>
         <input type="text" id="input-km" inputmode="numeric" placeholder="z. B. 84500" />
@@ -633,16 +659,6 @@
         <span class="klappe-zahl">erscheint auf keinem Kundendokument</span>
       </summary>
       <div class="klappe-inhalt">
-        <label class="schalter kipp" id="detail-spur-zeile">
-          <input type="checkbox" id="detail-spur" />
-          <span class="kippschalter" aria-hidden="true"></span>
-          <span>
-            Gebrauchsspur
-            <em>Oberflächlich, ausserhalb der Schadensrechnung — Kratzer am
-            Ladeboden, Abrieb, Schrammen an Türkanten. Zählt nicht in die
-            Schadenszahl und steht im eigenen Abschnitt.</em>
-          </span>
-        </label>
         <div class="field">
           <label for="detail-status">Stand</label>
           <select id="detail-status">
@@ -762,18 +778,18 @@
 <!-- Druckbereich: wird nur beim Drucken sichtbar -->
 <div id="print-area"></div>
 
-<script src="js/store.js?b=49"></script>
-<script src="js/modelle.js?b=49"></script>
-<script src="js/cloud.js?b=49"></script>
-<script src="js/logo.js?b=49"></script>
-<script src="js/skizze.js?b=49"></script>
-<script src="js/skizze-ui.js?b=49"></script>
-<script src="js/formen-vorlagen.js?b=49"></script>
-<script src="js/pdf.js?b=49"></script>
-<script src="js/annotate.js?b=49"></script>
-<script src="js/fleet.js?b=49"></script>
-<script src="js/uebersicht.js?b=49"></script>
-<script src="js/snapshot.js?b=49"></script>
-<script src="js/app.js?b=49"></script>
+<script src="js/store.js?b=50"></script>
+<script src="js/modelle.js?b=50"></script>
+<script src="js/cloud.js?b=50"></script>
+<script src="js/logo.js?b=50"></script>
+<script src="js/skizze.js?b=50"></script>
+<script src="js/skizze-ui.js?b=50"></script>
+<script src="js/formen-vorlagen.js?b=50"></script>
+<script src="js/pdf.js?b=50"></script>
+<script src="js/annotate.js?b=50"></script>
+<script src="js/fleet.js?b=50"></script>
+<script src="js/uebersicht.js?b=50"></script>
+<script src="js/snapshot.js?b=50"></script>
+<script src="js/app.js?b=50"></script>
 </body>
 </html>
